@@ -1,0 +1,151 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // Collection: users
+    // Fields: uid, name, email, role (admin, employee), createdAt
+    //
+    // Collection: clients
+    // Fields: name, phone, email, status (active, inactive), createdAt
+    //
+    // Collection: vehicles
+    // Fields: plate, brand, model, year, color, km, clientId, createdAt
+    //
+    // Collection: services
+    // Fields: name, price, averageTime
+    //
+    // Collection: serviceOrders
+    // Fields: clientId, vehicleId, services (list), status, photosBefore, photosAfter, observations, totalValue, discount, paymentMethod, createdAt, updatedAt
+    //
+    // Collection: appointments
+    // Fields: clientId, vehicleId, startTime, endTime, status
+    //
+    // Collection: inventory
+    // Fields: name, quantity, minQuantity, price
+    //
+    // Collection: transactions
+    // Fields: type, value, category, description, date, paymentMethod, relatedOSId
+    //
+    // Collection: resaleVehicles
+    // Fields: brand, model, year, buyPrice, sellPrice, status, createdAt
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "iurioliveira82@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin'));
+    }
+
+    function isEmployee() {
+      return isAuthenticated() &&
+        (isAdmin() ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee') || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'employee'));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt', 'permissions', 'updatedAt']) &&
+             data.uid is string && data.name is string && data.email is string &&
+             data.role in ['admin', 'employee'];
+    }
+
+    function isValidClient(data) {
+      return data.keys().hasAll(['name', 'phone', 'status']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.phone is string && data.phone.size() >= 8 &&
+             data.status in ['active', 'inactive'];
+    }
+
+    function isValidVehicle(data) {
+      return data.keys().hasAll(['plate', 'brand', 'model', 'clientId']) &&
+             data.plate is string && data.plate.size() > 0 &&
+             data.brand is string && data.model is string &&
+             data.clientId is string;
+    }
+
+    function isValidOS(data) {
+      return data.keys().hasAll(['clientId', 'vehicleId', 'status', 'totalValue']) &&
+             data.status in ['waiting', 'in-progress', 'finished', 'cancelled'];
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{uid} {
+      allow read: if isAuthenticated();
+      allow create: if (isAuthenticated() && request.auth.uid == uid && isValidUser(request.resource.data) && (request.resource.data.role == 'employee' || isAdmin())) ||
+                    (isAdmin() && isValidUser(request.resource.data));
+      allow update: if isAdmin() && isValidUser(request.resource.data);
+    }
+
+    match /clients/{clientId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee() && isValidClient(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /vehicles/{vehicleId} {
+      allow read: if isEmployee();
+      allow create, update: if isEmployee() && isValidVehicle(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if isEmployee();
+      allow write: if isAdmin();
+    }
+
+    match /serviceOrders/{osId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee() && isValidOS(request.resource.data);
+      allow update: if isEmployee() && isValidOS(request.resource.data) && (resource.data.status != 'finished' || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isEmployee();
+      allow write: if isEmployee();
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isEmployee();
+      allow write: if isEmployee();
+    }
+
+    match /suppliers/{supplierId} {
+      allow read: if isEmployee();
+      allow write: if isEmployee();
+    }
+
+    match /stockMovements/{movementId} {
+      allow read: if isEmployee();
+      allow create: if isEmployee();
+      allow update, delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAdmin();
+      allow create: if isEmployee();
+      allow update, delete: if isAdmin();
+    }
+
+    match /resaleVehicles/{resaleId} {
+      allow read: if isEmployee();
+      allow write: if isAdmin();
+    }
+    
+    match /test/connection {
+      allow read: if true;
+    }
+  }
+}

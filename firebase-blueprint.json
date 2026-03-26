@@ -1,0 +1,190 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and role",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "employee"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Client": {
+      "title": "Client",
+      "description": "Customer information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "status"]
+    },
+    "Vehicle": {
+      "title": "Vehicle",
+      "description": "Vehicle details linked to a client",
+      "type": "object",
+      "properties": {
+        "plate": { "type": "string" },
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "integer" },
+        "color": { "type": "string" },
+        "km": { "type": "integer" },
+        "clientId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["plate", "brand", "model", "clientId"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Service catalog",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "averageTime": { "type": "integer", "description": "Time in minutes" }
+      },
+      "required": ["name", "price"]
+    },
+    "ServiceOrder": {
+      "title": "ServiceOrder",
+      "description": "Service order details",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "serviceId": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" }
+            }
+          }
+        },
+        "status": { "type": "string", "enum": ["waiting", "in-progress", "finished", "cancelled"] },
+        "photosBefore": { "type": "array", "items": { "type": "string" } },
+        "photosAfter": { "type": "array", "items": { "type": "string" } },
+        "observations": { "type": "string" },
+        "totalValue": { "type": "number" },
+        "discount": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "pix", "card"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "vehicleId", "status", "totalValue"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled services",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "serviceIds": { "type": "array", "items": { "type": "string" } },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["scheduled", "confirmed", "cancelled"] }
+      },
+      "required": ["clientId", "vehicleId", "startTime", "endTime"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Products in stock",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "quantity": { "type": "number" },
+        "minQuantity": { "type": "number" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "supplierId": { "type": "string" },
+        "category": { "type": "string" }
+      },
+      "required": ["name", "quantity", "price"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Product suppliers",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "address": { "type": "string" },
+        "category": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "Stock in/out movements",
+      "type": "object",
+      "properties": {
+        "itemId": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "quantity": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "reason": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "cost": { "type": "number" },
+        "userId": { "type": "string" }
+      },
+      "required": ["itemId", "type", "quantity", "date", "userId"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Financial records",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "value": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "paymentMethod": { "type": "string" },
+        "relatedOSId": { "type": "string" }
+      },
+      "required": ["type", "value", "date"]
+    },
+    "ResaleVehicle": {
+      "title": "ResaleVehicle",
+      "description": "Vehicles for sale",
+      "type": "object",
+      "properties": {
+        "brand": { "type": "string" },
+        "model": { "type": "string" },
+        "year": { "type": "integer" },
+        "buyPrice": { "type": "number" },
+        "sellPrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["available", "reserved", "sold"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["brand", "model", "buyPrice", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": { "schema": "User", "description": "User profiles" },
+    "/clients/{clientId}": { "schema": "Client", "description": "Customer records" },
+    "/vehicles/{vehicleId}": { "schema": "Vehicle", "description": "Vehicle records" },
+    "/services/{serviceId}": { "schema": "Service", "description": "Service catalog" },
+    "/serviceOrders/{osId}": { "schema": "ServiceOrder", "description": "Service orders" },
+    "/appointments/{appointmentId}": { "schema": "Appointment", "description": "Agenda" },
+    "/inventory/{itemId}": { "schema": "InventoryItem", "description": "Stock items" },
+    "/suppliers/{supplierId}": { "schema": "Supplier", "description": "Suppliers" },
+    "/stockMovements/{movementId}": { "schema": "StockMovement", "description": "Stock movements" },
+    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial transactions" },
+    "/resaleVehicles/{resaleId}": { "schema": "ResaleVehicle", "description": "Resale inventory" }
+  }
+}
