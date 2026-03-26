@@ -9,21 +9,45 @@ import {
   MoreVertical, 
   Edit2, 
   Trash2,
-  Tag
+  Tag,
+  History
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Supplier } from '../types';
+import { db, auth } from '../firebase';
+import { Supplier, OperationType } from '../types';
+import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { toast } from 'sonner';
 
-const Suppliers: React.FC = () => {
+interface SuppliersProps {
+  setActiveTab?: (tab: string, itemId?: string, supplierId?: string) => void;
+}
+
+const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
-  const { canCreate, canEdit, canDelete } = usePermissions('suppliers');
+  const { canView, canCreate, canEdit, canDelete } = usePermissions('suppliers');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -34,7 +58,45 @@ const Suppliers: React.FC = () => {
     category: ''
   });
 
+  const validateCNPJ = (cnpj: string) => {
+    const cleaned = cnpj.replace(/\D/g, '');
+    
+    if (cleaned.length !== 14) return false;
+    
+    // Check for repeated digits
+    if (/^(\d)\1+$/.test(cleaned)) return false;
+    
+    // Validate check digits
+    const calculateDigit = (numbers: string, weight: number[]) => {
+      let sum = 0;
+      for (let i = 0; i < numbers.length; i++) {
+        sum += parseInt(numbers[i]) * weight[i];
+      }
+      const remainder = sum % 11;
+      return remainder < 2 ? 0 : 11 - remainder;
+    };
+    
+    const weight1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    const weight2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+    
+    const digit1 = calculateDigit(cleaned.substring(0, 12), weight1);
+    const digit2 = calculateDigit(cleaned.substring(0, 13), weight2);
+    
+    return digit1 === parseInt(cleaned[12]) && digit2 === parseInt(cleaned[13]);
+  };
+
+  const maskCNPJ = (value: string) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 14);
+    return cleaned
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  };
+
   useEffect(() => {
+    if (!profile || !canView) return;
+
     const q = query(collection(db, 'suppliers'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Supplier[] = [];
@@ -43,16 +105,24 @@ const Suppliers: React.FC = () => {
       });
       setSuppliers(list);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'suppliers');
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile, canView]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.phone) {
       toast.error('Nome e telefone são obrigatórios.');
+      return;
+    }
+
+    if (formData.cnpj && !validateCNPJ(formData.cnpj)) {
+      toast.error('CNPJ inválido. Por favor, verifique o número informado.');
       return;
     }
 
@@ -72,8 +142,7 @@ const Suppliers: React.FC = () => {
       }
       closeModal();
     } catch (error) {
-      console.error(error);
-      toast.error('Erro ao salvar fornecedor.');
+      handleFirestoreError(error, editingSupplier ? OperationType.UPDATE : OperationType.CREATE, 'suppliers');
     }
   };
 
@@ -83,8 +152,7 @@ const Suppliers: React.FC = () => {
         await deleteDoc(doc(db, 'suppliers', id));
         toast.success('Fornecedor excluído com sucesso!');
       } catch (error) {
-        console.error(error);
-        toast.error('Erro ao excluir fornecedor.');
+        handleFirestoreError(error, OperationType.DELETE, `suppliers/${id}`);
       }
     }
   };
@@ -124,6 +192,15 @@ const Suppliers: React.FC = () => {
     s.cnpj?.includes(searchTerm) ||
     s.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+        <Truck size={48} className="mb-4" />
+        <p className="text-lg font-medium">Acesso restrito.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -209,6 +286,16 @@ const Suppliers: React.FC = () => {
                   </div>
                 )}
               </div>
+
+              <div className="pt-4 border-t border-zinc-50">
+                <button
+                  onClick={() => setActiveTab?.('stock', undefined, supplier.id)}
+                  className="w-full flex items-center justify-center gap-2 py-2 bg-zinc-50 text-zinc-600 rounded-xl text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all"
+                >
+                  <History size={14} />
+                  Ver Movimentações
+                </button>
+              </div>
             </div>
           </div>
         )) : (
@@ -247,9 +334,10 @@ const Suppliers: React.FC = () => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">CNPJ</label>
                   <input 
                     type="text" 
+                    placeholder="00.000.000/0000-00"
                     className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
                     value={formData.cnpj}
-                    onChange={(e) => setFormData({ ...formData, cnpj: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
                   />
                 </div>
               </div>

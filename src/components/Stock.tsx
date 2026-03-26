@@ -12,24 +12,57 @@ import {
   Filter
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, increment } from 'firebase/firestore';
-import { db } from '../firebase';
-import { StockMovement, InventoryItem, Supplier, UserProfile } from '../types';
+import { db, auth } from '../firebase';
+import { StockMovement, InventoryItem, Supplier, UserProfile, OperationType } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from './Auth';
 import { formatCurrency, cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
-const Stock: React.FC = () => {
+interface StockProps {
+  initialItemId?: string;
+  initialSupplierId?: string;
+}
+
+const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
   const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'in' | 'out'>('all');
+  const [filterUser, setFilterUser] = useState('all');
+  const [filterItem, setFilterItem] = useState(initialItemId || 'all');
+  const [filterSupplier, setFilterSupplier] = useState(initialSupplierId || 'all');
+  const [dateRange, setDateRange] = useState({
+    start: '',
+    end: ''
+  });
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
-  const { canCreate } = usePermissions('stock');
+  const [viewMode, setViewMode] = useState<'movements' | 'items'>('movements');
+  const { canView, canCreate } = usePermissions('stock');
 
   const [formData, setFormData] = useState({
     itemId: '',
@@ -41,33 +74,53 @@ const Stock: React.FC = () => {
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'stockMovements'), orderBy('date', 'desc'));
-    const unsubscribeMovements = onSnapshot(q, (snapshot) => {
-      const list: StockMovement[] = [];
-      snapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as StockMovement);
-      });
-      setMovements(list);
-      setLoading(false);
-    });
+    if (!profile || !canView) return;
 
-    const unsubscribeInventory = onSnapshot(collection(db, 'inventory'), (snapshot) => {
-      const list: InventoryItem[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as InventoryItem));
-      setInventory(list);
-    });
+    const unsubscribeMovements = onSnapshot(
+      query(collection(db, 'stockMovements'), orderBy('date', 'desc')), 
+      (snapshot) => {
+        const list: StockMovement[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as StockMovement);
+        });
+        setMovements(list);
+        setLoading(false);
+      },
+      (error) => {
+        handleFirestoreError(error, OperationType.GET, 'stockMovements');
+        setLoading(false);
+      }
+    );
 
-    const unsubscribeSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-      const list: Supplier[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
-      setSuppliers(list);
-    });
+    const unsubscribeInventory = onSnapshot(
+      collection(db, 'inventory'), 
+      (snapshot) => {
+        const list: InventoryItem[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as InventoryItem));
+        setInventory(list);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, 'inventory')
+    );
 
-    const unsubscribeUsers = onSnapshot(collection(db, 'users'), (snapshot) => {
-      const list: UserProfile[] = [];
-      snapshot.forEach((doc) => list.push({ uid: doc.id, ...doc.data() } as UserProfile));
-      setUsers(list);
-    });
+    const unsubscribeSuppliers = onSnapshot(
+      collection(db, 'suppliers'), 
+      (snapshot) => {
+        const list: Supplier[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
+        setSuppliers(list);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, 'suppliers')
+    );
+
+    const unsubscribeUsers = onSnapshot(
+      collection(db, 'users'), 
+      (snapshot) => {
+        const list: UserProfile[] = [];
+        snapshot.forEach((doc) => list.push({ uid: doc.id, ...doc.data() } as UserProfile));
+        setUsers(list);
+      },
+      (error) => handleFirestoreError(error, OperationType.GET, 'users')
+    );
 
     return () => {
       unsubscribeMovements();
@@ -75,7 +128,7 @@ const Stock: React.FC = () => {
       unsubscribeSuppliers();
       unsubscribeUsers();
     };
-  }, []);
+  }, [profile, canView]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,22 +167,23 @@ const Stock: React.FC = () => {
 
       // 3. If it's an entry with cost, create a financial transaction (Accounts Payable)
       if (formData.type === 'in' && formData.cost > 0) {
+        const supplier = suppliers.find(s => s.id === formData.supplierId);
         await addDoc(collection(db, 'transactions'), {
           type: 'out',
           value: formData.cost * formData.quantity,
           category: 'Estoque',
-          description: `Entrada de Estoque: ${item.name} (${formData.quantity} un)`,
+          description: `Entrada de Estoque: ${item.name} (${formData.quantity} un)${supplier ? ` - Fornecedor: ${supplier.name}` : ''}`,
           date: new Date().toISOString(),
           status: 'pending', // Accounts Payable
-          paymentMethod: 'Boleto'
+          paymentMethod: 'Boleto',
+          supplierId: formData.supplierId || undefined
         });
       }
 
       toast.success('Movimentação registrada com sucesso!');
       closeModal();
     } catch (error) {
-      console.error(error);
-      toast.error('Erro ao registrar movimentação.');
+      handleFirestoreError(error, OperationType.CREATE, 'stockMovements');
     }
   };
 
@@ -149,103 +203,370 @@ const Stock: React.FC = () => {
   const getSupplierName = (id: string) => suppliers.find(s => s.id === id)?.name || '-';
   const getUserName = (id: string) => users.find(u => u.uid === id)?.name || 'Sistema';
 
-  const filteredMovements = movements.filter(m => 
-    getItemName(m.itemId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.reason.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMovements = movements.filter(m => {
+    const matchesSearch = getItemName(m.itemId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      m.reason.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesType = filterType === 'all' || m.type === filterType;
+    const matchesUser = filterUser === 'all' || m.userId === filterUser;
+    const matchesItem = filterItem === 'all' || m.itemId === filterItem;
+    const matchesSupplier = filterSupplier === 'all' || m.supplierId === filterSupplier;
+    
+    const movementDate = new Date(m.date);
+    const matchesStart = !dateRange.start || movementDate >= new Date(dateRange.start);
+    const matchesEnd = !dateRange.end || movementDate <= new Date(dateRange.end + 'T23:59:59');
+    
+    return matchesSearch && matchesType && matchesUser && matchesItem && matchesSupplier && matchesStart && matchesEnd;
+  });
+
+  const filteredInventory = inventory.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  const openHistory = (item: InventoryItem) => {
+    setSelectedItem(item);
+    setIsHistoryModalOpen(true);
+  };
+
+  const closeHistoryModal = () => {
+    setIsHistoryModalOpen(false);
+    setSelectedItem(null);
+  };
+
+  if (!canView) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+        <Package size={48} className="mb-4" />
+        <p className="text-lg font-medium">Acesso restrito.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por item ou motivo..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        {canCreate && (
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+        <div className="flex items-center gap-2 bg-zinc-100 p-1 rounded-2xl w-fit">
+          <button
+            onClick={() => setViewMode('movements')}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+              viewMode === 'movements' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            )}
           >
-            <Plus size={20} />
-            Nova Movimentação
+            Movimentações
           </button>
-        )}
-      </div>
+          <button
+            onClick={() => setViewMode('items')}
+            className={cn(
+              "px-4 py-2 rounded-xl text-xs font-bold transition-all",
+              viewMode === 'items' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            )}
+          >
+            Saldos por Item
+          </button>
+        </div>
 
-      <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-zinc-50/50 border-b border-zinc-200">
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tipo</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Item</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Qtd</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Motivo</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Fornecedor</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-6 py-20 text-center text-zinc-400 italic">Carregando movimentações...</td>
-                </tr>
-              ) : filteredMovements.length > 0 ? filteredMovements.map((m) => (
-                <tr key={m.id} className="hover:bg-zinc-50/50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-zinc-900">{format(new Date(m.date), 'dd/MM/yyyy')}</span>
-                      <span className="text-[10px] text-zinc-400">{format(new Date(m.date), 'HH:mm')}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                      m.type === 'in' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
-                    )}>
-                      {m.type === 'in' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
-                      {m.type === 'in' ? 'Entrada' : 'Saída'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-zinc-900">{getItemName(m.itemId)}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm font-bold text-zinc-900">{m.quantity} un</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-zinc-500">{m.reason}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className="text-sm text-zinc-500">{getSupplierName(m.supplierId || '')}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                        {getUserName(m.userId).charAt(0)}
-                      </div>
-                      <span className="text-sm text-zinc-500">{getUserName(m.userId)}</span>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={7} className="px-6 py-20 text-center text-zinc-400 italic">Nenhuma movimentação registrada.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 justify-end">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+            <input 
+              type="text" 
+              placeholder={viewMode === 'movements' ? "Buscar por item ou motivo..." : "Buscar por item ou categoria..."}
+              className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          {viewMode === 'movements' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2 bg-white border border-zinc-200 rounded-2xl px-3 py-1.5 shadow-sm">
+                <Calendar size={14} className="text-zinc-400" />
+                <input 
+                  type="date" 
+                  className="text-xs font-bold focus:outline-none bg-transparent"
+                  value={dateRange.start}
+                  onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                />
+                <span className="text-zinc-300">|</span>
+                <input 
+                  type="date" 
+                  className="text-xs font-bold focus:outline-none bg-transparent"
+                  value={dateRange.end}
+                  onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                />
+              </div>
+
+              <select
+                className="px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+                value={filterItem}
+                onChange={(e) => setFilterItem(e.target.value)}
+              >
+                <option value="all">Todos Itens</option>
+                {inventory.map(i => (
+                  <option key={i.id} value={i.id}>{i.name}</option>
+                ))}
+              </select>
+
+              <select
+                className="px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+                value={filterSupplier}
+                onChange={(e) => setFilterSupplier(e.target.value)}
+              >
+                <option value="all">Todos Fornecedores</option>
+                {suppliers.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+
+              <select
+                className="px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value as any)}
+              >
+                <option value="all">Todos Tipos</option>
+                <option value="in">Entradas</option>
+                <option value="out">Saídas</option>
+              </select>
+
+              <select
+                className="px-4 py-3 bg-white border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+                value={filterUser}
+                onChange={(e) => setFilterUser(e.target.value)}
+              >
+                <option value="all">Todos Usuários</option>
+                {users.map(u => (
+                  <option key={u.uid} value={u.uid}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          
+          {canCreate && (
+            <button 
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            >
+              <Plus size={20} />
+              Nova Movimentação
+            </button>
+          )}
         </div>
       </div>
 
+      {viewMode === 'movements' ? (
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-zinc-50/50 border-b border-zinc-200">
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tipo</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Item</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Qtd</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Motivo</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Fornecedor</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-20 text-center text-zinc-400 italic">Carregando movimentações...</td>
+                  </tr>
+                ) : filteredMovements.length > 0 ? filteredMovements.map((m) => (
+                  <tr key={m.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-sm font-bold text-zinc-900">{format(new Date(m.date), 'dd/MM/yyyy')}</span>
+                        <span className="text-[10px] text-zinc-400">{format(new Date(m.date), 'HH:mm')}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                        m.type === 'in' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                      )}>
+                        {m.type === 'in' ? <ArrowUpCircle size={12} /> : <ArrowDownCircle size={12} />}
+                        {m.type === 'in' ? 'Entrada' : 'Saída'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-zinc-900">{getItemName(m.itemId)}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-zinc-900">{m.quantity} un</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-zinc-500">{m.reason}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-zinc-500">{getSupplierName(m.supplierId || '')}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                          {getUserName(m.userId).charAt(0)}
+                        </div>
+                        <span className="text-sm text-zinc-500">{getUserName(m.userId)}</span>
+                      </div>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-20 text-center text-zinc-400 italic">Nenhuma movimentação registrada.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-zinc-50/50 border-b border-zinc-200">
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Item</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Categoria</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Saldo Atual</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Mínimo</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100">
+                {loading ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-20 text-center text-zinc-400 italic">Carregando itens...</td>
+                  </tr>
+                ) : filteredInventory.length > 0 ? filteredInventory.map((item) => (
+                  <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <span className="text-sm font-bold text-zinc-900">{item.name}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-zinc-500">{item.category || '-'}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={cn(
+                        "text-sm font-bold",
+                        item.quantity <= item.minQuantity ? "text-red-600" : "text-zinc-900"
+                      )}>
+                        {item.quantity} un
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="text-sm text-zinc-500">{item.minQuantity} un</span>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button
+                        onClick={() => openHistory(item)}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 bg-zinc-100 text-zinc-600 rounded-xl text-xs font-bold hover:bg-zinc-200 transition-all"
+                      >
+                        <History size={14} />
+                        Histórico
+                      </button>
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-20 text-center text-zinc-400 italic">Nenhum item encontrado.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {isHistoryModalOpen && selectedItem && (
+        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-200 text-zinc-900">
+                  <History size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900">Histórico de Movimentações</h3>
+                  <p className="text-sm text-zinc-500">{selectedItem.name}</p>
+                </div>
+              </div>
+              <button onClick={closeHistoryModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+                <XCircle size={24} className="rotate-45" />
+              </button>
+            </div>
+
+            <div className="p-0 max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead className="sticky top-0 bg-white z-10 shadow-sm">
+                  <tr className="border-b border-zinc-100">
+                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tipo</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right">Quantidade</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Motivo</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-50">
+                  {movements.filter(m => m.itemId === selectedItem.id).length > 0 ? (
+                    movements.filter(m => m.itemId === selectedItem.id).map((m) => (
+                      <tr key={m.id} className="hover:bg-zinc-50/30 transition-colors">
+                        <td className="px-8 py-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-zinc-900">{format(new Date(m.date), 'dd/MM/yyyy')}</span>
+                            <span className="text-[10px] text-zinc-400">{format(new Date(m.date), 'HH:mm')}</span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className={cn(
+                            "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                            m.type === 'in' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                          )}>
+                            {m.type === 'in' ? 'Entrada' : 'Saída'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-4 text-right">
+                          <span className={cn(
+                            "text-sm font-bold",
+                            m.type === 'in' ? "text-green-600" : "text-red-600"
+                          )}>
+                            {m.type === 'in' ? '+' : '-'}{m.quantity} un
+                          </span>
+                        </td>
+                        <td className="px-8 py-4">
+                          <span className="text-sm text-zinc-600">{m.reason}</span>
+                        </td>
+                        <td className="px-8 py-4">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                              {getUserName(m.userId).charAt(0)}
+                            </div>
+                            <span className="text-xs text-zinc-500">{getUserName(m.userId)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={5} className="px-8 py-20 text-center text-zinc-400 italic">Nenhuma movimentação para este item.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="p-8 bg-zinc-50/50 border-t border-zinc-100 flex justify-end">
+              <button 
+                onClick={closeHistoryModal}
+                className="px-8 py-3 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">

@@ -17,13 +17,32 @@ import {
   Tag
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { InventoryItem, Supplier } from '../types';
+import { db, auth } from '../firebase';
+import { InventoryItem, Supplier, OperationType } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from './Auth';
 import { formatCurrency, cn } from '../lib/utils';
 import { toast } from 'sonner';
 
-const Inventory: React.FC = () => {
+const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +63,8 @@ const Inventory: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!profile) return;
+
     const q = query(collection(db, 'inventory'), orderBy('name', 'asc'));
     const unsubscribeItems = onSnapshot(q, (snapshot) => {
       const list: InventoryItem[] = [];
@@ -51,6 +72,9 @@ const Inventory: React.FC = () => {
         list.push({ id: doc.id, ...doc.data() } as InventoryItem);
       });
       setItems(list);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'inventory');
       setLoading(false);
     });
 
@@ -60,13 +84,15 @@ const Inventory: React.FC = () => {
         list.push({ id: doc.id, ...doc.data() } as Supplier);
       });
       setSuppliers(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'suppliers');
     });
 
     return () => {
       unsubscribeItems();
       unsubscribeSuppliers();
     };
-  }, []);
+  }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,29 +175,57 @@ const Inventory: React.FC = () => {
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalInventoryValue = filteredItems.reduce((acc, item) => acc + (item.quantity * (item.cost || 0)), 0);
+
   return (
     <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Total de Itens</p>
+          <h3 className="text-2xl font-black text-zinc-900">{filteredItems.length}</h3>
+        </div>
+        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Itens com Estoque Baixo</p>
+          <h3 className="text-2xl font-black text-red-600">{filteredItems.filter(i => i.quantity <= i.minQuantity).length}</h3>
+        </div>
+        <div className="bg-zinc-900 p-6 rounded-3xl shadow-lg shadow-zinc-200 text-white">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Valor Total em Estoque (Custo)</p>
+          <h3 className="text-2xl font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInventoryValue)}</h3>
+        </div>
+      </div>
+
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome do produto..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        {canCreate && (
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 justify-end">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+            <input 
+              type="text" 
+              placeholder="Buscar por nome do produto..." 
+              className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
           <button 
-            onClick={() => openModal()}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            onClick={() => setActiveTab?.('stock')}
+            className="flex items-center justify-center gap-2 bg-white border border-zinc-200 text-zinc-600 px-6 py-3 rounded-2xl font-bold hover:bg-zinc-50 transition-all shadow-sm"
           >
-            <Plus size={20} />
-            Novo Produto
+            <History size={20} />
+            Histórico Global
           </button>
-        )}
+
+          {canCreate && (
+            <button 
+              onClick={() => openModal()}
+              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            >
+              <Plus size={20} />
+              Novo Produto
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Inventory Grid */}
@@ -253,7 +307,7 @@ const Inventory: React.FC = () => {
                 )}
               </div>
 
-              <div className="pt-4 border-t border-zinc-100 grid grid-cols-2 gap-4">
+              <div className="pt-4 border-t border-zinc-100 grid grid-cols-2 gap-4 mb-4">
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Preço Venda</p>
                   <div className="flex items-center gap-1 text-zinc-900">
@@ -268,6 +322,14 @@ const Inventory: React.FC = () => {
                   </div>
                 </div>
               </div>
+
+              <button
+                onClick={() => setActiveTab?.('stock', item.id)}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-zinc-50 text-zinc-600 rounded-2xl text-xs font-bold hover:bg-zinc-100 transition-all border border-zinc-100"
+              >
+                <History size={16} />
+                Ver Histórico de Movimentações
+              </button>
             </div>
           );
         }) : (

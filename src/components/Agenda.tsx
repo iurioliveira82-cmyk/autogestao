@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Appointment, Client, Vehicle, Service } from '../types';
+import { Appointment, Client, Vehicle, Service, OperationType } from '../types';
+import { auth } from '../firebase';
+import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { cn } from '../lib/utils';
 import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
@@ -24,10 +26,28 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 interface AgendaProps {
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: string, itemId?: string) => void;
 }
 
 const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const { canCreate, canEdit, canDelete } = usePermissions('agenda');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -49,6 +69,8 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
 
   useEffect(() => {
+    if (!profile) return;
+
     const start = startOfDay(selectedDate);
     const end = endOfDay(selectedDate);
 
@@ -66,24 +88,33 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
       });
       setAppointments(list);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'appointments');
+      setLoading(false);
     });
 
     const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const list: Client[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
       setClients(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'clients');
     });
 
     const unsubscribeVehicles = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
       const list: Vehicle[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Vehicle));
       setVehicles(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'vehicles');
     });
 
     const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
       const list: Service[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Service));
       setServices(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'services');
     });
 
     return () => {
@@ -92,7 +123,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
       unsubscribeVehicles();
       unsubscribeServices();
     };
-  }, [selectedDate]);
+  }, [selectedDate, profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

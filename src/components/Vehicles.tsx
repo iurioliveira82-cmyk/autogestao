@@ -14,13 +14,32 @@ import {
   User
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Vehicle, Client } from '../types';
+import { db, auth } from '../firebase';
+import { Vehicle, Client, OperationType } from '../types';
+import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatPlate, cn } from '../lib/utils';
 import { toast } from 'sonner';
 
 const Vehicles: React.FC = () => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +60,8 @@ const Vehicles: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!profile) return;
+
     const qVehicles = query(collection(db, 'vehicles'), orderBy('plate', 'asc'));
     const unsubscribeVehicles = onSnapshot(qVehicles, (snapshot) => {
       const vehicleList: Vehicle[] = [];
@@ -48,6 +69,9 @@ const Vehicles: React.FC = () => {
         vehicleList.push({ id: doc.id, ...doc.data() } as Vehicle);
       });
       setVehicles(vehicleList);
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'vehicles');
       setLoading(false);
     });
 
@@ -58,13 +82,15 @@ const Vehicles: React.FC = () => {
         clientList.push({ id: doc.id, ...doc.data() } as Client);
       });
       setClients(clientList);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'clients');
     });
 
     return () => {
       unsubscribeVehicles();
       unsubscribeClients();
     };
-  }, []);
+  }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

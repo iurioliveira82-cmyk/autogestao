@@ -16,12 +16,32 @@ import {
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
-import { ResaleVehicle } from '../types';
+import { ResaleVehicle, OperationType } from '../types';
+import { auth } from '../firebase';
+import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatCurrency, cn } from '../lib/utils';
 import { toast } from 'sonner';
 
 const Resale: React.FC = () => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [vehicles, setVehicles] = useState<ResaleVehicle[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,6 +60,8 @@ const Resale: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!profile) return;
+
     const q = query(collection(db, 'resaleVehicles'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: ResaleVehicle[] = [];
@@ -48,10 +70,13 @@ const Resale: React.FC = () => {
       });
       setVehicles(list);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'resaleVehicles');
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

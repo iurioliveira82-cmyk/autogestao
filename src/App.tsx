@@ -13,11 +13,26 @@ import Resale from './components/Resale';
 import Suppliers from './components/Suppliers';
 import Stock from './components/Stock';
 import Users from './components/Users';
+import Fiscal from './components/Fiscal';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [stockItemId, setStockItemId] = useState<string | undefined>(undefined);
+  const [stockSupplierId, setStockSupplierId] = useState<string | undefined>(undefined);
+
+  const handleSetActiveTab = (tab: string, itemId?: string, supplierId?: string) => {
+    setActiveTab(tab);
+    if (tab === 'stock') {
+      setStockItemId(itemId);
+      setStockSupplierId(supplierId);
+    } else {
+      setStockItemId(undefined);
+      setStockSupplierId(undefined);
+    }
+  };
 
   if (loading) {
     return (
@@ -39,13 +54,14 @@ const AppContent: React.FC = () => {
       case 'dashboard': return <Dashboard />;
       case 'clients': return <Clients />;
       case 'vehicles': return <Vehicles />;
-      case 'os': return <ServiceOrders setActiveTab={setActiveTab} />;
-      case 'agenda': return <Agenda setActiveTab={setActiveTab} />;
+      case 'os': return <ServiceOrders setActiveTab={handleSetActiveTab} />;
+      case 'agenda': return <Agenda setActiveTab={handleSetActiveTab} />;
       case 'services': return <Services />;
-      case 'inventory': return <Inventory />;
-      case 'suppliers': return <Suppliers />;
-      case 'stock': return <Stock />;
+      case 'inventory': return <Inventory setActiveTab={handleSetActiveTab} />;
+      case 'suppliers': return <Suppliers setActiveTab={handleSetActiveTab} />;
+      case 'stock': return <Stock initialItemId={stockItemId} initialSupplierId={stockSupplierId} />;
       case 'finance': return <Finance />;
+      case 'fiscal': return <Fiscal />;
       case 'resale': return <Resale />;
       case 'users': return <Users />;
       default: return <Dashboard />;
@@ -53,7 +69,7 @@ const AppContent: React.FC = () => {
   };
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
+    <Layout activeTab={activeTab} setActiveTab={handleSetActiveTab}>
       {renderContent()}
     </Layout>
   );
@@ -61,9 +77,11 @@ const AppContent: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-      <Toaster position="top-right" richColors closeButton />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+        <Toaster position="top-right" richColors closeButton />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

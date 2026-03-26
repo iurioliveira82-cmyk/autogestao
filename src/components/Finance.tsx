@@ -15,9 +15,10 @@ import {
   Printer
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Transaction, OperationType } from '../types';
+import { db, auth } from '../firebase';
+import { Transaction, Supplier, OperationType } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
+import { useAuth } from './Auth';
 import { formatCurrency, cn } from '../lib/utils';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -25,7 +26,26 @@ import { toast } from 'sonner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 const Finance: React.FC = () => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -49,7 +69,8 @@ const Finance: React.FC = () => {
     category: '',
     description: '',
     paymentMethod: 'pix',
-    status: 'paid' as 'paid' | 'pending'
+    status: 'paid' as 'paid' | 'pending',
+    supplierId: ''
   });
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
@@ -58,6 +79,13 @@ const Finance: React.FC = () => {
   const { canCreate, canEdit, canDelete } = usePermissions('finance');
 
   useEffect(() => {
+    if (!profile) return;
+    
+    if (profile.role !== 'admin') {
+      setLoading(false);
+      return;
+    }
+
     const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Transaction[] = [];
@@ -89,12 +117,21 @@ const Finance: React.FC = () => {
       });
       setLoading(false);
     }, (error) => {
-      console.error('Firestore Error in Finance:', error);
+      handleFirestoreError(error, OperationType.GET, 'transactions');
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    const unsubscribeSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+      const list: Supplier[] = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
+      setSuppliers(list);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'suppliers'));
+
+    return () => {
+      unsubscribe();
+      unsubscribeSuppliers();
+    };
+  }, [profile]);
 
   const filteredTransactions = transactions.filter(t => {
     const matchesStatus = filters.status === 'all' || t.status === filters.status;
@@ -118,6 +155,7 @@ const Finance: React.FC = () => {
         value: parseFloat(formData.value),
         date: new Date().toISOString(),
         status: formData.status,
+        supplierId: formData.type === 'out' ? formData.supplierId : undefined,
         createdAt: serverTimestamp()
       });
       
@@ -304,7 +342,17 @@ const Finance: React.FC = () => {
                     <td className="px-8 py-5 text-sm text-zinc-500">{format(new Date(t.date), 'dd/MM/yy')}</td>
                     <td className="px-8 py-5">
                       <span className="text-sm font-bold text-zinc-900 block">{t.description}</span>
-                      <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
+                        {t.supplierId && (
+                          <>
+                            <span className="text-zinc-300">|</span>
+                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                              {suppliers.find(s => s.id === t.supplierId)?.name || 'Fornecedor'}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-5">
                       <span className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-600">
@@ -471,8 +519,25 @@ const Finance: React.FC = () => {
                   <option value="card">Cartão</option>
                   <option value="cash">Dinheiro</option>
                   <option value="transfer">Transferência</option>
+                  <option value="boleto">Boleto</option>
                 </select>
               </div>
+
+              {formData.type === 'out' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={formData.supplierId}
+                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                  >
+                    <option value="">Selecione um fornecedor (opcional)...</option>
+                    {suppliers.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Categoria</label>

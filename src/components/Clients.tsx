@@ -18,8 +18,8 @@ import {
   History
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
-import { db } from '../firebase';
-import { Client, Vehicle, ServiceOrder } from '../types';
+import { db, auth } from '../firebase';
+import { Client, Vehicle, ServiceOrder, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatPhone, cn, formatCurrency } from '../lib/utils';
@@ -27,6 +27,24 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 const Clients: React.FC = () => {
+  const { profile, isAdmin } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -36,7 +54,6 @@ const Clients: React.FC = () => {
   const [clientOrders, setClientOrders] = useState<ServiceOrder[]>([]);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
-  const { profile, isAdmin } = useAuth();
   const { canCreate, canEdit, canDelete } = usePermissions('clients');
 
   // Form state
@@ -48,6 +65,8 @@ const Clients: React.FC = () => {
   });
 
   useEffect(() => {
+    if (!profile) return;
+
     const q = query(collection(db, 'clients'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const clientList: Client[] = [];
@@ -56,10 +75,13 @@ const Clients: React.FC = () => {
       });
       setClients(clientList);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'clients');
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (!selectedClient) return;
@@ -72,6 +94,8 @@ const Clients: React.FC = () => {
       const list: Vehicle[] = [];
       snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() } as Vehicle));
       setClientVehicles(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'vehicles');
     });
 
     const qOrders = query(
@@ -83,6 +107,8 @@ const Clients: React.FC = () => {
       const list: ServiceOrder[] = [];
       snapshot.forEach(doc => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
       setClientOrders(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'serviceOrders');
     });
 
     return () => {
@@ -409,6 +435,36 @@ const Clients: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
+              {/* Contact Info Section */}
+              <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                    <Phone size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Telefone</p>
+                    <a href={`tel:${selectedClient.phone}`} className="text-sm font-bold text-zinc-900 hover:text-zinc-600 transition-colors">
+                      {formatPhone(selectedClient.phone)}
+                    </a>
+                  </div>
+                </div>
+                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                    <Mail size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">E-mail</p>
+                    {selectedClient.email ? (
+                      <a href={`mailto:${selectedClient.email}`} className="text-sm font-bold text-zinc-900 hover:text-zinc-600 transition-colors truncate block max-w-[200px]">
+                        {selectedClient.email}
+                      </a>
+                    ) : (
+                      <span className="text-sm font-bold text-zinc-400 italic">Não informado</span>
+                    )}
+                  </div>
+                </div>
+              </section>
+
               {/* Vehicles Section */}
               <section className="space-y-4">
                 <div className="flex items-center gap-2 text-zinc-900">
@@ -462,7 +518,7 @@ const Clients: React.FC = () => {
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
-                                {order.selectedServices?.map((s, i) => (
+                                {order.services?.map((s, i) => (
                                   <span key={i} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[10px] rounded border border-zinc-200">
                                     {s.name}
                                   </span>

@@ -16,7 +16,8 @@ import {
   Wrench,
   Truck,
   ArrowUpDown,
-  UserCircle
+  UserCircle,
+  FileText
 } from 'lucide-react';
 import { useAuth } from './Auth';
 import { cn } from '../lib/utils';
@@ -24,12 +25,14 @@ import { cn } from '../lib/utils';
 interface LayoutProps {
   children: React.ReactNode;
   activeTab: string;
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: string, itemId?: string) => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const { profile, logout, isAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const [isGestaoOpen, setIsGestaoOpen] = useState(true);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -38,22 +41,31 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { id: 'os', label: 'Ordens de Serviço', icon: ClipboardList },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
     { id: 'services', label: 'Serviços', icon: Wrench },
-    { id: 'inventory', label: 'Estoque', icon: Package },
-    { id: 'suppliers', label: 'Fornecedores', icon: Truck },
-    { id: 'stock', label: 'Movimentação', icon: ArrowUpDown },
-    { id: 'finance', label: 'Financeiro', icon: DollarSign, adminOnly: true },
+    { 
+      id: 'gestao', 
+      label: 'Gestão', 
+      icon: Settings,
+      isParent: true,
+      subItems: [
+        { id: 'inventory', label: 'Estoque', icon: Package },
+        { id: 'suppliers', label: 'Fornecedores', icon: Truck },
+        { id: 'stock', label: 'Movimentação', icon: ArrowUpDown },
+        { id: 'finance', label: 'Financeiro', icon: DollarSign, adminOnly: true },
+        { id: 'fiscal', label: 'Fiscal', icon: FileText, adminOnly: true },
+      ]
+    },
     { id: 'resale', label: 'Revenda', icon: ShoppingBag },
     { id: 'users', label: 'Usuários', icon: Users, adminOnly: true },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => {
+  const checkPermission = (item: any) => {
     if (isAdmin) return true;
     if (profile?.permissions) {
       const modulePerm = profile.permissions[item.id as keyof typeof profile.permissions];
       return modulePerm?.view;
     }
     return !item.adminOnly;
-  });
+  };
 
   return (
     <div className="min-h-screen bg-zinc-50 flex">
@@ -70,8 +82,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         "fixed lg:static inset-y-0 left-0 w-72 bg-white border-r border-zinc-200 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-full flex flex-col p-6">
-          <div className="flex items-center gap-3 mb-10 px-2">
+        <div className="h-full flex flex-col p-6 overflow-y-auto">
+          <div className="flex items-center gap-3 mb-10 px-2 shrink-0">
             <div className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-zinc-200">
               <Car size={24} />
             </div>
@@ -79,28 +91,87 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </div>
 
           <nav className="flex-1 space-y-1">
-            {filteredMenuItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  setActiveTab(item.id);
-                  setIsSidebarOpen(false);
-                }}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                  activeTab === item.id 
-                    ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200" 
-                    : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
-                )}
-              >
-                <item.icon size={20} className={cn(
-                  "transition-colors",
-                  activeTab === item.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
-                )} />
-                <span className="font-medium flex-1 text-left">{item.label}</span>
-                {activeTab === item.id && <ChevronRight size={16} />}
-              </button>
-            ))}
+            {menuItems.map((item) => {
+              if (!checkPermission(item)) return null;
+
+              if (item.isParent) {
+                const isAnySubActive = item.subItems?.some(sub => sub.id === activeTab);
+                const hasVisibleSubItems = item.subItems?.some(sub => checkPermission(sub));
+                
+                if (!hasVisibleSubItems) return null;
+
+                return (
+                  <div key={item.id} className="space-y-1">
+                    <button
+                      onClick={() => setIsGestaoOpen(!isGestaoOpen)}
+                      className={cn(
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                        isAnySubActive ? "text-zinc-900 font-bold" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      )}
+                    >
+                      <item.icon size={20} className={cn(
+                        "transition-colors",
+                        isAnySubActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-900"
+                      )} />
+                      <span className="font-medium flex-1 text-left">{item.label}</span>
+                      <ChevronRight size={16} className={cn("transition-transform", isGestaoOpen && "rotate-90")} />
+                    </button>
+                    
+                    {isGestaoOpen && (
+                      <div className="pl-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                        {item.subItems?.map(sub => {
+                          if (!checkPermission(sub)) return null;
+                          return (
+                            <button
+                              key={sub.id}
+                              onClick={() => {
+                                setActiveTab(sub.id);
+                                setIsSidebarOpen(false);
+                              }}
+                              className={cn(
+                                "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group",
+                                activeTab === sub.id 
+                                  ? "bg-zinc-900 text-white shadow-md shadow-zinc-200" 
+                                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                              )}
+                            >
+                              <sub.icon size={18} className={cn(
+                                "transition-colors",
+                                activeTab === sub.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
+                              )} />
+                              <span className="text-sm font-medium flex-1 text-left">{sub.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsSidebarOpen(false);
+                  }}
+                  className={cn(
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                    activeTab === item.id 
+                      ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200" 
+                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  )}
+                >
+                  <item.icon size={20} className={cn(
+                    "transition-colors",
+                    activeTab === item.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
+                  )} />
+                  <span className="font-medium flex-1 text-left">{item.label}</span>
+                  {activeTab === item.id && <ChevronRight size={16} />}
+                </button>
+              );
+            })}
           </nav>
 
           <div className="mt-auto pt-6 border-t border-zinc-100">

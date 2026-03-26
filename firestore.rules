@@ -23,13 +23,22 @@ service cloud.firestore {
     // Fields: clientId, vehicleId, startTime, endTime, status
     //
     // Collection: inventory
-    // Fields: name, quantity, minQuantity, price
+    // Fields: name, quantity, minQuantity, price, cost, supplierId, category
+    //
+    // Collection: suppliers
+    // Fields: name, cnpj, phone, email, address, category, status, createdAt
+    //
+    // Collection: stockMovements
+    // Fields: itemId, type (in, out), quantity, reason, date, userId, cost
     //
     // Collection: transactions
-    // Fields: type, value, category, description, date, paymentMethod, relatedOSId
+    // Fields: type (in, out), value, category, description, date, status (paid, pending), paymentMethod, relatedOSId
     //
     // Collection: resaleVehicles
     // Fields: brand, model, year, buyPrice, sellPrice, status, createdAt
+    //
+    // Collection: fiscalRecords
+    // Fields: type (nfe, nfse, cupom), number, series, date, value, taxValue, status (emitted, cancelled, pending), relatedOSId, clientId, xmlUrl, pdfUrl, observations, createdAt
 
     // ===============================================================
     // Helper Functions
@@ -41,21 +50,32 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (request.auth.token.email == "iurioliveira82@gmail.com" ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'admin'));
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
     function isEmployee() {
-      return isAuthenticated() &&
-        (isAdmin() ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee') || 
-         (exists(/databases/$(database)/documents/users/$(request.auth.token.email)) && get(/databases/$(database)/documents/users/$(request.auth.token.email)).data.role == 'employee'));
+      return isAuthenticated() && 
+        (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee'));
+    }
+
+    function hasPermission(module, action) {
+      return isAdmin() || (
+        isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions[module][action] == true
+      );
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
     function isValidUser(data) {
       return data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt', 'permissions', 'updatedAt']) &&
              data.uid is string && data.name is string && data.email is string &&
-             data.role in ['admin', 'employee'];
+             data.role in ['admin', 'employee'] &&
+             (!('permissions' in data) || data.permissions is map);
     }
 
     function isValidClient(data) {
@@ -77,15 +97,44 @@ service cloud.firestore {
              data.status in ['waiting', 'in-progress', 'finished', 'cancelled'];
     }
 
+    function isValidInventory(data) {
+      return data.keys().hasAll(['name', 'quantity']) &&
+             data.name is string && data.quantity is number;
+    }
+
+    function isValidSupplier(data) {
+      return data.keys().hasAll(['name', 'status']) &&
+             data.name is string && data.status in ['active', 'inactive'];
+    }
+
+    function isValidStockMovement(data) {
+      return data.keys().hasAll(['itemId', 'type', 'quantity', 'date', 'userId']) &&
+             data.type in ['in', 'out'] && data.quantity is number && data.userId == request.auth.uid;
+    }
+
+    function isValidTransaction(data) {
+      return data.keys().hasAll(['type', 'value', 'category', 'date', 'status']) &&
+             data.type in ['in', 'out'] && data.value is number && data.status in ['paid', 'pending'];
+    }
+
+    function isValidFiscalRecord(data) {
+      return data.keys().hasAll(['type', 'number', 'date', 'value', 'status', 'clientId']) &&
+             data.type in ['nfe', 'nfse', 'cupom'] &&
+             data.status in ['emitted', 'cancelled', 'pending'] &&
+             data.value is number &&
+             data.clientId is string;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
     match /users/{uid} {
       allow read: if isAuthenticated();
-      allow create: if (isAuthenticated() && request.auth.uid == uid && isValidUser(request.resource.data) && (request.resource.data.role == 'employee' || isAdmin())) ||
+      allow create: if (isOwner(uid) && isValidUser(request.resource.data) && (request.resource.data.role == 'employee' || isAdmin())) ||
                     (isAdmin() && isValidUser(request.resource.data));
       allow update: if isAdmin() && isValidUser(request.resource.data);
+      allow delete: if isAdmin() || isOwner(uid);
     }
 
     match /clients/{clientId} {
@@ -118,30 +167,39 @@ service cloud.firestore {
     }
 
     match /inventory/{itemId} {
-      allow read: if isEmployee();
-      allow write: if isEmployee();
+      allow read: if hasPermission('stock', 'view');
+      allow create, update: if hasPermission('stock', 'create') && isValidInventory(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /suppliers/{supplierId} {
-      allow read: if isEmployee();
-      allow write: if isEmployee();
+      allow read: if hasPermission('suppliers', 'view');
+      allow create, update: if hasPermission('suppliers', 'create') && isValidSupplier(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /stockMovements/{movementId} {
-      allow read: if isEmployee();
-      allow create: if isEmployee();
+      allow read: if hasPermission('stock', 'view');
+      allow create: if hasPermission('stock', 'create') && isValidStockMovement(request.resource.data);
       allow update, delete: if isAdmin();
     }
 
     match /transactions/{transactionId} {
       allow read: if isAdmin();
-      allow create: if isEmployee();
+      allow create: if isEmployee() && isValidTransaction(request.resource.data);
       allow update, delete: if isAdmin();
     }
 
     match /resaleVehicles/{resaleId} {
       allow read: if isEmployee();
       allow write: if isAdmin();
+    }
+
+    match /fiscalRecords/{fiscalId} {
+      allow read: if hasPermission('fiscal', 'view');
+      allow create: if hasPermission('fiscal', 'create') && isValidFiscalRecord(request.resource.data);
+      allow update: if hasPermission('fiscal', 'edit') && isValidFiscalRecord(request.resource.data);
+      allow delete: if hasPermission('fiscal', 'delete');
     }
     
     match /test/connection {

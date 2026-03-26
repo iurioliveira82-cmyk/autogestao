@@ -37,9 +37,10 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from './Auth';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 const Dashboard: React.FC = () => {
-  const { isAdmin } = useAuth();
+  const { isAdmin, profile } = useAuth();
   const { canView } = usePermissions('dashboard');
 
   const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
@@ -54,6 +55,10 @@ const Dashboard: React.FC = () => {
       path
     };
     console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
   };
   const [stats, setStats] = useState({
     dailyRevenue: 0,
@@ -62,14 +67,18 @@ const Dashboard: React.FC = () => {
     todayAppointments: 0,
     totalClients: 0,
     totalVehicles: 0,
-    lowStock: 0
+    lowStock: 0,
+    resaleVehicles: 0,
+    averageTicket: 0
   });
 
   const [revenueData, setRevenueData] = useState<any[]>([]);
   const [recentOS, setRecentOS] = useState<ServiceOrder[]>([]);
-  const [osStatusData, setOsStatusData] = useState<any[]>([]);
+  const [clients, setClients] = useState<Record<string, string>>({});
 
   useEffect(() => {
+    if (!profile) return;
+
     // Real-time stats
     const today = new Date();
     const start = startOfDay(today);
@@ -129,6 +138,12 @@ const Dashboard: React.FC = () => {
     // Total Clients
     const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
       setStats(prev => ({ ...prev, totalClients: snapshot.size }));
+      const clientMap: Record<string, string> = {};
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        clientMap[doc.id] = data.name;
+      });
+      setClients(clientMap);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'clients');
     });
@@ -138,6 +153,26 @@ const Dashboard: React.FC = () => {
       setStats(prev => ({ ...prev, totalVehicles: snapshot.size }));
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'vehicles');
+    });
+
+    // Resale Vehicles
+    const unsubscribeResale = onSnapshot(collection(db, 'resaleVehicles'), (snapshot) => {
+      setStats(prev => ({ ...prev, resaleVehicles: snapshot.size }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'resaleVehicles');
+    });
+
+    // Average Ticket (from completed OS)
+    const qCompletedOS = query(collection(db, 'serviceOrders'), where('status', '==', 'completed'));
+    const unsubscribeCompletedOS = onSnapshot(qCompletedOS, (snapshot) => {
+      let total = 0;
+      snapshot.forEach(doc => {
+        total += doc.data().totalValue || 0;
+      });
+      const avg = snapshot.size > 0 ? total / snapshot.size : 0;
+      setStats(prev => ({ ...prev, averageTicket: avg }));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'serviceOrders');
     });
 
     // Low Stock
@@ -152,39 +187,49 @@ const Dashboard: React.FC = () => {
       handleFirestoreError(error, OperationType.GET, 'inventory');
     });
 
-    // Chart Data (Last 7 days)
-    const fetchChartData = async () => {
-      const data = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = subDays(new Date(), i);
-        const s = startOfDay(date);
-        const e = endOfDay(date);
-        
-        const q = query(
-          collection(db, 'transactions'),
-          where('date', '>=', s.toISOString()),
-          where('date', '<=', e.toISOString())
-        );
-        
-        const snap = await getDocs(q);
-        let revenue = 0;
-        let expense = 0;
-        snap.forEach(doc => {
-          const d = doc.data();
-          if (d.type === 'in') revenue += d.value;
-          else expense += d.value;
-        });
-        
-        data.push({
-          name: format(date, 'EEE', { locale: ptBR }),
-          revenue,
-          profit: revenue - expense
-        });
-      }
-      setRevenueData(data);
-    };
+    // Chart Data (Last 7 days) - Real-time
+    let unsubscribeChart = () => {};
+    if (isAdmin) {
+      const sevenDaysAgo = subDays(startOfDay(new Date()), 6);
+      const qChart = query(
+        collection(db, 'transactions'),
+        where('date', '>=', sevenDaysAgo.toISOString()),
+        orderBy('date', 'asc')
+      );
 
-    fetchChartData();
+      unsubscribeChart = onSnapshot(qChart, (snapshot) => {
+        const days: Record<string, { revenue: number, expense: number, name: string }> = {};
+        
+        // Initialize last 7 days
+        for (let i = 6; i >= 0; i--) {
+          const d = subDays(new Date(), i);
+          const key = format(d, 'yyyy-MM-dd');
+          days[key] = {
+            revenue: 0,
+            expense: 0,
+            name: format(d, 'EEE', { locale: ptBR })
+          };
+        }
+
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const dateKey = data.date.split('T')[0];
+          if (days[dateKey]) {
+            if (data.type === 'in') days[dateKey].revenue += data.value;
+            else days[dateKey].expense += data.value;
+          }
+        });
+
+        const chartData = Object.values(days).map(d => ({
+          ...d,
+          profit: d.revenue - d.expense
+        }));
+        
+        setRevenueData(chartData);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'transactions_chart');
+      });
+    }
 
     return () => {
       unsubscribeTransactions();
@@ -193,8 +238,11 @@ const Dashboard: React.FC = () => {
       unsubscribeClients();
       unsubscribeVehicles();
       unsubscribeStock();
+      unsubscribeResale();
+      unsubscribeCompletedOS();
+      unsubscribeChart();
     };
-  }, []);
+  }, [profile, isAdmin]);
 
   const kpis = [
     { label: 'Lucro Hoje', value: formatCurrency(stats.dailyRevenue - stats.dailyExpense), icon: DollarSign, color: 'text-green-600', bg: 'bg-green-50' },
@@ -224,10 +272,6 @@ const Dashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-4">
               <div className={cn("p-3 rounded-2xl", kpi.bg)}>
                 <kpi.icon size={24} className={kpi.color} />
-              </div>
-              <div className="flex items-center gap-1 text-xs font-bold text-green-500 bg-green-50 px-2 py-1 rounded-lg">
-                <TrendingUp size={12} />
-                +12%
               </div>
             </div>
             <div>
@@ -310,16 +354,16 @@ const Dashboard: React.FC = () => {
                   <ShoppingBag size={20} className="text-zinc-400" />
                   <span className="text-sm font-medium">Veículos p/ Revenda</span>
                 </div>
-                <span className="text-lg font-bold">12</span>
+                <span className="text-lg font-bold">{stats.resaleVehicles}</span>
               </div>
             </div>
 
             <div className="mt-10 p-6 bg-white rounded-2xl text-zinc-900">
               <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Ticket Médio</p>
-              <h4 className="text-3xl font-bold">R$ 450,00</h4>
+              <h4 className="text-3xl font-bold">{formatCurrency(stats.averageTicket)}</h4>
               <div className="flex items-center gap-1 text-xs font-bold text-green-500 mt-2">
                 <TrendingUp size={12} />
-                +5.4% este mês
+                Baseado em OS finalizadas
               </div>
             </div>
           </div>
@@ -356,9 +400,9 @@ const Dashboard: React.FC = () => {
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center text-zinc-600 font-bold text-xs">
-                        {os.clientId.slice(0, 2).toUpperCase()}
+                        {(clients[os.clientId] || 'C').slice(0, 2).toUpperCase()}
                       </div>
-                      <span className="text-sm font-bold text-zinc-900">Cliente {os.clientId.slice(0, 4)}</span>
+                      <span className="text-sm font-bold text-zinc-900">{clients[os.clientId] || `Cliente ${os.clientId.slice(0, 4)}`}</span>
                     </div>
                   </td>
                   <td className="px-8 py-5">

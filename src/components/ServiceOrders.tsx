@@ -22,18 +22,37 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDoc, increment } from 'firebase/firestore';
-import { db } from '../firebase';
-import { ServiceOrder, Client, Vehicle, Service, OSStatus, ServiceOrderItem } from '../types';
+import { db, auth } from '../firebase';
+import { ServiceOrder, Client, Vehicle, Service, OSStatus, ServiceOrderItem, OperationType } from '../types';
+import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatCurrency, cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 interface ServiceOrdersProps {
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: string, itemId?: string) => void;
 }
 
 const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
+  const { profile } = useAuth();
+  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
+    const errInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+      },
+      operationType: operation,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    if (error?.message?.includes('permission')) {
+      toast.error(`Erro de permissão ao acessar: ${path}`);
+    }
+    throw new Error(JSON.stringify(errInfo));
+  };
   const [osList, setOsList] = useState<ServiceOrder[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -57,6 +76,8 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
   });
 
   useEffect(() => {
+    if (!profile) return;
+
     const qOS = query(collection(db, 'serviceOrders'), orderBy('createdAt', 'desc'));
     const unsubscribeOS = onSnapshot(qOS, (snapshot) => {
       const list: ServiceOrder[] = [];
@@ -65,24 +86,33 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
       });
       setOsList(list);
       setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'serviceOrders');
+      setLoading(false);
     });
 
     const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
       const list: Client[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
       setClients(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'clients');
     });
 
     const unsubscribeVehicles = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
       const list: Vehicle[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Vehicle));
       setVehicles(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'vehicles');
     });
 
     const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
       const list: Service[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Service));
       setServices(list);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'services');
     });
 
     return () => {
@@ -91,7 +121,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
       unsubscribeVehicles();
       unsubscribeServices();
     };
-  }, []);
+  }, [profile]);
 
   const calculateTotal = () => {
     const subtotal = formData.selectedServices.reduce((acc, s) => acc + s.price, 0);
@@ -318,8 +348,20 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
         if (service.products) {
           for (const product of service.products) {
             const productRef = doc(db, 'inventory', product.inventoryItemId);
+            
+            // 1. Update inventory quantity
             await updateDoc(productRef, {
               quantity: increment(-product.quantity)
+            });
+
+            // 2. Create stock movement record
+            await addDoc(collection(db, 'stockMovements'), {
+              itemId: product.inventoryItemId,
+              type: 'out',
+              quantity: product.quantity,
+              reason: `OS #${editingOS?.id?.slice(0, 6) || 'Nova'} - ${service.name}`,
+              date: new Date().toISOString(),
+              userId: auth.currentUser?.uid
             });
           }
         }

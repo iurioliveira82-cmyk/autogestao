@@ -29,6 +29,7 @@ export interface UserPermissions {
   suppliers: ModulePermissions;
   stock: ModulePermissions;
   users: ModulePermissions;
+  fiscal: ModulePermissions;
 }
 
 export interface UserProfile {
@@ -159,6 +160,7 @@ export interface Transaction {
   status: 'paid' | 'pending';
   paymentMethod?: string;
   relatedOSId?: string;
+  supplierId?: string;
 }
 
 export interface ResaleVehicle {
@@ -169,5 +171,22 @@ export interface ResaleVehicle {
   buyPrice: number;
   sellPrice?: number;
   status: 'available' | 'reserved' | 'sold';
+  createdAt: string;
+}
+
+export interface FiscalRecord {
+  id: string;
+  type: 'nfe' | 'nfse' | 'cupom';
+  number: string;
+  series: string;
+  date: string;
+  value: number;
+  taxValue: number;
+  status: 'emitted' | 'cancelled' | 'pending';
+  relatedOSId?: string;
+  clientId: string;
+  xmlUrl?: string;
+  pdfUrl?: string;
+  observations?: string;
   createdAt: string;
 }

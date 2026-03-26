@@ -26,7 +26,8 @@ export const defaultPermissions: UserPermissions = {
   resale: defaultModulePermissions,
   suppliers: defaultModulePermissions,
   stock: defaultModulePermissions,
-  users: { ...defaultModulePermissions, view: false }
+  users: { ...defaultModulePermissions, view: false },
+  fiscal: { ...defaultModulePermissions, view: false }
 };
 
 export const adminPermissions: UserPermissions = {
@@ -41,5 +42,6 @@ export const adminPermissions: UserPermissions = {
   resale: adminModulePermissions,
   suppliers: adminModulePermissions,
   stock: adminModulePermissions,
-  users: adminModulePermissions
+  users: adminModulePermissions,
+  fiscal: adminModulePermissions
 };

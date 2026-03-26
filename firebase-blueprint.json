@@ -9,6 +9,7 @@
         "name": { "type": "string" },
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["admin", "employee"] },
+        "permissions": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "name", "email", "role"]
@@ -172,6 +173,27 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["brand", "model", "buyPrice", "status"]
+    },
+    "FiscalRecord": {
+      "title": "FiscalRecord",
+      "description": "Tax and invoice records",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string", "enum": ["nfe", "nfse", "cupom"] },
+        "number": { "type": "string" },
+        "series": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "value": { "type": "number" },
+        "taxValue": { "type": "number" },
+        "status": { "type": "string", "enum": ["emitted", "cancelled", "pending"] },
+        "relatedOSId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "xmlUrl": { "type": "string" },
+        "pdfUrl": { "type": "string" },
+        "observations": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["type", "number", "date", "value", "status", "clientId"]
     }
   },
   "firestore": {
@@ -185,6 +207,7 @@
     "/suppliers/{supplierId}": { "schema": "Supplier", "description": "Suppliers" },
     "/stockMovements/{movementId}": { "schema": "StockMovement", "description": "Stock movements" },
     "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial transactions" },
-    "/resaleVehicles/{resaleId}": { "schema": "ResaleVehicle", "description": "Resale inventory" }
+    "/resaleVehicles/{resaleId}": { "schema": "ResaleVehicle", "description": "Resale inventory" },
+    "/fiscalRecords/{fiscalId}": { "schema": "FiscalRecord", "description": "Fiscal records" }
   }
 }
