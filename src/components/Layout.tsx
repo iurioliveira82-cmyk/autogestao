@@ -5,7 +5,7 @@ import {
   Car, 
   ClipboardList, 
   Calendar, 
-  Settings, 
+  Settings as SettingsIcon, 
   LogOut, 
   Menu, 
   X, 
@@ -17,10 +17,13 @@ import {
   Truck,
   ArrowUpDown,
   UserCircle,
-  FileText
+  FileText,
+  Sparkles,
+  UserPlus
 } from 'lucide-react';
 import { useAuth } from './Auth';
 import { cn } from '../lib/utils';
+import AIAssistant from './AIAssistant';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -31,12 +34,18 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) => {
   const { profile, logout, isAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isAIOpen, setIsAIOpen] = useState(false);
 
-  const [isGestaoOpen, setIsGestaoOpen] = useState(true);
+  const [isGestaoOpen, setIsGestaoOpen] = useState(() => {
+    const saved = localStorage.getItem('isGestaoOpen');
+    if (saved !== null) return saved === 'true';
+    return true;
+  });
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Clientes', icon: Users },
+    { id: 'leads', label: 'Leads', icon: UserPlus },
     { id: 'vehicles', label: 'Veículos', icon: Car },
     { id: 'os', label: 'Ordens de Serviço', icon: ClipboardList },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
@@ -44,7 +53,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     { 
       id: 'gestao', 
       label: 'Gestão', 
-      icon: Settings,
+      icon: SettingsIcon,
       isParent: true,
       subItems: [
         { id: 'inventory', label: 'Estoque', icon: Package },
@@ -56,7 +65,25 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
     },
     { id: 'resale', label: 'Revenda', icon: ShoppingBag },
     { id: 'users', label: 'Usuários', icon: Users, adminOnly: true },
+    { id: 'settings', label: 'Configurações', icon: SettingsIcon },
   ];
+
+  const handleToggleGestao = () => {
+    const newState = !isGestaoOpen;
+    setIsGestaoOpen(newState);
+    localStorage.setItem('isGestaoOpen', String(newState));
+  };
+
+  const getActiveLabel = () => {
+    for (const item of menuItems) {
+      if (item.id === activeTab) return item.label;
+      if (item.subItems) {
+        const sub = item.subItems.find(s => s.id === activeTab);
+        if (sub) return sub.label;
+      }
+    }
+    return 'Dashboard';
+  };
 
   const checkPermission = (item: any) => {
     if (isAdmin) return true;
@@ -79,15 +106,27 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 w-72 bg-white border-r border-zinc-200 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed lg:static inset-y-0 left-0 w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="h-full flex flex-col p-6 overflow-y-auto">
           <div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-            <div className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center shadow-lg shadow-zinc-200">
-              <Car size={24} />
+            <div className="w-10 h-10 bg-accent text-accent-foreground rounded-xl flex items-center justify-center shadow-lg shadow-zinc-200 dark:shadow-none overflow-hidden">
+              {localStorage.getItem('companyLogo') ? (
+                <img 
+                  src={localStorage.getItem('companyLogo') || ''} 
+                  alt="Logo" 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <Car size={24} />
+              )}
             </div>
-            <span className="text-xl font-bold text-zinc-900 tracking-tight">AutoGestão</span>
+            <div className="flex flex-col">
+              <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-none">AutoGestão</span>
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Sistema Pro</span>
+            </div>
           </div>
 
           <nav className="flex-1 space-y-1">
@@ -103,18 +142,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 return (
                   <div key={item.id} className="space-y-1">
                     <button
-                      onClick={() => setIsGestaoOpen(!isGestaoOpen)}
+                      onClick={handleToggleGestao}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                        isAnySubActive ? "text-zinc-900 font-bold" : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                        isAnySubActive ? "text-accent font-bold bg-accent/5" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
                       )}
                     >
                       <item.icon size={20} className={cn(
                         "transition-colors",
                         isAnySubActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-900"
                       )} />
-                      <span className="font-medium flex-1 text-left">{item.label}</span>
-                      <ChevronRight size={16} className={cn("transition-transform", isGestaoOpen && "rotate-90")} />
+                      <span className="font-bold flex-1 text-left text-sm">{item.label}</span>
+                      <ChevronRight size={16} className={cn("transition-transform duration-200", isGestaoOpen && "rotate-90")} />
                     </button>
                     
                     {isGestaoOpen && (
@@ -129,17 +168,20 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                                 setIsSidebarOpen(false);
                               }}
                               className={cn(
-                                "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group",
+                                "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative",
                                 activeTab === sub.id 
-                                  ? "bg-zinc-900 text-white shadow-md shadow-zinc-200" 
-                                  : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                                  ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
+                                  : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
                               )}
                             >
                               <sub.icon size={18} className={cn(
                                 "transition-colors",
                                 activeTab === sub.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
                               )} />
-                              <span className="text-sm font-medium flex-1 text-left">{sub.label}</span>
+                              <span className="text-sm font-bold flex-1 text-left">{sub.label}</span>
+                              {activeTab === sub.id && (
+                                <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full" />
+                              )}
                             </button>
                           );
                         })}
@@ -157,70 +199,73 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                     setIsSidebarOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
                     activeTab === item.id 
-                      ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200" 
-                      : "text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
+                      : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
                   )}
                 >
                   <item.icon size={20} className={cn(
                     "transition-colors",
                     activeTab === item.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
                   )} />
-                  <span className="font-medium flex-1 text-left">{item.label}</span>
-                  {activeTab === item.id && <ChevronRight size={16} />}
+                  <span className="font-bold flex-1 text-left text-sm">{item.label}</span>
+                  {activeTab === item.id && (
+                    <div className="absolute right-4 w-1.5 h-1.5 bg-white rounded-full" />
+                  )}
                 </button>
               );
             })}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-zinc-100">
-            <div className="bg-zinc-50 p-4 rounded-2xl mb-4 border border-zinc-100">
+          <div className="mt-auto pt-6 border-t border-zinc-100 dark:border-zinc-800">
+            <div className="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-100 dark:border-zinc-800">
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-zinc-600 border border-zinc-200 shadow-sm">
+                <div className="w-10 h-10 bg-white dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
                   <UserCircle size={24} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-zinc-900 truncate">{profile?.name}</p>
+                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{profile?.name}</p>
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{profile?.role}</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100 rounded-xl transition-all duration-200 text-xs font-bold"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl transition-all duration-200 text-xs font-bold"
               >
                 <LogOut size={14} />
                 Trocar Usuário
               </button>
             </div>
-            <button
-              onClick={logout}
-              className="w-full flex items-center gap-3 px-4 py-2 text-zinc-400 hover:text-red-500 transition-all duration-200 text-xs font-medium"
-            >
-              Sair do Sistema
-            </button>
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-zinc-200 flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 sticky top-0 z-30">
           <button 
-            className="lg:hidden text-zinc-500 p-2 -ml-2 hover:bg-zinc-100 rounded-lg transition-colors"
+            className="lg:hidden text-zinc-500 p-2 -ml-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu size={24} />
           </button>
           
           <div className="flex-1 px-4">
-            <h2 className="text-lg font-bold text-zinc-900 capitalize">
-              {menuItems.find(item => item.id === activeTab)?.label}
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+              {getActiveLabel()}
             </h2>
           </div>
 
           <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsAIOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 dark:shadow-none"
+            >
+              <Sparkles size={14} className="text-amber-400" />
+              Assistente IA
+            </button>
             <div className="hidden sm:flex flex-col items-end">
               <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Status</span>
               <span className="text-xs font-bold text-green-500 flex items-center gap-1">
@@ -232,12 +277,18 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
         </div>
       </main>
+
+      <AIAssistant 
+        isOpen={isAIOpen} 
+        onClose={() => setIsAIOpen(false)} 
+        context={getActiveLabel()} 
+      />
     </div>
   );
 };

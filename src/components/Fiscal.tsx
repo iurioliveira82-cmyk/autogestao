@@ -23,8 +23,13 @@ import { usePermissions } from '../hooks/usePermissions';
 import { formatCurrency, cn } from '../lib/utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
 
-const Fiscal: React.FC = () => {
+interface FiscalProps {
+  setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
+}
+
+const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
   const { profile, isAdmin } = useAuth();
   const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
     const errInfo = {
@@ -45,7 +50,10 @@ const Fiscal: React.FC = () => {
   };
 
   const [records, setRecords] = useState<FiscalRecord[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<string | null>(null);
   const [clients, setClients] = useState<Record<string, string>>({});
+  const [suppliers, setSuppliers] = useState<Record<string, string>>({});
   const [serviceOrders, setServiceOrders] = useState<Record<string, string>>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -62,8 +70,12 @@ const Fiscal: React.FC = () => {
     taxValue: '',
     status: 'emitted' as 'emitted' | 'cancelled' | 'pending',
     clientId: '',
+    supplierId: '',
+    direction: 'out' as 'in' | 'out',
     relatedOSId: '',
-    observations: ''
+    observations: '',
+    createTransaction: false,
+    dueDate: format(new Date(), 'yyyy-MM-dd')
   });
 
   useEffect(() => {
@@ -83,14 +95,23 @@ const Fiscal: React.FC = () => {
       setLoading(false);
     });
 
-    // Fetch Clients for mapping
-    const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
-      const map: Record<string, string> = {};
-      snapshot.forEach(doc => {
-        map[doc.id] = doc.data().name;
+      // Fetch Clients for mapping
+      const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
+        const map: Record<string, string> = {};
+        snapshot.forEach(doc => {
+          map[doc.id] = doc.data().name;
+        });
+        setClients(map);
       });
-      setClients(map);
-    });
+  
+      // Fetch Suppliers for mapping
+      const unsubscribeSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
+        const map: Record<string, string> = {};
+        snapshot.forEach(doc => {
+          map[doc.id] = doc.data().name;
+        });
+        setSuppliers(map);
+      });
 
     // Fetch Service Orders for mapping
     const unsubscribeOS = onSnapshot(collection(db, 'serviceOrders'), (snapshot) => {
@@ -104,6 +125,7 @@ const Fiscal: React.FC = () => {
     return () => {
       unsubscribe();
       unsubscribeClients();
+      unsubscribeSuppliers();
       unsubscribeOS();
     };
   }, [profile, canView]);
@@ -111,21 +133,24 @@ const Fiscal: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.number || !formData.value || !formData.clientId) {
-      toast.error('Número, valor e cliente são obrigatórios.');
+    if (!formData.number || !formData.value || (formData.direction === 'out' && !formData.clientId) || (formData.direction === 'in' && !formData.supplierId)) {
+      toast.error('Número, valor e cliente/fornecedor são obrigatórios.');
       return;
     }
 
     try {
+      const val = parseFloat(formData.value);
       const data = {
         type: formData.type,
         number: formData.number,
         series: formData.series,
         date: new Date(formData.date).toISOString(),
-        value: parseFloat(formData.value),
+        value: val,
         taxValue: formData.taxValue ? parseFloat(formData.taxValue) : 0,
         status: formData.status,
-        clientId: formData.clientId,
+        clientId: formData.direction === 'out' ? formData.clientId : null,
+        supplierId: formData.direction === 'in' ? formData.supplierId : null,
+        direction: formData.direction,
         relatedOSId: formData.relatedOSId || null,
         observations: formData.observations,
         updatedAt: serverTimestamp()
@@ -135,10 +160,29 @@ const Fiscal: React.FC = () => {
         await updateDoc(doc(db, 'fiscalRecords', editingRecord.id), data);
         toast.success('Registro fiscal atualizado!');
       } else {
-        await addDoc(collection(db, 'fiscalRecords'), {
+        const newDoc = await addDoc(collection(db, 'fiscalRecords'), {
           ...data,
           createdAt: new Date().toISOString()
         });
+
+        // Create financial transaction if requested
+        if (formData.createTransaction) {
+          const isEntry = formData.direction === 'in';
+          const entityName = isEntry ? suppliers[formData.supplierId] : clients[formData.clientId];
+          
+          await addDoc(collection(db, 'transactions'), {
+            type: isEntry ? 'out' : 'in',
+            value: val,
+            category: 'Fiscal',
+            description: `Nota Fiscal ${formData.type.toUpperCase()} #${formData.number} - ${entityName}`,
+            date: new Date(formData.dueDate).toISOString(),
+            status: 'pending',
+            paymentMethod: 'Boleto',
+            supplierId: isEntry ? formData.supplierId : undefined,
+            relatedOSId: formData.relatedOSId || undefined
+          });
+        }
+
         toast.success('Nota fiscal registrada!');
       }
       closeModal();
@@ -148,13 +192,19 @@ const Fiscal: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este registro fiscal?')) {
-      try {
-        await deleteDoc(doc(db, 'fiscalRecords', id));
-        toast.success('Registro excluído!');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `fiscalRecords/${id}`);
-      }
+    setRecordToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!recordToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'fiscalRecords', recordToDelete));
+      toast.success('Registro excluído!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `fiscalRecords/${recordToDelete}`);
+    } finally {
+      setRecordToDelete(null);
     }
   };
 
@@ -169,9 +219,13 @@ const Fiscal: React.FC = () => {
         value: record.value.toString(),
         taxValue: record.taxValue?.toString() || '',
         status: record.status,
-        clientId: record.clientId,
+        clientId: record.clientId || '',
+        supplierId: (record as any).supplierId || '',
+        direction: (record as any).direction || 'out',
         relatedOSId: record.relatedOSId || '',
-        observations: record.observations || ''
+        observations: record.observations || '',
+        createTransaction: false,
+        dueDate: format(new Date(), 'yyyy-MM-dd')
       });
     } else {
       setEditingRecord(null);
@@ -184,8 +238,12 @@ const Fiscal: React.FC = () => {
         taxValue: '',
         status: 'emitted',
         clientId: '',
+        supplierId: '',
+        direction: 'out',
         relatedOSId: '',
-        observations: ''
+        observations: '',
+        createTransaction: false,
+        dueDate: format(new Date(), 'yyyy-MM-dd')
       });
     }
     setIsModalOpen(true);
@@ -198,7 +256,8 @@ const Fiscal: React.FC = () => {
 
   const filteredRecords = records.filter(r => 
     r.number.includes(searchTerm) ||
-    clients[r.clientId]?.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.clientId && clients[r.clientId]?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    ((r as any).supplierId && suppliers[(r as any).supplierId]?.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const totalValue = filteredRecords.reduce((acc, curr) => acc + curr.value, 0);
@@ -282,7 +341,7 @@ const Fiscal: React.FC = () => {
             <thead>
               <tr className="bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
                 <th className="px-8 py-4">Tipo / Número</th>
-                <th className="px-8 py-4">Cliente</th>
+                <th className="px-8 py-4">Entidade</th>
                 <th className="px-8 py-4">Data</th>
                 <th className="px-8 py-4">Valor</th>
                 <th className="px-8 py-4">Imposto</th>
@@ -310,12 +369,22 @@ const Fiscal: React.FC = () => {
                   </td>
                   <td className="px-8 py-5">
                     <span className="text-sm font-medium text-zinc-600 truncate block max-w-[200px]">
-                      {clients[record.clientId] || 'Cliente não encontrado'}
+                      {record.clientId ? clients[record.clientId] : suppliers[(record as any).supplierId] || 'Entidade não encontrada'}
+                    </span>
+                    <span className={cn(
+                      "text-[10px] font-bold uppercase tracking-wider",
+                      (record as any).direction === 'in' ? "text-blue-600" : "text-zinc-400"
+                    )}>
+                      {(record as any).direction === 'in' ? 'Entrada (Compra)' : 'Saída (Venda)'}
                     </span>
                     {record.relatedOSId && (
-                      <span className="text-[10px] text-zinc-400 block uppercase">
+                      <button
+                        onClick={() => setActiveTab('os', record.relatedOSId)}
+                        className="text-[10px] text-zinc-400 hover:text-zinc-900 flex items-center gap-1 uppercase transition-colors"
+                      >
                         {serviceOrders[record.relatedOSId] || 'OS não encontrada'}
-                      </span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </button>
                     )}
                   </td>
                   <td className="px-8 py-5 text-sm text-zinc-500">
@@ -381,9 +450,38 @@ const Fiscal: React.FC = () => {
             </div>
             
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tipo</label>
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Direção</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, direction: 'out', supplierId: '' })}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs transition-all border",
+                        formData.direction === 'out' 
+                          ? "bg-zinc-900 text-white border-zinc-900" 
+                          : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
+                      )}
+                    >
+                      Saída (Venda)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, direction: 'in', clientId: '' })}
+                      className={cn(
+                        "flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs transition-all border",
+                        formData.direction === 'in' 
+                          ? "bg-blue-600 text-white border-blue-600" 
+                          : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
+                      )}
+                    >
+                      Entrada (Compra)
+                    </button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tipo de Nota</label>
                   <select 
                     className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
                     value={formData.type}
@@ -394,6 +492,9 @@ const Fiscal: React.FC = () => {
                     <option value="cupom">Cupom Fiscal</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Número</label>
                   <input 
@@ -417,18 +518,34 @@ const Fiscal: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cliente</label>
-                  <select 
-                    required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.clientId}
-                    onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {Object.entries(clients).map(([id, name]) => (
-                      <option key={id} value={id}>{name}</option>
-                    ))}
-                  </select>
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">
+                    {formData.direction === 'out' ? 'Cliente' : 'Fornecedor'}
+                  </label>
+                  {formData.direction === 'out' ? (
+                    <select 
+                      required
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.clientId}
+                      onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {Object.entries(clients).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <select 
+                      required
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.supplierId}
+                      onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                    >
+                      <option value="">Selecione um fornecedor</option>
+                      {Object.entries(suppliers).map(([id, name]) => (
+                        <option key={id} value={id}>{name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">OS Relacionada (Opcional)</label>
@@ -456,9 +573,21 @@ const Fiscal: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                  >
+                    <option value="emitted">Emitida</option>
+                    <option value="pending">Pendente</option>
+                    <option value="cancelled">Cancelada</option>
+                  </select>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Valor Total</label>
                   <input 
@@ -480,18 +609,34 @@ const Fiscal: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, taxValue: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
-                  <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  >
-                    <option value="emitted">Emitida</option>
-                    <option value="pending">Pendente</option>
-                    <option value="cancelled">Cancelada</option>
-                  </select>
+              </div>
+
+              <div className="space-y-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="checkbox" 
+                    id="createTransactionFiscal"
+                    className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                    checked={formData.createTransaction}
+                    onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
+                  />
+                  <label htmlFor="createTransactionFiscal" className="text-sm font-bold text-zinc-700">
+                    Lançar no Financeiro ({formData.direction === 'in' ? 'Contas a Pagar' : 'Contas a Receber'})
+                  </label>
                 </div>
+
+                {formData.createTransaction && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data de Vencimento</label>
+                    <input 
+                      type="date" 
+                      required
+                      className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -523,6 +668,14 @@ const Fiscal: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Registro Fiscal?"
+        message="Tem certeza que deseja excluir este registro fiscal? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

@@ -10,41 +10,28 @@ import {
   Edit2, 
   Trash2,
   Tag,
-  History
+  History,
+  XCircle
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Supplier, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
-import { toast } from 'sonner';
+import { handleFirestoreError } from '../lib/utils';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface SuppliersProps {
-  setActiveTab?: (tab: string, itemId?: string, supplierId?: string) => void;
+  setActiveTab?: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
 }
 
 const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<string | null>(null);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
   const { canView, canCreate, canEdit, canDelete } = usePermissions('suppliers');
@@ -147,13 +134,19 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este fornecedor?')) {
-      try {
-        await deleteDoc(doc(db, 'suppliers', id));
-        toast.success('Fornecedor excluído com sucesso!');
-      } catch (error) {
-        handleFirestoreError(error, OperationType.DELETE, `suppliers/${id}`);
-      }
+    setSupplierToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'suppliers', supplierToDelete));
+      toast.success('Fornecedor excluído com sucesso!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `suppliers/${supplierToDelete}`);
+    } finally {
+      setSupplierToDelete(null);
     }
   };
 
@@ -204,13 +197,13 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input 
             type="text" 
             placeholder="Buscar por nome, CNPJ ou categoria..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -219,7 +212,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         {canCreate && (
           <button 
             onClick={() => openModal()}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
           >
             <Plus size={20} />
             Novo Fornecedor
@@ -229,20 +222,28 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center text-zinc-400 italic">Carregando fornecedores...</div>
+          <div className="col-span-full py-20 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+              <p className="text-zinc-400 text-sm italic">Carregando fornecedores...</p>
+            </div>
+          </div>
         ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
-          <div key={supplier.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group relative">
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center text-zinc-400 group-hover:bg-zinc-900 group-hover:text-white transition-colors">
-                <Truck size={24} />
+          <div 
+            key={supplier.id} 
+            className="bg-white rounded-[2rem] border border-zinc-200 p-6 hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden"
+          >
+            <div className="flex items-start justify-between mb-6">
+              <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                <Truck size={28} />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {canEdit && (
                   <button 
                     onClick={() => openModal(supplier)}
                     className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
                   >
-                    <Edit2 size={18} />
+                    <Edit2 size={16} />
                   </button>
                 )}
                 {canDelete && (
@@ -250,92 +251,98 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                     onClick={() => handleDelete(supplier.id)}
                     className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900 truncate">{supplier.name}</h3>
-                {supplier.cnpj && <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">CNPJ: {supplier.cnpj}</p>}
+                <h3 className="text-sm font-black text-zinc-900 line-clamp-1">{supplier.name}</h3>
+                {supplier.cnpj && <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">CNPJ: {supplier.cnpj}</p>}
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm text-zinc-500">
+              <div className="bg-zinc-50 rounded-2xl p-4 space-y-3 border border-zinc-100">
+                <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
                   <Phone size={14} className="text-zinc-400" />
                   <span>{supplier.phone}</span>
                 </div>
                 {supplier.email && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
                     <Mail size={14} className="text-zinc-400" />
                     <span className="truncate">{supplier.email}</span>
                   </div>
                 )}
                 {supplier.address && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
+                  <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
                     <MapPin size={14} className="text-zinc-400" />
                     <span className="truncate">{supplier.address}</span>
                   </div>
                 )}
-                {supplier.category && (
-                  <div className="flex items-center gap-2 text-sm text-zinc-500">
-                    <Tag size={14} className="text-zinc-400" />
-                    <span className="px-2 py-0.5 bg-zinc-100 rounded-md text-[10px] font-bold uppercase tracking-wider">{supplier.category}</span>
-                  </div>
-                )}
               </div>
 
-              <div className="pt-4 border-t border-zinc-50">
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
+                {supplier.category ? (
+                  <div className="flex items-center gap-2">
+                    <Tag size={12} className="text-zinc-400" />
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{supplier.category}</span>
+                  </div>
+                ) : <div />}
+                
                 <button
                   onClick={() => setActiveTab?.('stock', undefined, supplier.id)}
-                  className="w-full flex items-center justify-center gap-2 py-2 bg-zinc-50 text-zinc-600 rounded-xl text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-sm"
                 >
-                  <History size={14} />
-                  Ver Movimentações
+                  <History size={12} />
+                  Histórico
                 </button>
               </div>
             </div>
           </div>
         )) : (
-          <div className="col-span-full py-20 bg-white rounded-3xl border border-dashed border-zinc-200 text-center">
-            <Truck size={48} className="mx-auto text-zinc-200 mb-4" />
-            <p className="text-zinc-400 font-medium">Nenhum fornecedor encontrado.</p>
+          <div className="col-span-full py-20 text-center">
+            <div className="flex flex-col items-center gap-2 opacity-40">
+              <Truck size={48} className="text-zinc-300" />
+              <p className="text-zinc-500 text-sm font-medium">Nenhum fornecedor encontrado.</p>
+            </div>
           </div>
         )}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">
-                {editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
-              </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
-                <Trash2 size={24} className="rotate-45" />
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900">
+                  {editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+                </h3>
+                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Dados Cadastrais</p>
+              </div>
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-all">
+                <XCircle size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Nome / Razão Social</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome / Razão Social</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">CNPJ</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">CNPJ</label>
                   <input 
                     type="text" 
                     placeholder="00.000.000/0000-00"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
                   />
@@ -344,20 +351,20 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Telefone</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Telefone</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">E-mail</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">E-mail</label>
                   <input 
                     type="email" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -365,21 +372,21 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Endereço</label>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Endereço</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Categoria / Ramo</label>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria / Ramo</label>
                 <input 
                   type="text" 
                   placeholder="Ex: Peças, Pneus, Óleos..."
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 />
@@ -389,13 +396,13 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
                 >
                   {editingSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
                 </button>
@@ -404,6 +411,14 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Fornecedor?"
+        message="Tem certeza que deseja excluir este fornecedor? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

@@ -22,6 +22,7 @@ import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { formatCurrency, cn } from '../lib/utils';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
 
 const Resale: React.FC = () => {
   const { profile } = useAuth();
@@ -43,6 +44,8 @@ const Resale: React.FC = () => {
     throw new Error(JSON.stringify(errInfo));
   };
   const [vehicles, setVehicles] = useState<ResaleVehicle[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<ResaleVehicle | null>(null);
@@ -115,14 +118,20 @@ const Resale: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este veículo?')) {
-      try {
-        await deleteDoc(doc(db, 'resaleVehicles', id));
-        toast.success('Veículo excluído com sucesso!');
-      } catch (error) {
-        console.error(error);
-        toast.error('Erro ao excluir veículo.');
-      }
+    setVehicleToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!vehicleToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'resaleVehicles', vehicleToDelete));
+      toast.success('Veículo excluído com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir veículo.');
+    } finally {
+      setVehicleToDelete(null);
     }
   };
 
@@ -380,6 +389,14 @@ const Resale: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Veículo?"
+        message="Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

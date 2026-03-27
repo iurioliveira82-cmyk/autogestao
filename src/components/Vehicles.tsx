@@ -18,29 +18,15 @@ import { db, auth } from '../firebase';
 import { Vehicle, Client, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
-import { formatPlate, cn } from '../lib/utils';
+import { formatPlate, cn, handleFirestoreError } from '../lib/utils';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
 
 const Vehicles: React.FC = () => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [vehicleToDelete, setVehicleToDelete] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -136,14 +122,20 @@ const Vehicles: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este veículo?')) {
-      try {
-        await deleteDoc(doc(db, 'vehicles', id));
-        toast.success('Veículo excluído com sucesso!');
-      } catch (error) {
-        console.error(error);
-        toast.error('Erro ao excluir veículo.');
-      }
+    setVehicleToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!vehicleToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'vehicles', vehicleToDelete));
+      toast.success('Veículo excluído com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir veículo.');
+    } finally {
+      setVehicleToDelete(null);
     }
   };
 
@@ -201,25 +193,26 @@ const Vehicles: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
+        <div className="relative flex-1 w-full sm:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input 
             type="text" 
             placeholder="Buscar por placa, modelo, marca ou proprietário..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <div className="flex items-center gap-3">
-          <button className="p-3 bg-white border border-zinc-200 rounded-2xl text-zinc-500 hover:bg-zinc-50 transition-colors">
+        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+          <button className="flex items-center justify-center p-3 bg-white border border-zinc-200 rounded-2xl text-zinc-500 hover:bg-zinc-50 transition-colors shadow-sm w-full sm:w-auto">
             <Filter size={20} />
+            <span className="sm:hidden ml-2 font-bold text-sm">Filtros</span>
           </button>
           {canCreate && (
             <button 
               onClick={() => openModal()}
-              className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm w-full sm:w-auto"
             >
               <Plus size={20} />
               Novo Veículo
@@ -229,111 +222,117 @@ const Vehicles: React.FC = () => {
       </div>
 
       {/* Vehicles Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center text-zinc-400 italic">Carregando veículos...</div>
+          <div className="col-span-full py-20 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+              <p className="text-zinc-400 text-sm italic">Carregando veículos...</p>
+            </div>
+          </div>
         ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => (
-          <div key={vehicle.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
-            <div className="flex items-start justify-between mb-6">
+          <div 
+            key={vehicle.id} 
+            className="bg-white rounded-[2rem] border border-zinc-200 p-6 hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden"
+          >
+            <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-900 shadow-sm border border-zinc-200">
-                  <Car size={24} />
+                <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                  <Car size={28} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-zinc-900">{vehicle.brand} {vehicle.model}</h3>
-                  <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
-                    <Hash size={12} />
-                    {vehicle.plate}
-                  </div>
+                  <h3 className="text-sm font-black text-zinc-900 line-clamp-1">{vehicle.brand} {vehicle.model}</h3>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{vehicle.year} • {vehicle.color}</p>
                 </div>
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {canEdit && (
                   <button 
                     onClick={() => openModal(vehicle)}
-                    className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                    className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
                   >
-                    <Edit2 size={18} />
+                    <Edit2 size={16} />
                   </button>
                 )}
                 {canDelete && (
                   <button 
                     onClick={() => handleDelete(vehicle.id)}
-                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={16} />
                   </button>
                 )}
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Ano</p>
-                <div className="flex items-center gap-2 text-sm font-bold text-zinc-700">
-                  <Calendar size={14} className="text-zinc-400" />
-                  {vehicle.year || 'N/A'}
-                </div>
+            <div className="bg-zinc-50 rounded-2xl p-4 mb-6 border border-zinc-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Placa</span>
+                <span className="px-3 py-1 bg-zinc-900 text-white rounded-lg text-xs font-black tracking-wider uppercase">{vehicle.plate}</span>
               </div>
-              <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">KM</p>
-                <div className="flex items-center gap-2 text-sm font-bold text-zinc-700">
-                  <Gauge size={14} className="text-zinc-400" />
-                  {vehicle.km?.toLocaleString() || 'N/A'}
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">KM Atual</span>
+                <span className="text-sm font-black text-zinc-900">{vehicle.km?.toLocaleString() || '0'} km</span>
               </div>
             </div>
 
-            <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 bg-zinc-900 text-white rounded-full flex items-center justify-center text-[10px] font-bold">
-                  {getClientName(vehicle.clientId).slice(0, 1).toUpperCase()}
-                </div>
-                <span className="text-xs font-bold text-zinc-600">{getClientName(vehicle.clientId)}</span>
+            <div className="flex items-center gap-3 pt-4 border-t border-zinc-100">
+              <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-400">
+                <User size={16} />
               </div>
-              <div className="flex items-center gap-1 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                <Palette size={12} />
-                {vehicle.color || 'N/A'}
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Proprietário</span>
+                <span className="text-xs font-bold text-zinc-600 truncate max-w-[150px]">
+                  {getClientName(vehicle.clientId)}
+                </span>
               </div>
             </div>
           </div>
         )) : (
-          <div className="col-span-full py-20 text-center text-zinc-400 italic">Nenhum veículo encontrado.</div>
+          <div className="col-span-full py-20 text-center">
+            <div className="flex flex-col items-center gap-2 opacity-40">
+              <Car size={48} className="text-zinc-300" />
+              <p className="text-zinc-500 text-sm font-medium">Nenhum veículo encontrado.</p>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">
-                {editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}
-              </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900">
+                  {editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}
+                </h3>
+                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Informações Técnicas</p>
+              </div>
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-all">
                 <XCircle size={24} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Placa</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Placa</label>
                   <input 
                     type="text" 
                     required
                     maxLength={7}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-mono uppercase"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-mono font-black uppercase tracking-widest text-sm"
                     placeholder="ABC1D23"
                     value={formData.plate}
                     onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cliente Proprietário</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cliente Proprietário</label>
                   <select 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
                     value={formData.clientId}
                     onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
                   >
@@ -347,22 +346,22 @@ const Vehicles: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Marca</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Marca</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     placeholder="Ex: Volkswagen"
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Modelo</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Modelo</label>
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     placeholder="Ex: Golf"
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
@@ -372,30 +371,30 @@ const Vehicles: React.FC = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Ano</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Ano</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     placeholder="2024"
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cor</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cor</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     placeholder="Branco"
                     value={formData.color}
                     onChange={(e) => setFormData({ ...formData, color: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">KM Atual</label>
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">KM Atual</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                     placeholder="0"
                     value={formData.km}
                     onChange={(e) => setFormData({ ...formData, km: e.target.value })}
@@ -407,13 +406,13 @@ const Vehicles: React.FC = () => {
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
                 >
                   {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
                 </button>
@@ -422,6 +421,14 @@ const Vehicles: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Veículo?"
+        message="Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

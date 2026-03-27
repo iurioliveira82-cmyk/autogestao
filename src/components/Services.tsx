@@ -18,29 +18,15 @@ import { db, auth } from '../firebase';
 import { Service, InventoryItem, ServiceProduct, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
-import { formatCurrency, cn } from '../lib/utils';
+import { formatCurrency, cn, handleFirestoreError } from '../lib/utils';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
 
 const Services: React.FC = () => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [services, setServices] = useState<Service[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -130,14 +116,20 @@ const Services: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir este serviço?')) {
-      try {
-        await deleteDoc(doc(db, 'services', id));
-        toast.success('Serviço excluído com sucesso!');
-      } catch (error) {
-        console.error(error);
-        toast.error('Erro ao excluir serviço.');
-      }
+    setServiceToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!serviceToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'services', serviceToDelete));
+      toast.success('Serviço excluído com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir serviço.');
+    } finally {
+      setServiceToDelete(null);
     }
   };
 
@@ -483,6 +475,14 @@ const Services: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Serviço?"
+        message="Tem certeza que deseja excluir este serviço? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

@@ -20,36 +20,22 @@ import { Appointment, Client, Vehicle, Service, OperationType } from '../types';
 import { auth } from '../firebase';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
-import { cn } from '../lib/utils';
+import { cn, handleFirestoreError } from '../lib/utils';
 import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface AgendaProps {
-  setActiveTab: (tab: string, itemId?: string) => void;
+  setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
 }
 
 const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const { canCreate, canEdit, canDelete } = usePermissions('agenda');
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -159,6 +145,24 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
     } catch (error) {
       console.error(error);
       toast.error('Erro ao agendar.');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    setAppointmentToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!appointmentToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'appointments', appointmentToDelete));
+      toast.success('Agendamento excluído com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir agendamento.');
+    } finally {
+      setAppointmentToDelete(null);
     }
   };
 
@@ -336,9 +340,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 )}
                 {app.status !== 'scheduled' && canDelete && (
                   <button 
-                    onClick={async () => {
-                      if(window.confirm('Excluir agendamento?')) await deleteDoc(doc(db, 'appointments', app.id));
-                    }}
+                    onClick={() => handleDelete(app.id)}
                     className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
                     <Trash2 size={20} />
@@ -494,6 +496,14 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Agendamento?"
+        message="Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

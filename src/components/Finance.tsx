@@ -12,40 +12,30 @@ import {
   PieChart as PieChartIcon,
   Download,
   XCircle,
-  Printer
+  Printer,
+  AlertTriangle,
+  CheckCircle2,
+  Ban,
+  ArrowDownCircle
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
-import { Transaction, Supplier, OperationType } from '../types';
+import { Transaction, Supplier, OperationType, ServiceOrder, Client } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from './Auth';
-import { formatCurrency, cn } from '../lib/utils';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { formatCurrency, cn, handleFirestoreError } from '../lib/utils';
+import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { motion, AnimatePresence } from 'motion/react';
 
 const Finance: React.FC = () => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -57,9 +47,16 @@ const Finance: React.FC = () => {
   });
 
   const [filters, setFilters] = useState({
-    status: 'all' as 'all' | 'paid' | 'pending',
+    status: 'all' as 'all' | 'paid' | 'pending' | 'cancelled',
     type: 'all' as 'all' | 'in' | 'out',
-    searchTerm: ''
+    searchTerm: '',
+    relatedOSId: 'all',
+    supplierId: 'all',
+    clientId: 'all',
+    startDate: '',
+    endDate: '',
+    startDueDate: '',
+    endDueDate: ''
   });
 
   // Form state
@@ -70,13 +67,61 @@ const Finance: React.FC = () => {
     description: '',
     paymentMethod: 'pix',
     status: 'paid' as 'paid' | 'pending',
-    supplierId: ''
+    supplierId: '',
+    relatedOSId: '',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    dueDate: format(new Date(), 'yyyy-MM-dd')
   });
 
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
   const [relatedOS, setRelatedOS] = useState<any>(null);
+  const [chartView, setChartView] = useState<'general' | 'income' | 'expense'>('general');
+  const [financeTab, setFinanceTab] = useState<'all' | 'receivable' | 'payable'>(() => {
+    const saved = localStorage.getItem('financeTab');
+    if (saved === 'receivable' || saved === 'payable' || saved === 'all') return saved;
+    return 'all';
+  });
+
+  const handleSetFinanceTab = (tab: 'all' | 'receivable' | 'payable') => {
+    setFinanceTab(tab);
+    localStorage.setItem('financeTab', tab);
+  };
+  const [confirmAction, setConfirmAction] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: 'danger' | 'success';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    type: 'success'
+  });
   const { canCreate, canEdit, canDelete } = usePermissions('finance');
+
+  const calculateInterest = (transaction: Transaction) => {
+    if (transaction.type !== 'in' || transaction.status !== 'pending' || !transaction.dueDate) return 0;
+    
+    const dueDate = new Date(transaction.dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (dueDate >= today) return 0;
+    
+    const diffDays = Math.max(0, differenceInDays(today, dueDate));
+    if (diffDays <= 0) return 0;
+    
+    // Find client to get interest rate
+    const client = clients.find(c => c.id === transaction.clientId);
+    const rate = client?.interestRate || 0; // monthly rate
+    
+    // Simple interest calculation: (value * rate/100) * (days / 30)
+    const interest = (transaction.value * (rate / 100)) * (diffDays / 30);
+    return interest;
+  };
 
   useEffect(() => {
     if (!profile) return;
@@ -96,14 +141,20 @@ const Finance: React.FC = () => {
       
       snapshot.forEach((doc) => {
         const data = doc.data() as Transaction;
-        list.push({ id: doc.id, ...data });
+        const transaction = { id: doc.id, ...data };
+        list.push(transaction);
         
-        if (data.status === 'paid') {
-          if (data.type === 'in') inc += data.value;
-          else exp += data.value;
-        } else {
-          if (data.type === 'in') rec += data.value;
-          else pay += data.value;
+        if (data.status !== 'cancelled') {
+          if (data.status === 'paid') {
+            if (data.type === 'in') inc += data.value;
+            else exp += data.value;
+          } else {
+            if (data.type === 'in') {
+              const interest = calculateInterest(transaction);
+              rec += data.value + interest;
+            }
+            else pay += data.value;
+          }
         }
       });
       
@@ -127,18 +178,65 @@ const Finance: React.FC = () => {
       setSuppliers(list);
     }, (error) => handleFirestoreError(error, OperationType.GET, 'suppliers'));
 
+    const unsubscribeOS = onSnapshot(collection(db, 'serviceOrders'), (snapshot) => {
+      const list: ServiceOrder[] = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
+      setServiceOrders(list);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'serviceOrders'));
+
+    const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
+      const list: Client[] = [];
+      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
+      setClients(list);
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'clients'));
+
     return () => {
       unsubscribe();
       unsubscribeSuppliers();
+      unsubscribeOS();
+      unsubscribeClients();
     };
   }, [profile]);
 
   const filteredTransactions = transactions.filter(t => {
+    // Tab filtering
+    if (financeTab === 'receivable' && (t.type !== 'in' || t.status !== 'pending')) return false;
+    if (financeTab === 'payable' && (t.type !== 'out' || t.status !== 'pending')) return false;
+
     const matchesStatus = filters.status === 'all' || t.status === filters.status;
     const matchesType = filters.type === 'all' || t.type === filters.type;
+    const matchesOS = filters.relatedOSId === 'all' || t.relatedOSId === filters.relatedOSId;
+    const matchesSupplier = filters.supplierId === 'all' || t.supplierId === filters.supplierId;
+    
+    let matchesClient = true;
+    if (filters.clientId !== 'all') {
+      const os = serviceOrders.find(o => o.id === t.relatedOSId);
+      matchesClient = os?.clientId === filters.clientId;
+    }
+
     const matchesSearch = t.description.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
                           t.category.toLowerCase().includes(filters.searchTerm.toLowerCase());
-    return matchesStatus && matchesType && matchesSearch;
+    
+    // Date filters
+    const transactionDate = t.date ? new Date(t.date) : null;
+    const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+
+    if (filters.startDate && transactionDate && transactionDate < new Date(filters.startDate)) return false;
+    if (filters.endDate && transactionDate && transactionDate > new Date(filters.endDate)) return false;
+    if (filters.startDueDate && dueDate && dueDate < new Date(filters.startDueDate)) return false;
+    if (filters.endDueDate && dueDate && dueDate > new Date(filters.endDueDate)) return false;
+
+    return matchesStatus && matchesType && matchesOS && matchesSupplier && matchesClient && matchesSearch;
+  });
+
+  const upcomingExpenses = transactions.filter(t => {
+    if (t.type !== 'out' || t.status !== 'pending') return false;
+    const dueDate = new Date(t.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 3;
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -153,9 +251,11 @@ const Finance: React.FC = () => {
       await addDoc(collection(db, 'transactions'), {
         ...formData,
         value: parseFloat(formData.value),
-        date: new Date().toISOString(),
+        date: formData.date || new Date().toISOString(),
+        dueDate: formData.status === 'pending' ? formData.dueDate : undefined,
         status: formData.status,
         supplierId: formData.type === 'out' ? formData.supplierId : undefined,
+        relatedOSId: formData.relatedOSId || undefined,
         createdAt: serverTimestamp()
       });
       
@@ -181,6 +281,68 @@ const Finance: React.FC = () => {
     }
   };
 
+  const markAsPaid = async (id: string) => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Confirmar Baixa',
+      message: 'Deseja confirmar o recebimento/pagamento desta transação?',
+      type: 'success',
+      onConfirm: async () => {
+        try {
+          await updateDoc(doc(db, 'transactions', id), {
+            status: 'paid',
+            updatedAt: serverTimestamp()
+          });
+          toast.success('Pagamento baixado com sucesso!');
+        } catch (error) {
+          console.error(error);
+          toast.error('Erro ao baixar pagamento.');
+        } finally {
+          setConfirmAction(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const cancelTransaction = async (id: string) => {
+    setConfirmAction({
+      isOpen: true,
+      title: 'Cancelar Transação',
+      message: 'Tem certeza que deseja cancelar esta transação? Esta ação não pode ser desfeita.',
+      type: 'danger',
+      onConfirm: async () => {
+        try {
+          await updateDoc(doc(db, 'transactions', id), {
+            status: 'cancelled',
+            updatedAt: serverTimestamp()
+          });
+          toast.success('Transação cancelada com sucesso!');
+        } catch (error) {
+          console.error(error);
+          toast.error('Erro ao cancelar transação.');
+        } finally {
+          setConfirmAction(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
+  const openModal = (type: 'in' | 'out') => {
+    setFormData({
+      type,
+      value: '',
+      category: type === 'out' ? 'Despesa' : 'Serviço',
+      description: '',
+      paymentMethod: type === 'out' ? 'boleto' : 'pix',
+      status: 'pending',
+      supplierId: '',
+      relatedOSId: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      dueDate: format(new Date(), 'yyyy-MM-dd')
+    });
+    setIsModalOpen(true);
+  };
+
   const openReceipt = async (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     if (transaction.relatedOSId) {
@@ -202,130 +364,416 @@ const Finance: React.FC = () => {
     setRelatedOS(null);
   };
 
-  const closeModal = () => setIsModalOpen(false);
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setFormData({
+      type: 'in',
+      value: '',
+      category: '',
+      description: '',
+      paymentMethod: 'pix',
+      status: 'paid',
+      supplierId: '',
+      relatedOSId: '',
+      date: format(new Date(), 'yyyy-MM-dd'),
+      dueDate: format(new Date(), 'yyyy-MM-dd')
+    });
+  };
 
-  const categoryData = [
-    { name: 'Entradas', value: summary.income, color: '#10b981' },
-    { name: 'Saídas', value: summary.expense, color: '#ef4444' },
-  ];
+  const incomeByCategory = transactions
+    .filter(t => t.type === 'in' && t.status === 'paid')
+    .reduce((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + t.value;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const expenseByCategory = transactions
+    .filter(t => t.type === 'out' && t.status === 'paid')
+    .reduce((acc, t) => {
+      acc[t.category] = (acc[t.category] || 0) + t.value;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const CHART_COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#64748b'];
+
+  const getChartData = () => {
+    if (chartView === 'income') {
+      return Object.entries(incomeByCategory).map(([name, value]) => ({ name, value }));
+    }
+    if (chartView === 'expense') {
+      return Object.entries(expenseByCategory).map(([name, value]) => ({ name, value }));
+    }
+    return [
+      { name: 'Entradas', value: summary.income, color: '#10b981' },
+      { name: 'Saídas', value: summary.expense, color: '#ef4444' },
+    ];
+  };
+
+  const currentChartData = getChartData();
 
   return (
     <div className="space-y-8">
       {/* Financial Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-green-50 rounded-2xl text-green-600">
-              <TrendingUp size={24} />
-            </div>
-          </div>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Entradas (Pagas)</p>
-          <h3 className="text-2xl font-black text-zinc-900">{formatCurrency(summary.income)}</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Entradas</p>
+          <h3 className="text-lg font-black text-green-600">{formatCurrency(summary.income)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-red-50 rounded-2xl text-red-600">
-              <TrendingDown size={24} />
-            </div>
-          </div>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saídas (Pagas)</p>
-          <h3 className="text-2xl font-black text-zinc-900">{formatCurrency(summary.expense)}</h3>
+        <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saídas</p>
+          <h3 className="text-lg font-black text-red-600">{formatCurrency(summary.expense)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
-              <ArrowUpRight size={24} />
-            </div>
-          </div>
+        <div 
+          onClick={() => handleSetFinanceTab('receivable')}
+          className={cn(
+            "bg-white p-4 rounded-2xl border shadow-sm transition-all cursor-pointer",
+            financeTab === 'receivable' ? "border-amber-500 ring-1 ring-amber-500" : "border-zinc-200 hover:border-amber-200"
+          )}
+        >
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">A Receber</p>
-          <h3 className="text-2xl font-black text-zinc-900">{formatCurrency(summary.receivable)}</h3>
+          <h3 className="text-lg font-black text-amber-600">{formatCurrency(summary.receivable)}</h3>
         </div>
 
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <div className="p-3 bg-orange-50 rounded-2xl text-orange-600">
-              <ArrowDownRight size={24} />
+        <div 
+          onClick={() => handleSetFinanceTab('payable')}
+          className={cn(
+            "bg-white p-4 rounded-2xl border shadow-sm transition-all cursor-pointer",
+            financeTab === 'payable' ? "border-orange-500 ring-1 ring-orange-500" : "border-zinc-200 hover:border-orange-200"
+          )}
+        >
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">A Pagar</p>
+          <h3 className="text-lg font-black text-orange-600">{formatCurrency(summary.payable)}</h3>
+        </div>
+
+        <div 
+          className="bg-zinc-900 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-center cursor-pointer hover:bg-zinc-800 transition-all sm:col-span-2 lg:col-span-1"
+          onClick={() => handleSetFinanceTab('all')}
+        >
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saldo</p>
+          <h3 className="text-lg font-black">{formatCurrency(summary.balance)}</h3>
+        </div>
+      </div>
+
+      {upcomingExpenses.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="p-3 bg-amber-100 rounded-2xl text-amber-600 shrink-0">
+            <AlertTriangle size={24} />
+          </div>
+          <div className="flex-1">
+            <h4 className="text-lg font-bold text-amber-900">Atenção: Pagamentos Próximos</h4>
+            <p className="text-sm text-amber-700 mb-4">
+              Você tem {upcomingExpenses.length} {upcomingExpenses.length === 1 ? 'conta' : 'contas'} a pagar com vencimento próximo ou em atraso.
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {upcomingExpenses.slice(0, 3).map(exp => (
+                <div key={exp.id} className="bg-white/50 border border-amber-100 px-3 py-2 rounded-xl text-xs font-medium text-amber-800 flex items-center gap-2">
+                  <span className="font-bold">{formatCurrency(exp.value)}</span>
+                  <span className="opacity-50">•</span>
+                  <span>{exp.description.length > 30 ? exp.description.slice(0, 30) + '...' : exp.description}</span>
+                  <span className="opacity-50">•</span>
+                  <span className={cn(
+                    "font-bold",
+                    new Date(exp.date) < new Date() ? "text-red-600" : "text-amber-600"
+                  )}>
+                    {format(new Date(exp.date), 'dd/MM')}
+                  </span>
+                </div>
+              ))}
+              {upcomingExpenses.length > 3 && (
+                <div className="px-3 py-2 text-xs font-bold text-amber-600">
+                  + {upcomingExpenses.length - 3} outros
+                </div>
+              )}
             </div>
           </div>
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">A Pagar</p>
-          <h3 className="text-2xl font-black text-zinc-900">{formatCurrency(summary.payable)}</h3>
         </div>
-      </div>
-
-      <div className="bg-zinc-900 p-8 rounded-3xl shadow-xl shadow-zinc-200 text-white flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium text-zinc-400 mb-1">Saldo em Caixa (Efetivado)</p>
-          <h3 className="text-4xl font-black">{formatCurrency(summary.balance)}</h3>
-        </div>
-        <div className="p-4 bg-white/10 rounded-2xl">
-          <DollarSign size={32} />
-        </div>
-      </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Transactions List */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-          <div className="p-8 border-b border-zinc-100 space-y-4">
-            <div className="flex items-center justify-between">
+      <div className="lg:col-span-2 space-y-6">
+        <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-sm overflow-hidden">
+          <div className="flex flex-wrap p-2 bg-zinc-50/50 border-b border-zinc-100 gap-2">
+            <button
+              onClick={() => handleSetFinanceTab('all')}
+              className={cn(
+                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
+                financeTab === 'all' 
+                  ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200" 
+                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+              )}
+            >
+              Fluxo
+            </button>
+            <button
+              onClick={() => handleSetFinanceTab('receivable')}
+              className={cn(
+                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
+                financeTab === 'receivable' 
+                  ? "bg-amber-500 text-white shadow-lg shadow-amber-100" 
+                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+              )}
+            >
+              Receber
+            </button>
+            <button
+              onClick={() => handleSetFinanceTab('payable')}
+              className={cn(
+                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
+                financeTab === 'payable' 
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-100" 
+                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+              )}
+            >
+              Pagar
+            </button>
+          </div>
+
+          <div className="p-4 sm:p-8 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-zinc-900">Fluxo de Caixa</h3>
-                <p className="text-sm text-zinc-500">Histórico de movimentações</p>
+                <h3 className="text-xl sm:text-2xl font-black text-zinc-900">
+                  {financeTab === 'all' ? 'Fluxo de Caixa' : 
+                   financeTab === 'receivable' ? 'Contas a Receber' : 'Contas a Pagar'}
+                </h3>
+                <p className="text-[10px] sm:text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">
+                  {financeTab === 'all' ? 'Histórico Geral' : 
+                   financeTab === 'receivable' ? 'Pendências de Entrada' : 'Pendências de Saída'}
+                </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3 w-full sm:w-auto">
                 {canCreate && (
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 bg-zinc-900 text-white px-4 py-2 rounded-xl font-bold text-sm hover:bg-zinc-800 transition-all"
-                  >
-                    <Plus size={16} />
-                    Lançar
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => openModal('in')}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:bg-green-700 transition-all shadow-lg shadow-green-100"
+                    >
+                      <Plus size={18} />
+                      Receber
+                    </button>
+                    <button 
+                      onClick={() => openModal('out')}
+                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                    >
+                      <Plus size={18} />
+                      Pagar
+                    </button>
+                  </>
                 )}
-                <button className="p-2 bg-zinc-100 text-zinc-500 rounded-xl hover:bg-zinc-200 transition-all">
-                  <Download size={18} />
-                </button>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar transação..."
-                  className="w-full pl-10 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                  value={filters.searchTerm}
-                  onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-                />
+            {/* Filters Section - Only for Fluxo de Caixa as requested */}
+            {financeTab === 'all' && (
+              <div className="space-y-6 pt-6 border-t border-zinc-100">
+                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Buscar por descrição ou categoria..."
+                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={filters.searchTerm}
+                      onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                        setFilters({ 
+                          ...filters, 
+                          startDate: format(start, 'yyyy-MM-dd'),
+                          endDate: format(end, 'yyyy-MM-dd')
+                        });
+                      }}
+                      className="whitespace-nowrap px-4 py-2 bg-zinc-100 text-zinc-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                    >
+                      Este Mês
+                    </button>
+                    <button
+                      onClick={() => {
+                        const today = new Date();
+                        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                        const end = new Date(today.getFullYear(), today.getMonth(), 0);
+                        setFilters({ 
+                          ...filters, 
+                          startDate: format(start, 'yyyy-MM-dd'),
+                          endDate: format(end, 'yyyy-MM-dd')
+                        });
+                      }}
+                      className="whitespace-nowrap px-4 py-2 bg-zinc-100 text-zinc-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                    >
+                      Mês Passado
+                    </button>
+                    <button
+                      onClick={() => setFilters({ 
+                        ...filters, 
+                        status: 'all', 
+                        type: 'all', 
+                        clientId: 'all', 
+                        supplierId: 'all', 
+                        relatedOSId: 'all',
+                        startDate: '',
+                        endDate: '',
+                        startDueDate: '',
+                        endDueDate: ''
+                      })}
+                      className="whitespace-nowrap px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    >
+                      Limpar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-2xl">
+                    <button
+                      onClick={() => setFilters({ ...filters, status: 'all' })}
+                      className={cn(
+                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        filters.status === 'all' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                      )}
+                    >
+                      Todos
+                    </button>
+                    <button
+                      onClick={() => setFilters({ ...filters, status: 'paid' })}
+                      className={cn(
+                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        filters.status === 'paid' ? "bg-white text-green-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                      )}
+                    >
+                      Pagos
+                    </button>
+                    <button
+                      onClick={() => setFilters({ ...filters, status: 'pending' })}
+                      className={cn(
+                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                        filters.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                      )}
+                    >
+                      Pend.
+                    </button>
+                  </div>
+
+                  <select 
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={filters.type}
+                    onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
+                  >
+                    <option value="all">Todos Tipos</option>
+                    <option value="in">Entradas</option>
+                    <option value="out">Saídas</option>
+                  </select>
+
+                  <select 
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={filters.clientId}
+                    onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
+                  >
+                    <option value="all">Todos Clientes</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <select 
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={filters.relatedOSId}
+                    onChange={(e) => setFilters({ ...filters, relatedOSId: e.target.value })}
+                  >
+                    <option value="all">Todas OS</option>
+                    {serviceOrders
+                      .filter(os => transactions.some(t => t.relatedOSId === os.id))
+                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .map(os => (
+                        <option key={os.id} value={os.id}>
+                          OS #{os.id.slice(-4).toUpperCase()}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
+                    <input 
+                      type="date"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={filters.startDate}
+                      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
+                    <input 
+                      type="date"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={filters.endDate}
+                      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
+                    <input 
+                      type="date"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={filters.startDueDate}
+                      onChange={(e) => setFilters({ ...filters, startDueDate: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
+                    <input 
+                      type="date"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={filters.endDueDate}
+                      onChange={(e) => setFilters({ ...filters, endDueDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                {/* Filtered Summary */}
+                <div className="grid grid-cols-3 gap-4 pt-6 border-t border-zinc-100">
+                  <div className="bg-green-50/50 p-4 rounded-3xl border border-green-100">
+                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Entradas</p>
+                    <p className="text-xl font-black text-green-700">
+                      {formatCurrency(filteredTransactions.filter(t => t.type === 'in' && t.status !== 'cancelled').reduce((acc, t) => acc + t.value, 0))}
+                    </p>
+                  </div>
+                  <div className="bg-red-50/50 p-4 rounded-3xl border border-red-100">
+                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Saídas</p>
+                    <p className="text-xl font-black text-red-700">
+                      {formatCurrency(filteredTransactions.filter(t => t.type === 'out' && t.status !== 'cancelled').reduce((acc, t) => acc + t.value, 0))}
+                    </p>
+                  </div>
+                  <div className="bg-zinc-100/50 p-4 rounded-3xl border border-zinc-200">
+                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Saldo</p>
+                    <p className="text-xl font-black text-zinc-900">
+                      {formatCurrency(
+                        filteredTransactions.filter(t => t.status !== 'cancelled').reduce((acc, t) => t.type === 'in' ? acc + t.value : acc - t.value, 0)
+                      )}
+                    </p>
+                  </div>
+                </div>
               </div>
-              <select 
-                className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none"
-                value={filters.type}
-                onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
-              >
-                <option value="all">Todos Tipos</option>
-                <option value="in">Entradas</option>
-                <option value="out">Saídas</option>
-              </select>
-              <select 
-                className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-sm focus:outline-none"
-                value={filters.status}
-                onChange={(e) => setFilters({ ...filters, status: e.target.value as any })}
-              >
-                <option value="all">Todos Status</option>
-                <option value="paid">Pago</option>
-                <option value="pending">Pendente</option>
-              </select>
-            </div>
+            )}
           </div>
-          <div className="overflow-x-auto">
+          <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
-                  <th className="px-8 py-4">Data</th>
-                  <th className="px-8 py-4">Descrição</th>
+                  <th className="px-8 py-4">Datas</th>
+                  <th className="px-8 py-4">
+                    {financeTab === 'receivable' ? 'Cliente / OS' : 
+                     financeTab === 'payable' ? 'Fornecedor / Descrição' : 'Descrição'}
+                  </th>
                   <th className="px-8 py-4">Categoria</th>
                   <th className="px-8 py-4">Status</th>
                   <th className="px-8 py-4 text-right">Valor</th>
@@ -333,90 +781,324 @@ const Finance: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Carregando transações...</td>
-                  </tr>
-                ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => (
-                  <tr key={t.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="px-8 py-5 text-sm text-zinc-500">{format(new Date(t.date), 'dd/MM/yy')}</td>
-                    <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-900 block">{t.description}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
-                        {t.supplierId && (
-                          <>
-                            <span className="text-zinc-300">|</span>
-                            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                              {suppliers.find(s => s.id === t.supplierId)?.name || 'Fornecedor'}
-                            </span>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5">
-                      <span className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-600">
-                        {t.category}
-                      </span>
-                    </td>
-                    <td className="px-8 py-5">
-                      <button 
-                        onClick={() => toggleStatus(t)}
+                <AnimatePresence mode="popLayout">
+                  {loading ? (
+                    <motion.tr
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Carregando transações...</td>
+                    </motion.tr>
+                  ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
+                    const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
+                    const os = serviceOrders.find(o => o.id === t.relatedOSId);
+                    const client = t.clientId ? clients.find(c => c.id === t.clientId) : (os ? clients.find(c => c.id === os.clientId) : null);
+                    const supplier = suppliers.find(s => s.id === t.supplierId);
+                    const interest = calculateInterest(t);
+                    const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
+
+                    return (
+                      <motion.tr 
+                        key={t.id} 
+                        layout
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
                         className={cn(
+                          "hover:bg-zinc-50 transition-colors",
+                          isUpcoming && "bg-amber-50/30",
+                          isOverdue && "bg-red-50/20"
+                        )}
+                      >
+                        <td className="px-8 py-5">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={12} className="text-zinc-400" />
+                            <span className="text-xs font-bold text-zinc-900">{format(new Date(t.date), 'dd/MM/yy')}</span>
+                            <span className="text-[8px] text-zinc-400 uppercase font-black">Lanç.</span>
+                          </div>
+                          {t.dueDate && t.status === 'pending' && (
+                            <div className="flex items-center gap-2">
+                              <AlertTriangle size={12} className={cn(isUpcoming ? "text-red-500" : "text-amber-500")} />
+                              <span className={cn("text-xs font-bold", isUpcoming ? "text-red-600" : "text-amber-600")}>
+                                {format(new Date(t.dueDate), 'dd/MM/yy')}
+                              </span>
+                              <span className="text-[8px] text-zinc-400 uppercase font-black">Venc.</span>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <div className="flex flex-col">
+                          {financeTab === 'receivable' ? (
+                            <>
+                              <span className="text-sm font-bold text-zinc-900">{client?.name || 'Cliente não identificado'}</span>
+                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                OS #{t.relatedOSId?.slice(-4).toUpperCase()} - {t.description}
+                              </span>
+                            </>
+                          ) : financeTab === 'payable' ? (
+                            <>
+                              <span className="text-sm font-bold text-zinc-900">{supplier?.name || 'Fornecedor não identificado'}</span>
+                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                {t.description}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="text-sm font-bold text-zinc-900">{t.description}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
+                                {t.supplierId && (
+                                  <>
+                                    <span className="text-zinc-300">|</span>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                      {supplier?.name || 'Fornecedor'}
+                                    </span>
+                                  </>
+                                )}
+                                {t.relatedOSId && (
+                                  <>
+                                    <span className="text-zinc-300">|</span>
+                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                      OS #{t.relatedOSId.slice(-4).toUpperCase()}
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-5">
+                        <span className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-600">
+                          {t.category}
+                        </span>
+                      </td>
+                      <td className="px-8 py-5">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
                           "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
                           t.status === 'paid' 
                             ? "bg-green-100 text-green-700" 
-                            : "bg-amber-100 text-amber-700 hover:bg-amber-200"
+                            : t.status === 'cancelled'
+                            ? "bg-zinc-100 text-zinc-400"
+                            : "bg-amber-100 text-amber-700"
+                        )}>
+                          {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
+                        </span>
+                        {isUpcoming && t.status === 'pending' && (
+                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[8px] font-black uppercase tracking-tighter animate-pulse">
+                            Urgente
+                          </span>
                         )}
-                      >
-                        {t.status === 'paid' ? 'Pago' : 'Aguardando'}
-                      </button>
+                      </div>
                     </td>
                     <td className={cn(
                       "px-8 py-5 text-right font-black",
+                      t.status === 'cancelled' ? "text-zinc-300 line-through" :
                       t.type === 'in' ? "text-green-600" : "text-red-600"
                     )}>
-                      {t.type === 'in' ? '+' : '-'} {formatCurrency(t.value)}
+                      <div className="flex flex-col items-end">
+                        <span>{t.type === 'in' ? '+' : '-'} {formatCurrency(t.value + interest)}</span>
+                        {interest > 0 && (
+                          <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">
+                            + {formatCurrency(interest)} Juros
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-8 py-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {t.status === 'pending' && (
+                          <>
+                            <button 
+                              onClick={() => markAsPaid(t.id)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-green-100 transition-all border border-green-100"
+                              title="Dar Baixa (Pagar/Receber)"
+                            >
+                              <CheckCircle2 size={12} />
+                              Baixar
+                            </button>
+                            <button 
+                              onClick={() => cancelTransaction(t.id)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-red-100 transition-all border border-red-100"
+                              title="Cancelar Transação"
+                            >
+                              <Ban size={12} />
+                              Cancelar
+                            </button>
+                          </>
+                        )}
+                        {t.status === 'paid' && t.type === 'in' && (
+                          <button 
+                            onClick={() => openReceipt(t)}
+                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
+                            title="Gerar Comprovante"
+                          >
+                            <Download size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </motion.tr>
+                );
+              }) : (
+                  <motion.tr
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Nenhuma transação registrada.</td>
+                  </motion.tr>
+                )}
+              </AnimatePresence>
+            </tbody>
+            </table>
+          </div>
+
+          {/* Transaction List - Mobile Cards */}
+          <div className="sm:hidden space-y-4">
+            {loading ? (
+              <div className="py-10 text-center text-zinc-400 italic">Carregando transações...</div>
+            ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
+              const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
+              const os = serviceOrders.find(o => o.id === t.relatedOSId);
+              const client = t.clientId ? clients.find(c => c.id === t.clientId) : (os ? clients.find(c => c.id === os.clientId) : null);
+              const supplier = suppliers.find(s => s.id === t.supplierId);
+              const interest = calculateInterest(t);
+              const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
+
+              return (
+                <div 
+                  key={t.id}
+                  className={cn(
+                    "p-4 rounded-2xl border border-zinc-100 space-y-4",
+                    isUpcoming && "bg-amber-50/30 border-amber-100",
+                    isOverdue && "bg-red-50/30 border-red-100"
+                  )}
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <Calendar size={12} className="text-zinc-400" />
+                        <span className="text-xs font-bold text-zinc-900">{format(new Date(t.date), 'dd/MM/yy')}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-zinc-900">
+                        {financeTab === 'receivable' ? (client?.name || 'Cliente') : 
+                         financeTab === 'payable' ? (supplier?.name || 'Fornecedor') : t.description}
+                      </h4>
+                      {financeTab !== 'all' && (
+                        <p className="text-[10px] text-zinc-500 font-medium">{t.description}</p>
+                      )}
+                    </div>
+                    <div className={cn(
+                      "text-sm font-black text-right",
+                      t.status === 'cancelled' ? "text-zinc-300 line-through" :
+                      t.type === 'in' ? "text-green-600" : "text-red-600"
+                    )}>
+                      <div>{t.type === 'in' ? '+' : '-'} {formatCurrency(t.value + interest)}</div>
+                      {interest > 0 && (
+                        <div className="text-[8px] text-red-500 font-bold uppercase tracking-tighter">
+                          + {formatCurrency(interest)} Juros
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-zinc-50">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                        t.status === 'paid' ? "bg-green-100 text-green-700" : 
+                        t.status === 'cancelled' ? "bg-zinc-100 text-zinc-400" : "bg-amber-100 text-amber-700"
+                      )}>
+                        {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
+                      </span>
+                      <span className="px-2 py-0.5 bg-zinc-100 rounded text-[8px] font-bold text-zinc-500 uppercase">
+                        {t.category}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {t.status === 'pending' && (
+                        <>
+                          <button 
+                            onClick={() => markAsPaid(t.id)}
+                            className="p-2 bg-green-50 text-green-700 rounded-lg"
+                          >
+                            <CheckCircle2 size={14} />
+                          </button>
+                          <button 
+                            onClick={() => cancelTransaction(t.id)}
+                            className="p-2 bg-red-50 text-red-600 rounded-lg"
+                          >
+                            <Ban size={14} />
+                          </button>
+                        </>
+                      )}
                       {t.status === 'paid' && t.type === 'in' && (
                         <button 
                           onClick={() => openReceipt(t)}
-                          className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
-                          title="Gerar Comprovante"
+                          className="p-2 text-zinc-400 hover:text-zinc-900"
                         >
-                          <Download size={18} />
+                          <Download size={16} />
                         </button>
                       )}
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Nenhuma transação registrada.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+                    </div>
+                  </div>
+                </div>
+              );
+            }) : (
+              <div className="py-10 text-center text-zinc-400 italic">Nenhuma transação registrada.</div>
+            )}
           </div>
+
         </div>
+      </div>
 
         {/* Distribution Chart */}
-        <div className="bg-white p-8 rounded-3xl border border-zinc-200 shadow-sm">
-          <h3 className="text-xl font-bold text-zinc-900 mb-2">Distribuição</h3>
-          <p className="text-sm text-zinc-500 mb-8">Proporção entre entradas e saídas</p>
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-zinc-200 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
+            <h3 className="text-lg sm:text-xl font-bold text-zinc-900">Distribuição</h3>
+            <div className="flex bg-zinc-100 p-1 rounded-lg w-full sm:w-auto">
+              <button 
+                onClick={() => setChartView('general')}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500")}
+              >
+                Geral
+              </button>
+              <button 
+                onClick={() => setChartView('income')}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'income' ? "bg-white text-green-600 shadow-sm" : "text-zinc-500")}
+              >
+                Entradas
+              </button>
+              <button 
+                onClick={() => setChartView('expense')}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'expense' ? "bg-white text-red-600 shadow-sm" : "text-zinc-500")}
+              >
+                Saídas
+              </button>
+            </div>
+          </div>
+          <p className="text-xs sm:text-sm text-zinc-500 mb-8">
+            {chartView === 'general' ? 'Proporção entre entradas e saídas' : 
+             chartView === 'income' ? 'Entradas por categoria' : 'Saídas por categoria'}
+          </p>
           
-          <div className="h-[250px] w-full">
+          <div className="h-[200px] sm:h-[250px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={categoryData}
+                  data={currentChartData}
                   innerRadius={60}
                   outerRadius={80}
                   paddingAngle={5}
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  {currentChartData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
@@ -452,7 +1134,9 @@ const Finance: React.FC = () => {
         <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">Lançamento Financeiro</h3>
+              <h3 className="text-xl font-bold text-zinc-900">
+                {formData.type === 'in' ? 'Lançar Recebimento' : 'Lançar Pagamento'}
+              </h3>
               <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
                 <XCircle size={24} />
               </button>
@@ -468,7 +1152,7 @@ const Finance: React.FC = () => {
                     formData.type === 'in' ? "bg-white text-green-600 shadow-sm" : "text-zinc-500"
                   )}
                 >
-                  Entrada
+                  A Receber (Entrada)
                 </button>
                 <button
                   type="button"
@@ -478,8 +1162,32 @@ const Finance: React.FC = () => {
                     formData.type === 'out' ? "bg-white text-red-600 shadow-sm" : "text-zinc-500"
                   )}
                 >
-                  Saída
+                  A Pagar (Saída)
                 </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data Lançamento</label>
+                  <input 
+                    type="date" 
+                    required
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    value={formData.date}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data Vencimento</label>
+                  <input 
+                    type="date" 
+                    required={formData.status === 'pending'}
+                    disabled={formData.status === 'paid'}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all disabled:opacity-50"
+                    value={formData.dueDate}
+                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -524,18 +1232,41 @@ const Finance: React.FC = () => {
               </div>
 
               {formData.type === 'out' && (
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
-                  <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.supplierId}
-                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-                  >
-                    <option value="">Selecione um fornecedor (opcional)...</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
+                    <select 
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.supplierId}
+                      onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                    >
+                      <option value="">Opcional...</option>
+                      {suppliers.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">OS Relacionada</label>
+                    <select 
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.relatedOSId}
+                      onChange={(e) => setFormData({ ...formData, relatedOSId: e.target.value })}
+                    >
+                      <option value="">Opcional...</option>
+                      {serviceOrders
+                        .filter(os => os.status !== 'cancelled')
+                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                        .map(os => {
+                          const client = clients.find(c => c.id === os.clientId);
+                          return (
+                            <option key={os.id} value={os.id}>
+                              OS #{os.id.slice(-4).toUpperCase()} - {client?.name || 'Cliente'}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </div>
                 </div>
               )}
 
@@ -580,6 +1311,48 @@ const Finance: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Confirmation Modal */}
+      <AnimatePresence>
+        {confirmAction.isOpen && (
+          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-8 text-center">
+                <div className={cn(
+                  "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6",
+                  confirmAction.type === 'danger' ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
+                )}>
+                  {confirmAction.type === 'danger' ? <Ban size={32} /> : <CheckCircle2 size={32} />}
+                </div>
+                <h3 className="text-xl font-bold text-zinc-900 mb-2">{confirmAction.title}</h3>
+                <p className="text-zinc-500 text-sm leading-relaxed">{confirmAction.message}</p>
+              </div>
+              <div className="p-8 bg-zinc-50 flex items-center gap-3">
+                <button 
+                  onClick={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
+                  className="flex-1 px-6 py-3 border border-zinc-200 text-zinc-600 font-bold rounded-xl hover:bg-white transition-all"
+                >
+                  Não, Voltar
+                </button>
+                <button 
+                  onClick={confirmAction.onConfirm}
+                  className={cn(
+                    "flex-1 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg",
+                    confirmAction.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-green-600 hover:bg-green-700 shadow-green-200"
+                  )}
+                >
+                  Sim, Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Receipt Modal */}
       {isReceiptModalOpen && selectedTransaction && (
         <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">

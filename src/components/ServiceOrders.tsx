@@ -19,41 +19,32 @@ import {
   Car as CarIcon,
   Image as ImageIcon,
   Calendar,
-  MessageSquare
+  MessageSquare,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, getDoc, increment } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { ServiceOrder, Client, Vehicle, Service, OSStatus, ServiceOrderItem, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
-import { formatCurrency, cn } from '../lib/utils';
-import { format } from 'date-fns';
+import { formatCurrency, cn, handleFirestoreError } from '../lib/utils';
+import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
+import { ConfirmationModal } from './ConfirmationModal';
+import { generateAIResponse } from '../services/gemini';
 
 interface ServiceOrdersProps {
-  setActiveTab: (tab: string, itemId?: string) => void;
+  setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: OSStatus) => void;
+  itemId?: string;
+  initialStatus?: OSStatus;
 }
 
-const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
+const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, initialStatus }) => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [osList, setOsList] = useState<ServiceOrder[]>([]);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [osToDelete, setOsToDelete] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [services, setServices] = useState<Service[]>([]);
@@ -62,6 +53,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
   const [editingOS, setEditingOS] = useState<ServiceOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const { canCreate, canEdit, canDelete } = usePermissions('os');
 
   // Form state
@@ -72,7 +64,9 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
     selectedServices: [] as ServiceOrderItem[],
     discount: 0,
     observations: '',
-    paymentMethod: 'pix' as 'cash' | 'pix' | 'card'
+    paymentMethod: 'pix' as 'cash' | 'pix' | 'card' | 'transfer',
+    paymentType: 'cash' as 'cash' | 'deferred',
+    dueDate: format(addDays(new Date(), 30), 'yyyy-MM-dd')
   });
 
   useEffect(() => {
@@ -123,6 +117,31 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
     };
   }, [profile]);
 
+  useEffect(() => {
+    if (itemId && osList.length > 0) {
+      const os = osList.find(o => o.id === itemId);
+      if (os) {
+        setEditingOS(os);
+        setFormData({
+          clientId: os.clientId,
+          vehicleId: os.vehicleId,
+          status: initialStatus || os.status,
+          selectedServices: os.services,
+          discount: os.discount || 0,
+          observations: os.observations || '',
+          paymentMethod: os.paymentMethod || 'pix',
+          paymentType: os.paymentType || 'cash',
+          dueDate: os.dueDate || format(addDays(new Date(), 30), 'yyyy-MM-dd')
+        });
+        setIsModalOpen(true);
+        // Clear the status after opening to avoid re-opening with that status
+        setActiveTab('os', itemId, undefined, undefined);
+      }
+    } else if (itemId) {
+      setSearchTerm(itemId);
+    }
+  }, [itemId, osList, initialStatus]);
+
   const calculateTotal = () => {
     const subtotal = formData.selectedServices.reduce((acc, s) => acc + s.price, 0);
     return Math.max(0, subtotal - formData.discount);
@@ -153,6 +172,8 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
         totalCost,
         observations: formData.observations,
         paymentMethod: formData.paymentMethod,
+        paymentType: formData.paymentType,
+        dueDate: formData.paymentType === 'deferred' ? formData.dueDate : null,
         updatedAt: serverTimestamp()
       };
 
@@ -174,9 +195,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
             category: 'Serviço',
             description: `OS #${editingOS.id.slice(0, 6)} - ${getClientName(formData.clientId)}`,
             date: new Date().toISOString(),
-            status: formData.status === 'finished' ? 'paid' : 'pending',
+            dueDate: formData.paymentType === 'deferred' ? formData.dueDate : new Date().toISOString(),
+            status: (formData.status === 'finished' && formData.paymentType === 'cash') ? 'paid' : 'pending',
             paymentMethod: formData.paymentMethod,
-            relatedOSId: editingOS.id
+            relatedOSId: editingOS.id,
+            clientId: formData.clientId
           });
 
           // Cost transaction
@@ -222,9 +245,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
             category: 'Serviço',
             description: `OS #${newDoc.id.slice(0, 6)} - ${getClientName(formData.clientId)}`,
             date: new Date().toISOString(),
-            status: formData.status === 'finished' ? 'paid' : 'pending',
+            dueDate: formData.paymentType === 'deferred' ? formData.dueDate : new Date().toISOString(),
+            status: (formData.status === 'finished' && formData.paymentType === 'cash') ? 'paid' : 'pending',
             paymentMethod: formData.paymentMethod,
-            relatedOSId: newDoc.id
+            relatedOSId: newDoc.id,
+            clientId: formData.clientId
           });
 
           // Cost transaction
@@ -264,14 +289,20 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta OS?')) {
-      try {
-        await deleteDoc(doc(db, 'serviceOrders', id));
-        toast.success('OS excluída com sucesso!');
-      } catch (error) {
-        console.error(error);
-        toast.error('Erro ao excluir OS.');
-      }
+    setOsToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!osToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'serviceOrders', osToDelete));
+      toast.success('OS excluída com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir OS.');
+    } finally {
+      setOsToDelete(null);
     }
   };
 
@@ -285,7 +316,9 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
         selectedServices: os.services,
         discount: os.discount || 0,
         observations: os.observations || '',
-        paymentMethod: os.paymentMethod || 'pix'
+        paymentMethod: os.paymentMethod || 'pix',
+        paymentType: os.paymentType || 'cash',
+        dueDate: os.dueDate || format(addDays(new Date(), 30), 'yyyy-MM-dd')
       });
     } else {
       setEditingOS(null);
@@ -296,7 +329,9 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
         selectedServices: [],
         discount: 0,
         observations: '',
-        paymentMethod: 'pix'
+        paymentMethod: 'pix',
+        paymentType: 'cash',
+        dueDate: format(addDays(new Date(), 30), 'yyyy-MM-dd')
       });
     }
     setIsModalOpen(true);
@@ -398,6 +433,76 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
     os.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleGenerateAIObservations = async () => {
+    if (formData.selectedServices.length === 0) {
+      toast.error('Selecione pelo menos um serviço para gerar observações.');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const client = clients.find(c => c.id === formData.clientId);
+      const vehicle = vehicles.find(v => v.id === formData.vehicleId);
+      const servicesList = formData.selectedServices.map(s => s.name).join(', ');
+      
+      const prompt = `
+        Gere uma observação técnica e profissional para uma Ordem de Serviço.
+        Cliente: ${client?.name || 'N/A'}
+        Veículo: ${vehicle?.brand} ${vehicle?.model} (${vehicle?.plate})
+        Serviços realizados: ${servicesList}
+        
+        O texto deve ser conciso, focar no que foi feito e passar confiança ao cliente.
+        Não use saudações, vá direto ao ponto técnico.
+      `;
+
+      const aiResponse = await generateAIResponse(prompt, 'Ordens de Serviço');
+      setFormData(prev => ({ ...prev, observations: aiResponse || prev.observations }));
+      toast.success('Observações geradas com sucesso!');
+    } catch (error) {
+      toast.error('Erro ao gerar observações com IA.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const handleUpdateStatus = async (os: ServiceOrder, newStatus: OSStatus) => {
+    if (newStatus === 'finished' || newStatus === 'confirmed') {
+      // Open modal to select payment details
+      setEditingOS(os);
+      setFormData({
+        clientId: os.clientId,
+        vehicleId: os.vehicleId,
+        status: newStatus,
+        selectedServices: os.services,
+        discount: os.discount || 0,
+        observations: os.observations || '',
+        paymentMethod: os.paymentMethod || 'pix',
+        paymentType: os.paymentType || 'cash',
+        dueDate: os.dueDate || format(addDays(new Date(), 30), 'yyyy-MM-dd')
+      });
+      setIsModalOpen(true);
+      return;
+    }
+
+    try {
+      if (os.status === 'finished') {
+        toast.error('Ordens de serviço finalizadas não podem ser alteradas.');
+        return;
+      }
+
+      const osRef = doc(db, 'serviceOrders', os.id);
+      await updateDoc(osRef, { 
+        status: newStatus,
+        updatedAt: serverTimestamp()
+      });
+
+      toast.success(`Status da OS alterado para ${statusMap[newStatus].label}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao atualizar status da OS.');
+    }
+  };
+
   const statusMap = {
     waiting: { label: 'Aguardando', color: 'bg-zinc-100 text-zinc-600', icon: Clock },
     confirmed: { label: 'Confirmada', color: 'bg-purple-50 text-purple-600', icon: CheckCircle2 },
@@ -410,7 +515,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 w-full sm:max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input 
             type="text" 
@@ -423,7 +528,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
         {canCreate && (
           <button 
             onClick={() => openModal()}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 w-full sm:w-auto"
           >
             <Plus size={20} />
             Nova OS
@@ -432,7 +537,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
       </div>
 
       {/* OS List */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {loading ? (
           <div className="py-20 text-center text-zinc-400 italic">Carregando ordens de serviço...</div>
         ) : filteredOS.length > 0 ? filteredOS.map((os) => {
@@ -463,6 +568,40 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="flex items-center justify-between lg:justify-end gap-8 border-t lg:border-t-0 pt-4 lg:pt-0 border-zinc-100">
+                <div className="flex items-center gap-2 mr-4">
+                  <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-xl border border-zinc-100">
+                    <button 
+                      onClick={() => handleUpdateStatus(os, 'in-progress')}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        os.status === 'in-progress' ? "bg-blue-600 text-white shadow-md" : "text-zinc-400 hover:bg-zinc-200"
+                      )}
+                      title="Em Andamento"
+                    >
+                      <Wrench size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateStatus(os, 'finished')}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        os.status === 'finished' ? "bg-green-600 text-white shadow-md" : "text-zinc-400 hover:bg-zinc-200"
+                      )}
+                      title="Finalizar"
+                    >
+                      <CheckCircle2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => handleUpdateStatus(os, 'cancelled')}
+                      className={cn(
+                        "p-2 rounded-lg transition-all",
+                        os.status === 'cancelled' ? "bg-red-600 text-white shadow-md" : "text-zinc-400 hover:bg-zinc-200"
+                      )}
+                      title="Cancelar"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  </div>
+                </div>
                 <div className="text-right">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Total</p>
                   <p className="text-xl font-black text-zinc-900">{formatCurrency(os.totalValue)}</p>
@@ -643,7 +782,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
               </div>
 
               {/* Status & Financials */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status da OS</label>
                   <select 
@@ -659,6 +798,17 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
                   </select>
                 </div>
                 <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tipo de Pagamento</label>
+                  <select 
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-bold"
+                    value={formData.paymentType}
+                    onChange={(e) => setFormData({ ...formData, paymentType: e.target.value as any })}
+                  >
+                    <option value="cash">A Vista</option>
+                    <option value="deferred">A Prazo</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Forma de Pagamento</label>
                   <select 
                     className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
@@ -668,6 +818,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
                     <option value="pix">Pix</option>
                     <option value="card">Cartão</option>
                     <option value="cash">Dinheiro</option>
+                    <option value="transfer">Transferência</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -682,8 +833,37 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
                 </div>
               </div>
 
+              {formData.paymentType === 'deferred' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data de Vencimento</label>
+                    <input 
+                      type="date" 
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      value={formData.dueDate}
+                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Observações</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Observações</label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAIObservations}
+                    disabled={isGeneratingAI || formData.selectedServices.length === 0}
+                    className="flex items-center gap-1.5 px-3 py-1 bg-zinc-900 text-white rounded-lg text-[10px] font-bold hover:bg-zinc-800 transition-all disabled:opacity-50"
+                  >
+                    {isGeneratingAI ? (
+                      <Loader2 size={12} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={12} className="text-amber-400" />
+                    )}
+                    Gerar com IA
+                  </button>
+                </div>
                 <textarea 
                   className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all min-h-[100px]"
                   placeholder="Detalhes adicionais, diagnóstico, peças usadas..."
@@ -736,6 +916,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab }) => {
           </div>
         </div>
       )}
+
+      <ConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={confirmDelete}
+        title="Excluir Ordem de Serviço?"
+        message="Tem certeza que deseja excluir esta OS? Esta ação não pode ser desfeita."
+      />
     </div>
   );
 };

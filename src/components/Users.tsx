@@ -13,35 +13,19 @@ import {
   X,
   Plus,
   UserPlus,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { UserProfile, UserPermissions, ModulePermissions, OperationType, UserRole } from '../types';
 import { useAuth } from './Auth';
 import { defaultPermissions, adminPermissions } from '../lib/permissions';
-import { cn } from '../lib/utils';
+import { cn, handleFirestoreError } from '../lib/utils';
 import { toast } from 'sonner';
 
 const Users: React.FC = () => {
   const { profile } = useAuth();
-  const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
-    const errInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-        emailVerified: auth.currentUser?.emailVerified,
-      },
-      operationType: operation,
-      path
-    };
-    console.error('Firestore Error: ', JSON.stringify(errInfo));
-    if (error?.message?.includes('permission')) {
-      toast.error(`Erro de permissão ao acessar: ${path}`);
-    }
-    throw new Error(JSON.stringify(errInfo));
-  };
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -272,20 +256,20 @@ const Users: React.FC = () => {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
           <input 
             type="text" 
             placeholder="Buscar usuários..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <button 
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-zinc-200"
+          className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-zinc-200 text-sm"
         >
           <UserPlus size={20} />
           Novo Usuário
@@ -294,41 +278,47 @@ const Users: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Users List */}
-        <div className="lg:col-span-1 bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden h-fit">
-          <div className="p-6 border-b border-zinc-100 bg-zinc-50">
-            <h3 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
-              <UsersIcon size={20} className="text-zinc-400" />
-              Usuários do Sistema
+        <div className="lg:col-span-1 bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden h-fit">
+          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
+            <h3 className="text-sm font-black text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
+              <UsersIcon size={18} className="text-zinc-400" />
+              Usuários
             </h3>
           </div>
-          <div className="divide-y divide-zinc-100">
+          <div className="divide-y divide-zinc-100 max-h-[600px] overflow-y-auto custom-scrollbar">
             {loading ? (
-              <div className="p-8 text-center text-zinc-400 italic">Carregando...</div>
+              <div className="p-8 text-center">
+                <div className="w-6 h-6 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-zinc-400 text-xs italic">Carregando...</p>
+              </div>
             ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <button
                 key={user.uid}
                 onClick={() => handleEditPermissions(user)}
                 className={cn(
-                  "w-full p-4 flex items-center gap-4 hover:bg-zinc-50 transition-all text-left",
-                  selectedUser?.uid === user.uid && "bg-zinc-50 ring-2 ring-inset ring-zinc-900"
+                  "w-full p-5 flex items-center gap-4 hover:bg-zinc-50 transition-all text-left group",
+                  selectedUser?.uid === user.uid && "bg-zinc-50 border-l-4 border-zinc-900"
                 )}
               >
-                <div className="w-10 h-10 bg-zinc-100 rounded-full flex items-center justify-center text-zinc-600 font-bold border border-zinc-200">
+                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-600 font-black border border-zinc-200 group-hover:scale-105 transition-transform">
                   {user.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-zinc-900 truncate">{user.name}</p>
-                  <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                  <p className="text-sm font-black text-zinc-900 truncate">{user.name}</p>
+                  <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-widest">{user.email}</p>
                 </div>
                 <div className={cn(
-                  "p-1.5 rounded-lg",
+                  "p-2 rounded-xl shadow-sm",
                   user.role === 'admin' ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-400"
                 )}>
                   {user.role === 'admin' ? <ShieldCheck size={16} /> : <Shield size={16} />}
                 </div>
               </button>
             )) : (
-              <div className="p-8 text-center text-zinc-400 italic">Nenhum usuário encontrado.</div>
+              <div className="p-12 text-center">
+                <UsersIcon size={32} className="mx-auto text-zinc-200 mb-2" />
+                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Nenhum usuário</p>
+              </div>
             )}
           </div>
         </div>
@@ -336,24 +326,25 @@ const Users: React.FC = () => {
         {/* Permissions Section */}
         <div className="lg:col-span-2 space-y-6">
           {selectedUser ? (
-            <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-900 text-white">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center text-xl font-black">
+            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-900 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl" />
+                <div className="flex items-center gap-6 relative z-10">
+                  <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black border border-white/10 shadow-xl">
                     {selectedUser.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div>
                     {isEditingBasicInfo ? (
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-3">
                         <input
                           type="text"
-                          className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white font-bold focus:outline-none focus:ring-2 focus:ring-white/50"
+                          className="bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-white font-black focus:outline-none focus:ring-2 focus:ring-white/50 w-full max-w-xs"
                           value={basicInfoForm.name}
                           onChange={(e) => setBasicInfoForm({ ...basicInfoForm, name: e.target.value })}
                         />
                         <div className="flex items-center gap-2">
                           <select
-                            className="bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-xs text-zinc-300 uppercase tracking-widest font-bold focus:outline-none cursor-pointer hover:text-white transition-colors"
+                            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-[10px] text-zinc-300 uppercase tracking-widest font-black focus:outline-none cursor-pointer hover:text-white transition-colors"
                             value={basicInfoForm.role}
                             onChange={(e) => setBasicInfoForm({ ...basicInfoForm, role: e.target.value as UserRole })}
                           >
@@ -362,13 +353,13 @@ const Users: React.FC = () => {
                           </select>
                           <button
                             onClick={handleSaveBasicInfo}
-                            className="text-[10px] bg-white text-zinc-900 px-2 py-1 rounded font-bold uppercase tracking-widest hover:bg-zinc-100 transition-colors"
+                            className="text-[10px] bg-white text-zinc-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg"
                           >
                             Salvar
                           </button>
                           <button
                             onClick={() => setIsEditingBasicInfo(false)}
-                            className="text-[10px] bg-white/10 text-white px-2 py-1 rounded font-bold uppercase tracking-widest hover:bg-white/20 transition-colors"
+                            className="text-[10px] bg-white/10 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
                           >
                             Cancelar
                           </button>
@@ -376,23 +367,23 @@ const Users: React.FC = () => {
                       </div>
                     ) : (
                       <>
-                        <h3 className="text-xl font-bold flex items-center gap-2">
+                        <h3 className="text-2xl font-black flex items-center gap-3">
                           {selectedUser.name}
                           <button 
                             onClick={startEditingBasicInfo}
-                            className="p-1 hover:bg-white/10 rounded-md transition-colors text-zinc-400"
+                            className="p-2 hover:bg-white/10 rounded-xl transition-colors text-zinc-400"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={16} />
                           </button>
                         </h3>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-zinc-400 uppercase tracking-widest font-bold">
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-black px-2 py-1 bg-white/5 rounded-lg border border-white/5">
                             {selectedUser.role === 'admin' ? 'Administrador' : 'Funcionário'}
                           </span>
-                          <span className="text-zinc-600">•</span>
+                          <span className="text-white/20">•</span>
                           <button
                             onClick={() => setIsDeleteModalOpen(true)}
-                            className="text-xs text-red-400 hover:text-red-300 font-bold uppercase tracking-widest transition-colors"
+                            className="text-[10px] text-red-400 hover:text-red-300 font-black uppercase tracking-widest transition-colors"
                           >
                             Excluir Usuário
                           </button>
@@ -401,56 +392,61 @@ const Users: React.FC = () => {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 relative z-10">
                   {isEditingPermissions ? (
                     <>
                       <button 
                         onClick={() => setIsEditingPermissions(false)}
-                        className="p-2 hover:bg-white/10 rounded-lg transition-colors text-zinc-400"
+                        className="p-3 hover:bg-white/10 rounded-2xl transition-colors text-zinc-400"
                       >
                         <X size={24} />
                       </button>
                       <button 
                         onClick={handleSavePermissions}
-                        className="flex items-center gap-2 bg-white text-zinc-900 px-4 py-2 rounded-xl font-bold hover:bg-zinc-100 transition-all shadow-lg"
+                        className="flex items-center gap-2 bg-white text-zinc-900 px-6 py-3 rounded-2xl font-black hover:bg-zinc-100 transition-all shadow-xl"
                       >
-                        <Save size={18} />
+                        <Save size={20} />
                         Salvar
                       </button>
                     </>
                   ) : (
                     <button 
                       onClick={startEditing}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-xl font-bold transition-all"
+                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black transition-all border border-white/10"
                     >
-                      <Edit2 size={18} />
-                      Editar Permissões
+                      <Edit2 size={20} />
+                      Permissões
                     </button>
                   )}
                 </div>
               </div>
 
               <div className="p-8">
-                <div className="flex items-center gap-2 mb-8">
-                  <ShieldAlert size={20} className="text-zinc-400" />
-                  <h4 className="text-sm font-bold text-zinc-900 uppercase tracking-widest">Permissões Granulares</h4>
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-400">
+                    <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-zinc-900 uppercase tracking-widest">Controle de Acesso</h4>
+                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Defina o que este usuário pode fazer</p>
+                  </div>
                 </div>
 
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
-                        <th className="px-4 py-4">Módulo</th>
+                      <tr className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
+                        <th className="px-6 py-4">Módulo</th>
                         {actions.map(action => (
-                          <th key={action.id} className="px-4 py-4 text-center">{action.label}</th>
+                          <th key={action.id} className="px-6 py-4 text-center">{action.label}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-50">
                       {modules.map(module => (
                         <tr key={module.id} className="group hover:bg-zinc-50/50 transition-colors">
-                          <td className="px-4 py-4">
-                            <span className="text-sm font-bold text-zinc-700">{module.label}</span>
+                          <td className="px-6 py-5">
+                            <span className="text-sm font-black text-zinc-700">{module.label}</span>
                           </td>
                           {actions.map(action => {
                             const isAllowed = selectedUser.role === 'admin' 
@@ -459,17 +455,17 @@ const Users: React.FC = () => {
                                   ? !!editedPermissions[module.id]?.[action.id] 
                                   : !!selectedUser.permissions?.[module.id]?.[action.id]);
                             return (
-                              <td key={action.id} className="px-4 py-4 text-center">
+                              <td key={action.id} className="px-6 py-5 text-center">
                                 <button
                                   type="button"
                                   disabled={!isEditingPermissions || selectedUser.role === 'admin'}
                                   onClick={() => handleTogglePermission(module.id, action.id)}
                                   className={cn(
-                                    "p-2 rounded-xl transition-all",
+                                    "p-2.5 rounded-2xl transition-all shadow-sm",
                                     isAllowed 
-                                      ? "text-green-600 bg-green-50 hover:bg-green-100" 
+                                      ? "text-zinc-900 bg-zinc-100 hover:bg-zinc-200" 
                                       : "text-zinc-300 bg-zinc-50 hover:bg-zinc-100",
-                                    (!isEditingPermissions || selectedUser.role === 'admin') && "cursor-default opacity-80"
+                                    (!isEditingPermissions || selectedUser.role === 'admin') && "cursor-default opacity-80 shadow-none"
                                   )}
                                 >
                                   {isAllowed ? <CheckCircle2 size={20} /> : <XCircle size={20} />}
@@ -484,9 +480,15 @@ const Users: React.FC = () => {
                 </div>
 
                 {selectedUser.role === 'admin' && (
-                  <div className="mt-8 p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-3 text-zinc-500 italic text-sm">
-                    <Lock size={18} />
-                    Administradores possuem acesso total e irrestrito a todos os módulos e ações.
+                  <div className="mt-8 p-6 bg-zinc-900 text-white rounded-[2rem] flex items-center gap-4 shadow-xl shadow-zinc-200 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white relative z-10">
+                      <Lock size={24} />
+                    </div>
+                    <div className="relative z-10">
+                      <p className="text-xs font-black uppercase tracking-widest">Acesso Irrestrito</p>
+                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Administradores possuem controle total sobre todos os módulos.</p>
+                    </div>
                   </div>
                 )}
               </div>
@@ -505,43 +507,15 @@ const Users: React.FC = () => {
         </div>
       </div>
 
-      {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Trash2 size={40} />
-              </div>
-              <h3 className="text-xl font-bold text-zinc-900 mb-2">Excluir Usuário?</h3>
-              <p className="text-zinc-500 mb-8">
-                Tem certeza que deseja remover <strong>{selectedUser?.name}</strong> do sistema? Esta ação não pode ser desfeita.
-              </p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 px-6 py-3 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleDeleteUser}
-                  className="flex-1 px-6 py-3 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Add User Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">Novo Usuário</h3>
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+              <div>
+                <h3 className="text-xl font-black text-zinc-900">Novo Usuário</h3>
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Acesso ao Sistema</p>
+              </div>
               <button 
                 onClick={() => setIsAddModalOpen(false)}
                 className="p-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-400"
@@ -552,31 +526,31 @@ const Users: React.FC = () => {
             
             <form onSubmit={handleAddUser} className="p-8 space-y-6">
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Nome Completo</label>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome Completo</label>
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
                   value={newUserFormData.name}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Email</label>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email</label>
                 <input 
                   type="email" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
                   value={newUserFormData.email}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Cargo / Função</label>
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cargo / Função</label>
                 <select 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
                   value={newUserFormData.role}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as any })}
                 >
@@ -585,22 +559,53 @@ const Users: React.FC = () => {
                 </select>
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex gap-4">
                 <button 
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 px-6 py-3 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-6 py-4 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all text-sm"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-3 bg-zinc-900 text-white rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-zinc-900 text-white rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
                 >
                   Adicionar
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {isDeleteModalOpen && selectedUser && (
+        <div className="fixed inset-0 bg-zinc-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
+          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center text-red-600 mx-auto mb-6 shadow-xl shadow-red-100/50">
+                <AlertTriangle size={40} />
+              </div>
+              <h3 className="text-2xl font-black text-zinc-900 mb-2">Excluir Usuário?</h3>
+              <p className="text-sm text-zinc-500 mb-8">
+                Tem certeza que deseja excluir <span className="font-black text-zinc-900">{selectedUser.name}</span>? Esta ação removerá permanentemente o acesso deste usuário ao sistema.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsDeleteModalOpen(false)}
+                  className="flex-1 px-6 py-4 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all text-sm"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleDeleteUser}
+                  className="flex-1 px-6 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 text-sm"
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

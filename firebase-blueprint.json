@@ -23,6 +23,9 @@
         "phone": { "type": "string" },
         "email": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "inactive"] },
+        "birthDate": { "type": "string", "format": "date" },
+        "contactPreference": { "type": "string", "enum": ["email", "phone", "whatsapp", "none"] },
+        "purchaseHistory": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "phone", "status"]
@@ -174,6 +177,48 @@
       },
       "required": ["brand", "model", "buyPrice", "status"]
     },
+    "Lead": {
+      "title": "Lead",
+      "description": "Sales lead",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" },
+        "source": { "type": "string" },
+        "status": { "type": "string", "enum": ["new", "contacted", "qualified", "lost", "converted"] },
+        "temperature": { "type": "string", "enum": ["cold", "warm", "hot"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "phone", "status", "temperature"]
+    },
+    "Proposal": {
+      "title": "Proposal",
+      "description": "Sales proposal",
+      "type": "object",
+      "properties": {
+        "clientId": { "type": "string" },
+        "vehicleId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "value": { "type": "number" }
+            }
+          }
+        },
+        "totalValue": { "type": "number" },
+        "status": { "type": "string", "enum": ["draft", "sent", "accepted", "rejected", "expired"] },
+        "validUntil": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "totalValue", "status"]
+    },
     "FiscalRecord": {
       "title": "FiscalRecord",
       "description": "Tax and invoice records",
@@ -208,6 +253,8 @@
     "/stockMovements/{movementId}": { "schema": "StockMovement", "description": "Stock movements" },
     "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial transactions" },
     "/resaleVehicles/{resaleId}": { "schema": "ResaleVehicle", "description": "Resale inventory" },
-    "/fiscalRecords/{fiscalId}": { "schema": "FiscalRecord", "description": "Fiscal records" }
+    "/fiscalRecords/{fiscalId}": { "schema": "FiscalRecord", "description": "Fiscal records" },
+    "/leads/{leadId}": { "schema": "Lead", "description": "Sales leads" },
+    "/proposals/{proposalId}": { "schema": "Proposal", "description": "Sales proposals" }
   }
 }

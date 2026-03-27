@@ -10,7 +10,7 @@ import {
   User
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole, UserPermissions, ModulePermissions } from '../types';
 import { defaultPermissions, adminPermissions } from '../lib/permissions';
 import { LogIn, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
@@ -39,42 +39,46 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(user);
       if (user) {
         const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        
-        if (docSnap.exists()) {
-          setProfile(docSnap.data() as UserProfile);
-        } else {
-          // Check if there's a pre-created profile by email
-          const emailDocRef = doc(db, 'users', user.email || '');
-          const emailDocSnap = await getDoc(emailDocRef);
+        try {
+          const docSnap = await getDoc(docRef);
           
-          if (emailDocSnap.exists()) {
-            const preProfile = emailDocSnap.data() as UserProfile;
-            const newProfile: UserProfile = {
-              ...preProfile,
-              uid: user.uid,
-              name: user.displayName || preProfile.name || 'Usuário',
-              updatedAt: serverTimestamp() as any
-            };
-            await setDoc(docRef, newProfile);
-            await deleteDoc(emailDocRef);
-            setProfile(newProfile);
+          if (docSnap.exists()) {
+            setProfile(docSnap.data() as UserProfile);
           } else {
-            const isAdminEmail = user.email === 'iurioliveira82@gmail.com';
-            const newProfile: UserProfile = {
-              uid: user.uid,
-              name: user.displayName || 'Usuário',
-              email: user.email || '',
-              role: isAdminEmail ? 'admin' : 'employee',
-              permissions: isAdminEmail ? adminPermissions : defaultPermissions,
-              createdAt: new Date().toISOString()
-            };
-            await setDoc(docRef, {
-              ...newProfile,
-              createdAt: serverTimestamp()
-            });
-            setProfile(newProfile);
+            // Check if there's a pre-created profile by email
+            const emailDocRef = doc(db, 'users', user.email || '');
+            const emailDocSnap = await getDoc(emailDocRef);
+            
+            if (emailDocSnap.exists()) {
+              const preProfile = emailDocSnap.data() as UserProfile;
+              const newProfile: UserProfile = {
+                ...preProfile,
+                uid: user.uid,
+                name: user.displayName || preProfile.name || 'Usuário',
+                updatedAt: serverTimestamp() as any
+              };
+              await setDoc(docRef, newProfile);
+              await deleteDoc(emailDocRef);
+              setProfile(newProfile);
+            } else {
+              const isAdminEmail = user.email === 'iurioliveira82@gmail.com';
+              const newProfile: UserProfile = {
+                uid: user.uid,
+                name: user.displayName || 'Usuário',
+                email: user.email || '',
+                role: isAdminEmail ? 'admin' : 'employee',
+                permissions: isAdminEmail ? adminPermissions : defaultPermissions,
+                createdAt: new Date().toISOString()
+              };
+              await setDoc(docRef, {
+                ...newProfile,
+                createdAt: serverTimestamp()
+              });
+              setProfile(newProfile);
+            }
           }
+        } catch (error) {
+          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
         }
       } else {
         setProfile(null);
