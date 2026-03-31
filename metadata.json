@@ -1,5 +1,5 @@
 {
-  "name": "AutoGestão SaaS",
-  "description": "Sistema completo de gestão para lavação, estética automotiva, oficinas e revenda de veículos.",
-  "requestFramePermissions": []
+  "name": "AutoGestão Pro ERP",
+  "description": "Sistema ERP SaaS premium para gestão de oficinas, estética automotiva, lavação e revenda de veículos com fluxo completo de OS, estoque e financeiro.",
+  "requestFramePermissions": ["camera", "microphone"]
 }

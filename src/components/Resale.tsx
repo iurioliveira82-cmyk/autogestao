@@ -14,7 +14,7 @@ import {
   Clock,
   Tag
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebase';
 import { ResaleVehicle, OperationType } from '../types';
 import { auth } from '../firebase';
@@ -24,7 +24,11 @@ import { formatCurrency, cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { ConfirmationModal } from './ConfirmationModal';
 
-const Resale: React.FC = () => {
+interface ResaleProps {
+  setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
+}
+
+const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
   const { profile } = useAuth();
   const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
     const errInfo = {
@@ -57,15 +61,19 @@ const Resale: React.FC = () => {
     brand: '',
     model: '',
     year: '',
-    buyPrice: '',
-    sellPrice: '',
+    precoCompra: '',
+    precoVenda: '',
     status: 'available' as 'available' | 'reserved' | 'sold'
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
 
-    const q = query(collection(db, 'resaleVehicles'), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, 'veiculos_revenda'),
+      where('empresaId', '==', profile.empresaId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: ResaleVehicle[] = [];
       snapshot.forEach((doc) => {
@@ -74,7 +82,7 @@ const Resale: React.FC = () => {
       setVehicles(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'resaleVehicles');
+      handleFirestoreError(error, OperationType.GET, 'veiculos_revenda');
       setLoading(false);
     });
 
@@ -84,31 +92,67 @@ const Resale: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.brand || !formData.model || !formData.buyPrice) {
+    if (!profile) return;
+    if (!formData.brand || !formData.model || !formData.precoCompra) {
       toast.error('Marca, modelo e preço de compra são obrigatórios.');
       return;
     }
 
     try {
       const data = {
+        empresaId: profile.empresaId,
         brand: formData.brand,
         model: formData.model,
         year: formData.year ? parseInt(formData.year) : null,
-        buyPrice: parseFloat(formData.buyPrice),
-        sellPrice: formData.sellPrice ? parseFloat(formData.sellPrice) : null,
+        precoCompra: parseFloat(formData.precoCompra),
+        precoVenda: formData.precoVenda ? parseFloat(formData.precoVenda) : null,
         status: formData.status,
         updatedAt: serverTimestamp()
       };
 
       if (editingVehicle) {
-        await updateDoc(doc(db, 'resaleVehicles', editingVehicle.id), data);
+        await updateDoc(doc(db, 'veiculos_revenda', editingVehicle.id), data);
+        
+        // If status changed to sold, create revenue transaction
+        if (editingVehicle.status !== 'sold' && data.status === 'sold' && data.precoVenda) {
+          await addDoc(collection(db, 'transacoes_financeiras'), {
+            empresaId: profile.empresaId,
+            type: 'in',
+            value: data.precoVenda,
+            category: 'Venda de Veículo',
+            description: `Venda: ${data.brand} ${data.model} (${data.year || 'N/A'})`,
+            date: new Date().toISOString(),
+            status: 'paid',
+            relatedId: editingVehicle.id,
+            createdAt: serverTimestamp()
+          });
+          toast.success('Venda registrada no financeiro!');
+          setActiveTab('finance');
+        }
+        
         toast.success('Veículo atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'resaleVehicles'), {
+        const docRef = await addDoc(collection(db, 'veiculos_revenda'), {
           ...data,
           createdAt: new Date().toISOString()
         });
+        
+        // Create expense transaction for the purchase
+        await addDoc(collection(db, 'transacoes_financeiras'), {
+          empresaId: profile.empresaId,
+          type: 'out',
+          value: data.precoCompra,
+          category: 'Compra de Veículo',
+          description: `Compra: ${data.brand} ${data.model} (${data.year || 'N/A'})`,
+          date: new Date().toISOString(),
+          status: 'paid',
+          relatedId: docRef.id,
+          createdAt: serverTimestamp()
+        });
+        toast.success('Compra registrada no financeiro!');
+        
         toast.success('Veículo cadastrado para revenda!');
+        setActiveTab('finance');
       }
       closeModal();
     } catch (error) {
@@ -125,7 +169,7 @@ const Resale: React.FC = () => {
   const confirmDelete = async () => {
     if (!vehicleToDelete) return;
     try {
-      await deleteDoc(doc(db, 'resaleVehicles', vehicleToDelete));
+      await deleteDoc(doc(db, 'veiculos_revenda', vehicleToDelete));
       toast.success('Veículo excluído com sucesso!');
     } catch (error) {
       console.error(error);
@@ -142,8 +186,8 @@ const Resale: React.FC = () => {
         brand: vehicle.brand,
         model: vehicle.model,
         year: vehicle.year?.toString() || '',
-        buyPrice: vehicle.buyPrice.toString(),
-        sellPrice: vehicle.sellPrice?.toString() || '',
+        precoCompra: vehicle.precoCompra.toString(),
+        precoVenda: vehicle.precoVenda?.toString() || '',
         status: vehicle.status
       });
     } else {
@@ -152,8 +196,8 @@ const Resale: React.FC = () => {
         brand: '',
         model: '',
         year: '',
-        buyPrice: '',
-        sellPrice: '',
+        precoCompra: '',
+        precoVenda: '',
         status: 'available'
       });
     }
@@ -185,7 +229,7 @@ const Resale: React.FC = () => {
           <input 
             type="text" 
             placeholder="Buscar por marca ou modelo..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -193,7 +237,7 @@ const Resale: React.FC = () => {
         {canCreate && (
           <button 
             onClick={() => openModal()}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            className="flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
           >
             <Plus size={20} />
             Novo Veículo
@@ -207,7 +251,7 @@ const Resale: React.FC = () => {
           <div className="col-span-full py-20 text-center text-zinc-400 italic">Carregando veículos...</div>
         ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => {
           const status = statusMap[vehicle.status];
-          const profit = vehicle.sellPrice ? vehicle.sellPrice - vehicle.buyPrice : 0;
+          const profit = vehicle.precoVenda ? vehicle.precoVenda - vehicle.precoCompra : 0;
           
           return (
             <div key={vehicle.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
@@ -228,7 +272,7 @@ const Resale: React.FC = () => {
                   {canEdit && (
                     <button 
                       onClick={() => openModal(vehicle)}
-                      className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                      className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-lg transition-all"
                     >
                       <Edit2 size={18} />
                     </button>
@@ -254,22 +298,22 @@ const Resale: React.FC = () => {
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Compra</p>
-                  <p className="text-sm font-bold text-zinc-700">{formatCurrency(vehicle.buyPrice)}</p>
+                  <p className="text-sm font-bold text-zinc-700">{formatCurrency(vehicle.precoCompra)}</p>
                 </div>
-                <div className="p-3 bg-zinc-900 rounded-2xl text-white">
+                <div className="p-3 bg-accent rounded-2xl text-accent-foreground">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Venda</p>
-                  <p className="text-sm font-bold">{vehicle.sellPrice ? formatCurrency(vehicle.sellPrice) : 'Sob consulta'}</p>
+                  <p className="text-sm font-bold">{vehicle.precoVenda ? formatCurrency(vehicle.precoVenda) : 'Sob consulta'}</p>
                 </div>
               </div>
 
-              {vehicle.sellPrice && (
+              {vehicle.precoVenda && (
                 <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-green-600">
                     <TrendingUp size={16} />
                     <span className="text-sm font-black">Lucro: {formatCurrency(profit)}</span>
                   </div>
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                    {Math.round((profit / vehicle.buyPrice) * 100)}% margem
+                    {Math.round((profit / vehicle.precoCompra) * 100)}% margem
                   </span>
                 </div>
               )}
@@ -282,13 +326,13 @@ const Resale: React.FC = () => {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900">
                 {editingVehicle ? 'Editar Veículo' : 'Novo Veículo para Revenda'}
               </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-lg">
                 <XCircle size={24} />
               </button>
             </div>
@@ -300,7 +344,7 @@ const Resale: React.FC = () => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     placeholder="Ex: Toyota"
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
@@ -311,7 +355,7 @@ const Resale: React.FC = () => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     placeholder="Ex: Corolla"
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
@@ -324,7 +368,7 @@ const Resale: React.FC = () => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Ano</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     placeholder="2024"
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
@@ -333,7 +377,7 @@ const Resale: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -351,10 +395,10 @@ const Resale: React.FC = () => {
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     placeholder="0.00"
-                    value={formData.buyPrice}
-                    onChange={(e) => setFormData({ ...formData, buyPrice: e.target.value })}
+                    value={formData.precoCompra}
+                    onChange={(e) => setFormData({ ...formData, precoCompra: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -362,10 +406,10 @@ const Resale: React.FC = () => {
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-bold text-zinc-900"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold text-zinc-900"
                     placeholder="0.00"
-                    value={formData.sellPrice}
-                    onChange={(e) => setFormData({ ...formData, sellPrice: e.target.value })}
+                    value={formData.precoVenda}
+                    onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
                   />
                 </div>
               </div>
@@ -380,7 +424,7 @@ const Resale: React.FC = () => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                 >
                   {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
                 </button>

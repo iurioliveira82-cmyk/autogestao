@@ -101,17 +101,17 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, context }) =
             className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-[101] flex flex-col"
           >
             {/* Header */}
-            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-900 text-white">
+            <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-white text-zinc-900">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center">
-                  <Sparkles size={20} className="text-amber-400" />
+                <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center">
+                  <Sparkles size={20} className="text-amber-500" />
                 </div>
                 <div>
                   <h3 className="font-bold">Assistente de IA</h3>
                   <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-black">Inteligência Automotiva</p>
                 </div>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-lg transition-colors">
                 <X size={20} />
               </button>
             </div>
@@ -128,7 +128,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, context }) =
                 >
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center shrink-0",
-                    msg.role === 'assistant' ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600"
+                    msg.role === 'assistant' ? "bg-zinc-100 text-zinc-900" : "bg-zinc-100 text-zinc-600"
                   )}>
                     {msg.role === 'assistant' ? <Bot size={16} /> : <User size={16} />}
                   </div>
@@ -136,7 +136,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, context }) =
                     "p-4 rounded-2xl text-sm leading-relaxed",
                     msg.role === 'assistant' 
                       ? "bg-zinc-50 text-zinc-900 border border-zinc-100" 
-                      : "bg-zinc-900 text-white shadow-lg shadow-zinc-200"
+                      : "bg-accent text-accent-foreground shadow-lg shadow-zinc-200"
                   )}>
                     {msg.content}
                   </div>
@@ -144,7 +144,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, context }) =
               ))}
               {isLoading && (
                 <div className="flex gap-3 max-w-[85%]">
-                  <div className="w-8 h-8 rounded-lg bg-zinc-900 text-white flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-zinc-100 text-zinc-900 flex items-center justify-center shrink-0">
                     <Bot size={16} />
                   </div>
                   <div className="p-4 rounded-2xl bg-zinc-50 text-zinc-400 border border-zinc-100 flex items-center gap-2">
@@ -190,7 +190,7 @@ const AIAssistant: React.FC<AIAssistantProps> = ({ isOpen, onClose, context }) =
                 <button
                   type="submit"
                   disabled={!input.trim() || isLoading}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-accent text-accent-foreground rounded-xl hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
                   <Send size={18} />
                 </button>

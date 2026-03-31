@@ -85,7 +85,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+          <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
           <p className="text-zinc-500 font-medium animate-pulse">Carregando AutoGestão...</p>
         </div>
       </div>
@@ -99,20 +99,20 @@ const AppContent: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard setActiveTab={handleSetActiveTab} />;
-      case 'clients': return <Clients />;
-      case 'leads': return <Leads />;
-      case 'vehicles': return <Vehicles />;
+      case 'clients': return <Clients setActiveTab={handleSetActiveTab} />;
+      case 'leads': return <Leads setActiveTab={handleSetActiveTab} />;
+      case 'vehicles': return <Vehicles setActiveTab={handleSetActiveTab} />;
       case 'os': return <ServiceOrders setActiveTab={handleSetActiveTab} itemId={activeItemId} initialStatus={activeItemStatus} />;
       case 'agenda': return <Agenda setActiveTab={handleSetActiveTab} />;
-      case 'services': return <Services />;
+      case 'services': return <Services setActiveTab={handleSetActiveTab} />;
       case 'inventory': return <Inventory setActiveTab={handleSetActiveTab} />;
       case 'suppliers': return <Suppliers setActiveTab={handleSetActiveTab} />;
-      case 'stock': return <Stock initialItemId={activeItemId} initialSupplierId={stockSupplierId} />;
-      case 'finance': return <Finance />;
+      case 'stock': return <Stock setActiveTab={handleSetActiveTab} initialItemId={activeItemId} initialSupplierId={stockSupplierId} />;
+      case 'finance': return <Finance setActiveTab={handleSetActiveTab} />;
       case 'fiscal': return <Fiscal setActiveTab={handleSetActiveTab} />;
-      case 'resale': return <Resale />;
-      case 'users': return <Users />;
-      case 'settings': return <Settings />;
+      case 'resale': return <Resale setActiveTab={handleSetActiveTab} />;
+      case 'users': return <Users setActiveTab={handleSetActiveTab} />;
+      case 'settings': return <Settings setActiveTab={handleSetActiveTab} />;
       default: return <Dashboard setActiveTab={handleSetActiveTab} />;
     }
   };

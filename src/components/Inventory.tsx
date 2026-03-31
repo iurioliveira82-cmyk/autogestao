@@ -10,6 +10,7 @@ import {
   Filter,
   ArrowUp,
   ArrowDown,
+  ArrowUpCircle,
   DollarSign,
   Layers,
   Truck,
@@ -18,7 +19,7 @@ import {
   Sparkles,
   Loader2
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { InventoryItem, Supplier, OperationType } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
@@ -48,16 +49,20 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
     name: '',
     quantity: '',
     minQuantity: '',
-    price: '',
-    cost: '',
-    supplierId: '',
+    precoVenda: '',
+    custoMedio: '',
+    fornecedorId: '',
     category: ''
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
 
-    const q = query(collection(db, 'inventory'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'inventario'), 
+      where('empresaId', '==', profile.empresaId),
+      orderBy('name', 'asc')
+    );
     const unsubscribeItems = onSnapshot(q, (snapshot) => {
       const list: InventoryItem[] = [];
       snapshot.forEach((doc) => {
@@ -66,19 +71,22 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
       setItems(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'inventory');
+      handleFirestoreError(error, OperationType.GET, 'inventario');
       setLoading(false);
     });
 
-    const unsubscribeSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-      const list: Supplier[] = [];
-      snapshot.forEach((doc) => {
-        list.push({ id: doc.id, ...doc.data() } as Supplier);
-      });
-      setSuppliers(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'suppliers');
-    });
+    const unsubscribeSuppliers = onSnapshot(
+      query(collection(db, 'fornecedores'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Supplier[] = [];
+        snapshot.forEach((doc) => {
+          list.push({ id: doc.id, ...doc.data() } as Supplier);
+        });
+        setSuppliers(list);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'fornecedores');
+      }
+    );
 
     return () => {
       unsubscribeItems();
@@ -89,27 +97,34 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.quantity || !formData.price) {
+    if (!formData.name || !formData.quantity || !formData.precoVenda) {
       toast.error('Nome, quantidade e preço são obrigatórios.');
       return;
     }
 
+    if (!profile) return;
+
     try {
       const data = {
+        empresaId: profile.empresaId,
         name: formData.name,
-        quantity: parseFloat(formData.quantity),
-        minQuantity: formData.minQuantity ? parseFloat(formData.minQuantity) : 0,
-        price: parseFloat(formData.price),
-        cost: formData.cost ? parseFloat(formData.cost) : 0,
-        supplierId: formData.supplierId,
-        category: formData.category
+        quantidadeAtual: parseFloat(formData.quantity),
+        estoqueMinimo: formData.minQuantity ? parseFloat(formData.minQuantity) : 0,
+        precoVenda: parseFloat(formData.precoVenda),
+        custoMedio: formData.custoMedio ? parseFloat(formData.custoMedio) : 0,
+        fornecedorPadraoId: formData.fornecedorId,
+        category: formData.category,
+        updatedAt: new Date().toISOString()
       };
 
       if (editingItem) {
-        await updateDoc(doc(db, 'inventory', editingItem.id), data);
+        await updateDoc(doc(db, 'inventario', editingItem.id), data);
         toast.success('Produto atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'inventory'), data);
+        await addDoc(collection(db, 'inventario'), {
+          ...data,
+          createdAt: new Date().toISOString()
+        });
         toast.success('Produto cadastrado com sucesso!');
       }
       closeModal();
@@ -127,7 +142,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
   const confirmDelete = async () => {
     if (!itemToDelete) return;
     try {
-      await deleteDoc(doc(db, 'inventory', itemToDelete));
+      await deleteDoc(doc(db, 'inventario', itemToDelete));
       toast.success('Produto excluído com sucesso!');
     } catch (error) {
       console.error(error);
@@ -142,11 +157,11 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
       setEditingItem(item);
       setFormData({
         name: item.name,
-        quantity: item.quantity.toString(),
-        minQuantity: item.minQuantity.toString(),
-        price: item.price.toString(),
-        cost: item.cost?.toString() || '',
-        supplierId: item.supplierId || '',
+        quantity: item.quantidadeAtual.toString(),
+        minQuantity: item.estoqueMinimo.toString(),
+        precoVenda: item.precoVenda.toString(),
+        custoMedio: item.custoMedio?.toString() || '',
+        fornecedorId: item.fornecedorPadraoId || '',
         category: item.category || ''
       });
     } else {
@@ -155,9 +170,9 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         name: '',
         quantity: '',
         minQuantity: '',
-        price: '',
-        cost: '',
-        supplierId: '',
+        precoVenda: '',
+        custoMedio: '',
+        fornecedorId: '',
         category: ''
       });
     }
@@ -173,9 +188,9 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalInventoryValue = filteredItems.reduce((acc, item) => acc + (item.quantity * (item.cost || 0)), 0);
+  const totalInventoryValue = filteredItems.reduce((acc, item) => acc + (item.quantidadeAtual * (item.custoMedio || 0)), 0);
 
-  const lowStockItems = items.filter(item => item.quantity <= item.minQuantity);
+  const lowStockItems = items.filter(item => item.quantidadeAtual <= item.estoqueMinimo);
 
   const handleGenerateAISuggestion = async () => {
     if (lowStockItems.length === 0) {
@@ -185,7 +200,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
     setIsGeneratingAI(true);
     try {
-      const itemsList = lowStockItems.map(item => `- ${item.name}: Atual ${item.quantity}, Mínimo ${item.minQuantity}`).join('\n');
+      const itemsList = lowStockItems.map(item => `- ${item.name}: Atual ${item.quantidadeAtual}, Mínimo ${item.estoqueMinimo}`).join('\n');
       const prompt = `
         Abaixo está uma lista de itens com estoque baixo em uma oficina mecânica:
         ${itemsList}
@@ -213,7 +228,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-zinc-900 text-white p-6 sm:p-8 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden group"
+            className="bg-accent text-accent-foreground p-6 sm:p-8 rounded-3xl border border-accent/20 shadow-2xl relative overflow-hidden group"
           >
             <div className="flex items-start justify-between mb-4 relative z-10">
               <div className="flex items-center gap-3">
@@ -244,9 +259,9 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         </div>
         <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Itens com Estoque Baixo</p>
-          <h3 className="text-2xl font-black text-red-600">{filteredItems.filter(i => i.quantity <= i.minQuantity).length}</h3>
+          <h3 className="text-2xl font-black text-red-600">{filteredItems.filter(i => i.quantidadeAtual <= i.estoqueMinimo).length}</h3>
         </div>
-        <div className="bg-zinc-900 p-6 rounded-3xl shadow-lg shadow-zinc-200 text-white">
+        <div className="bg-accent p-6 rounded-3xl shadow-lg shadow-accent/20 text-accent-foreground">
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Valor Total em Estoque (Custo)</p>
           <h3 className="text-2xl font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInventoryValue)}</h3>
         </div>
@@ -259,7 +274,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           <input 
             type="text" 
             placeholder="Buscar por nome do produto..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -269,7 +284,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <button
               onClick={handleGenerateAISuggestion}
               disabled={isGeneratingAI}
-              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-4 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm w-full sm:w-auto disabled:opacity-50"
+              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-4 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm w-full sm:w-auto disabled:opacity-50"
             >
               {isGeneratingAI ? (
                 <Loader2 size={18} className="animate-spin" />
@@ -289,7 +304,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           {canCreate && (
             <button 
               onClick={() => openModal()}
-              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm w-full sm:w-auto"
             >
               <Plus size={20} />
               Novo Produto
@@ -303,12 +318,12 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         {loading ? (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               <p className="text-zinc-400 text-sm italic">Carregando estoque...</p>
             </div>
           </div>
         ) : filteredItems.length > 0 ? filteredItems.map((item) => {
-          const isLow = item.quantity <= item.minQuantity;
+          const isLow = item.quantidadeAtual <= item.estoqueMinimo;
           return (
             <div key={item.id} className={cn(
               "bg-white p-6 rounded-[2rem] border shadow-sm hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden",
@@ -318,7 +333,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border transition-transform group-hover:scale-105",
-                    isLow ? "bg-red-100 text-red-600 border-red-200" : "bg-zinc-900 text-white border-zinc-800"
+                    isLow ? "bg-red-100 text-red-600 border-red-200" : "bg-accent text-accent-foreground border-accent/20"
                   )}>
                     <Package size={28} />
                   </div>
@@ -328,10 +343,19 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   </div>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {setActiveTab && (
+                    <button 
+                      onClick={() => setActiveTab('stock', item.id)}
+                      className="p-2 text-accent hover:bg-accent/10 rounded-xl transition-all"
+                      title="Lançar Estoque"
+                    >
+                      <ArrowUpCircle size={16} />
+                    </button>
+                  )}
                   {canEdit && (
                     <button 
                       onClick={() => openModal(item)}
-                      className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
+                      className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
                     >
                       <Edit2 size={16} />
                     </button>
@@ -350,7 +374,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-zinc-50 rounded-2xl p-3 border border-zinc-100">
                   <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Preço Venda</p>
-                  <p className="text-sm font-black text-zinc-900">{formatCurrency(item.price)}</p>
+                  <p className="text-sm font-black text-zinc-900">{formatCurrency(item.precoVenda)}</p>
                 </div>
                 <div className={cn(
                   "rounded-2xl p-3 border",
@@ -361,7 +385,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     "text-sm font-black",
                     isLow ? "text-red-600" : "text-zinc-900"
                   )}>
-                    {item.quantity} un
+                    {item.quantidadeAtual} un
                   </p>
                 </div>
               </div>
@@ -369,7 +393,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
                 <div className="flex flex-col">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Custo Médio</span>
-                  <span className="text-xs font-bold text-zinc-600">{formatCurrency(item.cost || 0)}</span>
+                  <span className="text-xs font-bold text-zinc-600">{formatCurrency(item.custoMedio || 0)}</span>
                 </div>
                 {isLow && (
                   <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">
@@ -409,7 +433,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 </h3>
                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Informações do Item</p>
               </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-all">
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
                 <XCircle size={24} />
               </button>
             </div>
@@ -420,7 +444,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 <input 
                   type="text" 
                   required
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                   placeholder="Ex: Óleo 5W30"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -434,7 +458,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="0"
                     value={formData.quantity}
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
@@ -445,7 +469,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="0"
                     value={formData.minQuantity}
                     onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
@@ -460,10 +484,10 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                    value={formData.precoVenda}
+                    onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -471,10 +495,10 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="0.00"
-                    value={formData.cost}
-                    onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
+                    value={formData.custoMedio}
+                    onChange={(e) => setFormData({ ...formData, custoMedio: e.target.value })}
                   />
                 </div>
               </div>
@@ -484,7 +508,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria</label>
                   <input 
                     type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="Ex: Peças, Fluidos..."
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -493,9 +517,9 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Fornecedor</label>
                   <select 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
-                    value={formData.supplierId}
-                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                    value={formData.fornecedorId}
+                    onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
                   >
                     <option value="">Selecione...</option>
                     {suppliers.map(s => (
@@ -515,7 +539,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
                 >
                   {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
                 </button>

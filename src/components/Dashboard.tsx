@@ -13,13 +13,22 @@ import {
   AlertCircle,
   Sparkles,
   Loader2,
-  XCircle
+  XCircle,
+  Plus,
+  UserPlus,
+  ChevronRight,
+  Search,
+  Filter,
+  MoreHorizontal,
+  Edit2,
+  Trash2,
+  Eye
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { collection, query, where, getDocs, orderBy, limit, onSnapshot, doc, updateDoc, serverTimestamp, addDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { formatCurrency, cn, handleFirestoreError } from '../lib/utils';
-import { ServiceOrder, Transaction, Client, Vehicle, OperationType, OSStatus, Appointment, Lead, Proposal } from '../types';
+import { ServiceOrder, Transaction, Client, Vehicle, OperationType, OSStatus, Appointment, Lead, Proposal, InventoryItem, FinancialTransaction } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
 import { useAuth } from './Auth';
 import { format, subDays, startOfDay, endOfDay } from 'date-fns';
@@ -31,9 +40,15 @@ interface DashboardProps {
   setActiveTab?: (tab: string, itemId?: string, supplierId?: string, itemStatus?: OSStatus) => void;
 }
 
+import { FirestoreService } from '../services/firestore';
+
+import { OSService } from '../services/os';
+
 const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const { isAdmin, profile } = useAuth();
   const { canView } = usePermissions('dashboard');
+  const empresaId = profile?.empresaId || '';
+  const osService = new OSService(empresaId);
 
   const [stats, setStats] = useState({
     dailyRevenue: 0,
@@ -64,183 +79,121 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
   // Static data
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !empresaId) return;
 
     // Clients
-    const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
-      setStats(prev => ({ ...prev, totalClients: snapshot.size }));
+    const unsubscribeClients = FirestoreService.subscribeByEmpresa<Client>('clientes', empresaId, (data) => {
+      setStats(prev => ({ ...prev, totalClients: data.length }));
       const clientMap: Record<string, string> = {};
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        clientMap[doc.id] = data.name;
+      data.forEach(client => {
+        clientMap[client.id] = client.name;
       });
       setClients(clientMap);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'clients');
     });
 
     // Vehicles
-    const unsubscribeVehicles = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
-      setStats(prev => ({ ...prev, totalVehicles: snapshot.size }));
+    const unsubscribeVehicles = FirestoreService.subscribeByEmpresa<Vehicle>('veiculos', empresaId, (data) => {
+      setStats(prev => ({ ...prev, totalVehicles: data.length }));
       const vehicleMap: Record<string, Vehicle> = {};
-      snapshot.forEach(doc => {
-        vehicleMap[doc.id] = { id: doc.id, ...doc.data() } as Vehicle;
+      data.forEach(vehicle => {
+        vehicleMap[vehicle.id] = vehicle;
       });
       setVehicles(vehicleMap);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'vehicles');
     });
 
     // Services
-    const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
+    const unsubscribeServices = FirestoreService.subscribeByEmpresa<any>('catalogo_servicos', empresaId, (data) => {
       const serviceMap: Record<string, string> = {};
-      snapshot.forEach(doc => {
-        serviceMap[doc.id] = doc.data().name;
+      data.forEach(service => {
+        serviceMap[service.id] = service.name;
       });
       setServices(serviceMap);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'services');
     });
 
-    // Resale Vehicles
-    const unsubscribeResale = onSnapshot(collection(db, 'resaleVehicles'), (snapshot) => {
-      setStats(prev => ({ ...prev, resaleVehicles: snapshot.size }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'resaleVehicles');
-    });
-
-    // Average Ticket (from completed OS)
-    const qCompletedOS = query(collection(db, 'serviceOrders'), where('status', '==', 'completed'));
-    const unsubscribeCompletedOS = onSnapshot(qCompletedOS, (snapshot) => {
+    // Average Ticket (from finished OS)
+    const unsubscribeCompletedOS = FirestoreService.subscribeByEmpresa<ServiceOrder>('ordens_servico', empresaId, (data) => {
+      const finishedOS = data.filter(os => os.status === 'finalizada');
       let total = 0;
-      snapshot.forEach(doc => {
-        total += doc.data().totalValue || 0;
+      finishedOS.forEach(os => {
+        total += os.valorTotal || 0;
       });
-      const avg = snapshot.size > 0 ? total / snapshot.size : 0;
+      const avg = finishedOS.length > 0 ? total / finishedOS.length : 0;
       setStats(prev => ({ ...prev, averageTicket: avg }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'serviceOrders');
-    });
+    }, [where('status', '==', 'finalizada')]);
 
     // Low Stock
-    const unsubscribeStock = onSnapshot(collection(db, 'inventory'), (snapshot) => {
+    const unsubscribeStock = FirestoreService.subscribeByEmpresa<InventoryItem>('inventario', empresaId, (data) => {
       let low = 0;
       const items: any[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.quantity <= data.minQuantity) {
+      data.forEach(item => {
+        if (item.quantidadeAtual <= item.estoqueMinimo) {
           low++;
-          items.push({ id: doc.id, ...data });
+          items.push(item);
         }
       });
       setStats(prev => ({ ...prev, lowStock: low }));
       setLowStockItems(items);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'inventory');
     });
 
     // Leads
-    const unsubscribeLeads = onSnapshot(collection(db, 'leads'), (snapshot) => {
-      const hot = snapshot.docs.filter(d => d.data().temperature === 'hot' && !['converted', 'lost'].includes(d.data().status)).length;
+    const unsubscribeLeads = FirestoreService.subscribeByEmpresa<Lead>('leads', empresaId, (data) => {
+      const hot = data.filter(d => d.temperature === 'hot' && !['convertido', 'perdido'].includes(d.status)).length;
       setStats(prev => ({ ...prev, hotLeads: hot }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'leads');
-    });
-
-    // Proposals
-    const unsubscribeProposals = onSnapshot(collection(db, 'proposals'), (snapshot) => {
-      const inProgress = snapshot.docs.filter(d => ['draft', 'sent'].includes(d.data().status)).length;
-      setStats(prev => ({ ...prev, proposalsInProgress: inProgress }));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'proposals');
     });
 
     return () => {
       unsubscribeClients();
       unsubscribeVehicles();
       unsubscribeServices();
-      unsubscribeResale();
       unsubscribeCompletedOS();
       unsubscribeStock();
       unsubscribeLeads();
-      unsubscribeProposals();
     };
-  }, [profile]);
+  }, [profile, empresaId]);
 
   // Date-dependent data
   useEffect(() => {
-    if (!profile) return;
+    if (!profile || !empresaId) return;
 
     const today = new Date();
     const start = startOfDay(today);
     const end = endOfDay(today);
 
-    // Daily Transactions - Only for Admins
-    let unsubscribeTransactions = () => {};
-    if (isAdmin) {
-      const qTransactions = query(
-        collection(db, 'transactions'),
-        where('date', '>=', start.toISOString()),
-        where('date', '<=', end.toISOString())
-      );
-
-      unsubscribeTransactions = onSnapshot(qTransactions, (snapshot) => {
-        let revenue = 0;
-        let expense = 0;
-        snapshot.forEach(doc => {
-          const data = doc.data();
-          if (data.type === 'in') revenue += data.value;
-          else expense += data.value;
-        });
-        setStats(prev => ({ ...prev, dailyRevenue: revenue, dailyExpense: expense }));
-      }, (error) => {
-        handleFirestoreError(error, OperationType.GET, 'transactions');
+    // Daily Transactions
+    const unsubscribeTransactions = FirestoreService.subscribeByEmpresa<FinancialTransaction>('transacoes_financeiras', empresaId, (data) => {
+      let revenue = 0;
+      let expense = 0;
+      data.forEach(trans => {
+        if (trans.type === 'in') revenue += trans.value;
+        else expense += trans.value;
       });
-    }
+      setStats(prev => ({ ...prev, dailyRevenue: revenue, dailyExpense: expense }));
+    }, [where('date', '>=', start.toISOString()), where('date', '<=', end.toISOString())]);
 
     // Orders for selected date
     const dateObj = new Date(selectedDate + 'T00:00:00');
     const startSelected = startOfDay(dateObj);
     const endSelected = endOfDay(dateObj);
 
-    const qOS = query(
-      collection(db, 'serviceOrders'),
-      where('createdAt', '>=', startSelected.toISOString()),
-      where('createdAt', '<=', endSelected.toISOString()),
-      orderBy('createdAt', 'desc')
-    );
-
-    const unsubscribeOS = onSnapshot(qOS, (snapshot) => {
-      setStats(prev => ({ ...prev, activeOS: snapshot.docs.filter(d => ['waiting', 'in-progress'].includes(d.data().status)).length }));
-      const osList: ServiceOrder[] = [];
-      snapshot.forEach(doc => osList.push({ id: doc.id, ...doc.data() } as ServiceOrder));
-      setRecentOS(osList);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'serviceOrders');
-    });
+    const unsubscribeOS = FirestoreService.subscribeByEmpresa<ServiceOrder>('ordens_servico', empresaId, (data) => {
+      const activeStatuses = ['orcamento', 'aguardando_aprovacao', 'aprovada', 'em_execucao', 'aguardando_peca'];
+      setStats(prev => ({ ...prev, activeOS: data.filter(d => activeStatuses.includes(d.status)).length }));
+      setRecentOS(data.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+    }, [where('createdAt', '>=', startSelected.toISOString()), where('createdAt', '<=', endSelected.toISOString())]);
 
     // Today's Appointments
-    const qAppointments = query(
-      collection(db, 'appointments'),
-      where('startTime', '>=', start.toISOString()),
-      where('startTime', '<=', end.toISOString())
-    );
-
-    const unsubscribeAppointments = onSnapshot(qAppointments, (snapshot) => {
-      setStats(prev => ({ ...prev, todayAppointments: snapshot.size }));
-      const appointments: Appointment[] = [];
-      snapshot.forEach(doc => appointments.push({ id: doc.id, ...doc.data() } as Appointment));
-      setTodayAppointmentsList(appointments.sort((a, b) => a.startTime.localeCompare(b.startTime)));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'appointments');
-    });
+    const unsubscribeAppointments = FirestoreService.subscribeByEmpresa<Appointment>('agendamentos', empresaId, (data) => {
+      setStats(prev => ({ ...prev, todayAppointments: data.length }));
+      setTodayAppointmentsList(data.sort((a, b) => a.startTime.localeCompare(b.startTime)));
+    }, [where('startTime', '>=', start.toISOString()), where('startTime', '<=', end.toISOString())]);
 
     // Chart Data (Last 7 days) - Real-time
     let unsubscribeChart = () => {};
     if (isAdmin) {
       const sevenDaysAgo = subDays(startOfDay(new Date()), 6);
       const qChart = query(
-        collection(db, 'transactions'),
+        collection(db, 'transacoes_financeiras'),
+        where('empresaId', '==', empresaId),
         where('date', '>=', sevenDaysAgo.toISOString()),
         orderBy('date', 'asc')
       );
@@ -290,66 +243,19 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
       unsubscribeAppointments();
       unsubscribeChart();
     };
-  }, [profile, isAdmin, selectedDate]);
+  }, [profile, empresaId, isAdmin, selectedDate]);
 
   const handleUpdateStatus = async (os: ServiceOrder, newStatus: OSStatus) => {
     try {
-      if (newStatus === 'finished' || newStatus === 'confirmed') {
+      if (newStatus === 'finalizada' || newStatus === 'aprovada') {
         if (setActiveTab) {
           setActiveTab('os', os.id, undefined, newStatus);
           return;
         }
       }
 
-      if (os.status === 'finished') {
-        toast.error('Ordens de serviço finalizadas não podem ser alteradas.');
-        return;
-      }
-
-      const osRef = doc(db, 'serviceOrders', os.id);
-      await updateDoc(osRef, { 
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      });
-
-      // If finished, we should ideally trigger the same logic as ServiceOrders.tsx
-      // For simplicity and consistency, let's just update the status here
-      // and maybe inform the user that full finalization should be done in the OS tab
-      // OR we can implement the basic transaction creation here too.
-      
-      if (newStatus === 'finished') {
-        // Basic transaction creation for cash payments
-        if (os.paymentType === 'cash') {
-          await addDoc(collection(db, 'transactions'), {
-            type: 'in',
-            value: os.totalValue,
-            category: 'Serviço',
-            description: `OS #${os.id.slice(0, 6)} - ${clients[os.clientId] || 'Cliente'}`,
-            date: new Date().toISOString(),
-            status: 'paid',
-            paymentMethod: os.paymentMethod || 'pix',
-            relatedOSId: os.id,
-            clientId: os.clientId
-          });
-        } else if (os.paymentType === 'deferred') {
-          await addDoc(collection(db, 'transactions'), {
-            type: 'in',
-            value: os.totalValue,
-            category: 'Serviço',
-            description: `OS #${os.id.slice(0, 6)} - ${clients[os.clientId] || 'Cliente'}`,
-            date: new Date().toISOString(),
-            dueDate: os.dueDate || new Date().toISOString(),
-            status: 'pending',
-            paymentMethod: os.paymentMethod || 'pix',
-            relatedOSId: os.id,
-            clientId: os.clientId
-          });
-        }
-
-        toast.success('OS finalizada e transação financeira criada!');
-      } else {
-        toast.success(`Status da OS alterado para ${newStatus === 'in-progress' ? 'Em Andamento' : 'Cancelado'}`);
-      }
+      await osService.updateStatus(os.id, newStatus);
+      toast.success(`Status da OS alterado para ${newStatus}`);
     } catch (error) {
       console.error(error);
       toast.error('Erro ao atualizar status da OS.');
@@ -403,18 +309,18 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   }
 
   return (
-    <div className="space-y-6 sm:space-y-10 animate-in fade-in duration-700">
+    <div className="space-y-8 sm:space-y-12 animate-in">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm sm:text-base text-zinc-500 font-medium">Bem-vindo de volta ao seu painel de controle.</p>
+          <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tight font-display">Dashboard</h1>
+          <p className="text-sm sm:text-lg text-zinc-500 font-medium mt-1">Bem-vindo de volta ao seu painel de controle.</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           <button
             onClick={handleGenerateAIAnalysis}
             disabled={isGeneratingAI}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-2xl text-sm font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 disabled:opacity-50"
+            className="btn-modern flex items-center gap-2"
           >
             {isGeneratingAI ? (
               <Loader2 size={18} className="animate-spin" />
@@ -423,9 +329,9 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
             )}
             Análise de IA
           </button>
-          <div className="px-4 py-2 bg-white border border-zinc-200 rounded-2xl flex items-center gap-2 shadow-sm">
-            <Calendar size={16} className="text-zinc-400" />
-            <span className="text-sm font-bold text-zinc-600">{format(new Date(), "dd 'de' MMMM", { locale: ptBR })}</span>
+          <div className="px-5 py-3 bg-white border border-zinc-100 rounded-2xl flex items-center gap-3 shadow-modern">
+            <Calendar size={18} className="text-zinc-400" />
+            <span className="text-sm font-bold text-zinc-700">{format(new Date(), "dd 'de' MMMM", { locale: ptBR })}</span>
           </div>
         </div>
       </div>
@@ -437,26 +343,26 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-zinc-900 text-white p-6 sm:p-8 rounded-3xl border border-zinc-800 shadow-2xl relative overflow-hidden group"
+            className="bg-white text-zinc-900 p-6 sm:p-8 rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden group"
           >
             <div className="flex items-start justify-between mb-4 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-xl">
-                  <Sparkles size={20} className="text-amber-400" />
+                <div className="p-2 bg-zinc-100 rounded-xl">
+                  <Sparkles size={20} className="text-amber-500" />
                 </div>
                 <h3 className="text-lg font-bold">Insights da Inteligência Artificial</h3>
               </div>
               <button 
                 onClick={() => setAiAnalysis(null)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
               >
-                <XCircle size={20} className="text-zinc-500" />
+                <XCircle size={20} className="text-zinc-400" />
               </button>
             </div>
-            <p className="text-sm sm:text-base text-zinc-300 leading-relaxed relative z-10 italic">
+            <p className="text-sm sm:text-base text-zinc-600 leading-relaxed relative z-10 italic">
               "{aiAnalysis}"
             </p>
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-zinc-50 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -485,7 +391,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
             </div>
           </div>
           <button 
-            onClick={() => window.location.hash = '#inventory'}
+            onClick={() => setActiveTab?.('inventory')}
             className="w-full sm:w-auto flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-xl sm:rounded-2xl font-bold text-sm hover:bg-red-700 active:scale-95 transition-all shrink-0 shadow-lg shadow-red-200 relative z-10"
           >
             <Package size={18} />
@@ -498,143 +404,147 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
       )}
 
       {/* KPI Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white p-6 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-zinc-200 shadow-sm hover:shadow-xl hover:shadow-zinc-200/50 transition-all duration-300 group">
-            <div className="flex items-center justify-between mb-4 sm:mb-6">
-              <div className={cn("p-3 sm:p-4 rounded-xl sm:rounded-2xl transition-transform group-hover:scale-110 duration-300 shadow-sm", kpi.bg)}>
-                <kpi.icon size={24} className={cn("sm:w-7 sm:h-7", kpi.color)} />
+          <div key={i} className="modern-card group !p-8 hover:translate-y-[-4px] transition-all duration-500">
+            <div className="flex items-center justify-between mb-8">
+              <div className={cn("p-5 rounded-2xl transition-all group-hover:scale-110 group-hover:rotate-3 duration-500 shadow-sm", kpi.bg)}>
+                <kpi.icon size={32} className={cn("sm:w-8 sm:h-8", kpi.color)} />
               </div>
               <button 
-                onClick={() => kpi.link && (window.location.hash = kpi.link)}
-                className="w-8 h-8 rounded-full bg-zinc-50 flex items-center justify-center text-zinc-300 group-hover:text-zinc-900 group-hover:bg-zinc-100 transition-all cursor-pointer active:scale-90"
+                onClick={() => kpi.link && setActiveTab?.(kpi.link.replace('#', ''))}
+                className="w-12 h-12 rounded-2xl bg-zinc-50 flex items-center justify-center text-zinc-300 group-hover:text-accent group-hover:bg-accent/10 transition-all cursor-pointer active:scale-90"
               >
-                <ArrowUpRight size={16} />
+                <ArrowUpRight size={24} />
               </button>
             </div>
             <div>
-              <p className="text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1 sm:mb-2">{kpi.label}</p>
-              <h3 className="text-2xl sm:text-3xl font-black text-zinc-900 tracking-tight">{kpi.value}</h3>
+              <p className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">{kpi.label}</p>
+              <h3 className="text-4xl sm:text-5xl font-black text-zinc-900 tracking-tight font-display">{kpi.value}</h3>
             </div>
           </div>
         ))}
       </div>
 
       {/* Sales Opportunities Widget */}
-      <div className="bg-white p-6 sm:p-10 rounded-2xl sm:rounded-[2.5rem] border border-zinc-200 shadow-sm overflow-hidden relative group">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 relative z-10">
+      <div className="modern-card !p-10 sm:!p-16 relative overflow-hidden group">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 mb-12 relative z-10">
           <div>
-            <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">Oportunidades de Vendas</h3>
-            <p className="text-xs sm:text-sm text-zinc-500 font-medium">Resumo de leads e propostas ativas</p>
+            <h3 className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tight font-display">Oportunidades de Vendas</h3>
+            <p className="text-base sm:text-lg text-zinc-500 font-medium mt-2">Resumo de leads e propostas ativas no funil</p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl border border-amber-100 flex items-center gap-2">
-              <Sparkles size={14} />
-              <span className="text-[10px] font-black uppercase tracking-widest">Foco em Conversão</span>
+          <div className="flex items-center gap-4">
+            <div className="px-5 py-2.5 bg-amber-50 text-amber-600 rounded-2xl border border-amber-100 flex items-center gap-3 shadow-sm">
+              <Sparkles size={20} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">Foco em Conversão</span>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 relative z-10">
-          <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-100 flex items-center justify-between group/card hover:bg-white hover:shadow-xl hover:shadow-zinc-200/50 transition-all duration-300">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-orange-100 text-orange-600 rounded-2xl group-hover/card:scale-110 transition-transform">
-                <TrendingUp size={24} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 relative z-10">
+          <div className="bg-zinc-50/50 p-10 rounded-[2.5rem] border border-zinc-100 flex items-center justify-between group/card hover:bg-white hover:shadow-2xl hover:shadow-orange-100/50 transition-all duration-500">
+            <div className="flex items-center gap-8">
+              <div className="p-6 bg-orange-100 text-orange-600 rounded-3xl group-hover/card:scale-110 group-hover/card:rotate-3 transition-transform duration-500 shadow-sm">
+                <TrendingUp size={32} />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Leads Quentes</p>
-                <h4 className="text-3xl font-black text-zinc-900">{stats.hotLeads}</h4>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Leads Quentes</p>
+                <h4 className="text-5xl font-black text-zinc-900 font-display">{stats.hotLeads}</h4>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-1 rounded-lg uppercase tracking-widest">Prioridade Alta</span>
+              <span className="text-[10px] font-black text-orange-600 bg-orange-50 px-4 py-2 rounded-2xl uppercase tracking-widest border border-orange-100">Prioridade Alta</span>
             </div>
           </div>
 
-          <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-100 flex items-center justify-between group/card hover:bg-white hover:shadow-xl hover:shadow-zinc-200/50 transition-all duration-300">
-            <div className="flex items-center gap-4">
-              <div className="p-4 bg-blue-100 text-blue-600 rounded-2xl group-hover/card:scale-110 transition-transform">
-                <ClipboardList size={24} />
+          <div className="bg-zinc-50/50 p-10 rounded-[2.5rem] border border-zinc-100 flex items-center justify-between group/card hover:bg-white hover:shadow-2xl hover:shadow-blue-100/50 transition-all duration-500">
+            <div className="flex items-center gap-8">
+              <div className="p-6 bg-blue-100 text-blue-600 rounded-3xl group-hover/card:scale-110 group-hover/card:-rotate-3 transition-transform duration-500 shadow-sm">
+                <ClipboardList size={32} />
               </div>
               <div>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Propostas em Andamento</p>
-                <h4 className="text-3xl font-black text-zinc-900">{stats.proposalsInProgress}</h4>
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">Propostas Ativas</p>
+                <h4 className="text-5xl font-black text-zinc-900 font-display">{stats.proposalsInProgress}</h4>
               </div>
             </div>
             <div className="text-right">
-              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-widest">Aguardando Resposta</span>
+              <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-4 py-2 rounded-2xl uppercase tracking-widest border border-blue-100">Aguardando</span>
             </div>
           </div>
         </div>
 
         {/* Decorative background element */}
-        <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-zinc-50 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+        <div className="absolute -right-20 -bottom-20 w-96 h-96 bg-accent/5 rounded-full blur-3xl group-hover:scale-125 transition-transform duration-1000" />
       </div>
 
       {/* Agenda Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 sm:gap-10">
         {/* Daily Agenda Calendar Style */}
-        <div className="lg:col-span-2 bg-white p-6 sm:p-10 rounded-2xl sm:rounded-[2.5rem] border border-zinc-200 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 sm:mb-10">
+        <div className="lg:col-span-2 modern-card !p-10 sm:!p-16 group">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 mb-12">
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">Agenda do Dia</h3>
-              <p className="text-xs sm:text-sm text-zinc-500 font-medium">Compromissos agendados para hoje</p>
+              <h3 className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tight font-display">Agenda do Dia</h3>
+              <p className="text-base sm:text-lg text-zinc-500 font-medium mt-2">Compromissos agendados para hoje</p>
             </div>
             <button 
-              onClick={() => window.location.hash = '#agenda'}
-              className="flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-900 rounded-xl text-xs font-bold hover:bg-zinc-200 transition-all"
+              onClick={() => setActiveTab?.('agenda')}
+              className="flex items-center gap-3 px-6 py-3 bg-zinc-50 text-zinc-900 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-zinc-100 transition-all border border-zinc-100 shadow-sm group/btn"
             >
               Ver Agenda Completa
-              <ArrowUpRight size={14} />
+              <ArrowUpRight size={18} className="group-hover/btn:translate-x-1 group-hover/btn:-translate-y-1 transition-transform" />
             </button>
           </div>
 
-          <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="space-y-8 max-h-[600px] overflow-y-auto pr-6 custom-scrollbar">
             {todayAppointmentsList.length > 0 ? (
               todayAppointmentsList.map((appointment) => (
                 <div 
                   key={appointment.id} 
-                  className="flex items-start gap-4 p-4 rounded-2xl border border-zinc-100 hover:border-zinc-300 hover:bg-zinc-50 transition-all group"
+                  className="flex items-start gap-8 p-8 rounded-[2.5rem] border border-zinc-50 hover:border-accent/30 hover:bg-zinc-50/50 transition-all duration-500 group/item"
                 >
-                  <div className="flex flex-col items-center justify-center min-w-[60px] py-2 bg-zinc-900 text-white rounded-xl shadow-sm">
-                    <span className="text-xs font-black uppercase tracking-tighter">
+                  <div className="flex flex-col items-center justify-center min-w-[80px] py-4 bg-zinc-50 text-zinc-900 rounded-3xl shadow-sm group-hover/item:bg-accent group-hover/item:text-accent-foreground transition-all duration-500">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
                       {format(new Date(appointment.startTime), 'HH:mm')}
                     </span>
-                    <div className="w-4 h-px bg-white/20 my-1" />
-                    <span className="text-[10px] font-bold text-zinc-400">
+                    <div className="w-6 h-px bg-current opacity-20 my-2" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">
                       {format(new Date(appointment.endTime), 'HH:mm')}
                     </span>
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between mb-1">
-                      <h4 className="text-sm font-black text-zinc-900 truncate">
-                        {clients[appointment.clientId] || 'Cliente não encontrado'}
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-xl font-black text-zinc-900 truncate group-hover/item:text-accent transition-colors font-display">
+                        {clients[appointment.clienteId] || 'Cliente não encontrado'}
                       </h4>
                       <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest",
-                        appointment.status === 'confirmed' ? "bg-green-50 text-green-600" :
-                        appointment.status === 'cancelled' ? "bg-red-50 text-red-600" :
-                        "bg-blue-50 text-blue-600"
+                        "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border",
+                        appointment.status === 'confirmed' ? "bg-green-50 text-green-600 border-green-100" :
+                        appointment.status === 'cancelled' ? "bg-red-50 text-red-600 border-red-100" :
+                        "bg-blue-50 text-blue-600 border-blue-100"
                       )}>
                         {appointment.status === 'confirmed' ? 'Confirmado' : 
                          appointment.status === 'cancelled' ? 'Cancelado' : 'Agendado'}
                       </span>
                     </div>
                     
-                    <div className="flex flex-wrap gap-x-4 gap-y-1">
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium">
-                        <Car size={12} className="text-zinc-400" />
+                    <div className="flex flex-wrap gap-x-8 gap-y-3">
+                      <div className="flex items-center gap-3 text-sm text-zinc-500 font-bold">
+                        <div className="p-2 bg-zinc-100 rounded-xl group-hover/item:bg-white transition-colors">
+                          <Car size={18} className="text-zinc-400" />
+                        </div>
                         <span>
-                          {vehicles[appointment.vehicleId] ? 
-                            `${vehicles[appointment.vehicleId].brand} ${vehicles[appointment.vehicleId].model} (${vehicles[appointment.vehicleId].plate})` : 
+                          {vehicles[appointment.veiculoId || ''] ? 
+                            `${vehicles[appointment.veiculoId || ''].brand} ${vehicles[appointment.veiculoId || ''].model} (${vehicles[appointment.veiculoId || ''].plate})` : 
                             'Veículo não encontrado'}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1.5 text-xs text-zinc-500 font-medium">
-                        <ClipboardList size={12} className="text-zinc-400" />
-                        <span className="truncate max-w-[200px]">
-                          {appointment.serviceIds.map(id => services[id]).filter(Boolean).join(', ') || 'Nenhum serviço'}
+                      <div className="flex items-center gap-3 text-sm text-zinc-500 font-bold">
+                        <div className="p-2 bg-zinc-100 rounded-xl group-hover/item:bg-white transition-colors">
+                          <ClipboardList size={18} className="text-zinc-400" />
+                        </div>
+                        <span className="truncate max-w-[300px]">
+                          {appointment.servicoIds.map(id => services[id]).filter(Boolean).join(', ') || 'Nenhum serviço'}
                         </span>
                       </div>
                     </div>
@@ -642,93 +552,111 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
                 </div>
               ))
             ) : (
-              <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-50 rounded-3xl border border-dashed border-zinc-200">
-                <div className="p-4 bg-white rounded-2xl shadow-sm mb-4">
-                  <Calendar size={32} className="text-zinc-300" />
+              <div className="flex flex-col items-center justify-center py-24 text-center bg-zinc-50/50 rounded-[3rem] border border-dashed border-zinc-200">
+                <div className="p-8 bg-white rounded-3xl shadow-sm mb-6 group-hover:rotate-12 transition-transform duration-700">
+                  <Calendar size={48} className="text-zinc-200" />
                 </div>
-                <h4 className="text-sm font-bold text-zinc-900 mb-1">Nenhum agendamento para hoje</h4>
-                <p className="text-xs text-zinc-500">Sua agenda está livre por enquanto.</p>
+                <h4 className="text-xl font-black text-zinc-900 mb-2 font-display">Nenhum agendamento para hoje</h4>
+                <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Sua agenda está livre por enquanto.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Quick Stats */}
-        <div className="bg-zinc-900 text-white p-6 sm:p-10 rounded-2xl sm:rounded-[2.5rem] shadow-2xl shadow-zinc-300 relative overflow-hidden flex flex-col">
-          <div className="relative z-10 flex-1">
-            <div className="flex items-center justify-between mb-6 sm:mb-8">
-              <h3 className="text-xl sm:text-2xl font-black tracking-tight">Visão Geral</h3>
-              <div className="p-2 bg-white/10 rounded-xl">
-                <TrendingUp size={18} className="text-green-400 sm:w-5 sm:h-5" />
+        <div className="space-y-8 sm:space-y-10">
+          <div className="modern-card !p-10 bg-zinc-900 text-white border-none shadow-2xl shadow-zinc-900/20 relative overflow-hidden group flex flex-col min-h-[450px]">
+            <div className="relative z-10 flex-1">
+              <div className="flex items-center justify-between mb-10">
+                <h3 className="text-2xl font-black tracking-tight font-display">Visão Geral</h3>
+                <div className="p-4 bg-white/10 rounded-2xl group-hover:rotate-12 transition-transform duration-500">
+                  <TrendingUp size={28} className="text-accent" />
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="group/stat flex items-center justify-between p-6 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/5 transition-all duration-500">
+                  <div className="flex items-center gap-5">
+                    <div className="p-4 bg-white/10 rounded-2xl text-white/40 group-hover/stat:text-accent transition-colors">
+                      <Users size={24} />
+                    </div>
+                    <span className="text-sm font-black uppercase tracking-[0.2em]">Clientes</span>
+                  </div>
+                  <span className="text-3xl font-black font-display">{stats.totalClients}</span>
+                </div>
+                <div className="group/stat flex items-center justify-between p-6 bg-white/5 hover:bg-white/10 rounded-[2rem] border border-white/5 transition-all duration-500">
+                  <div className="flex items-center gap-5">
+                    <div className="p-4 bg-white/10 rounded-2xl text-white/40 group-hover/stat:text-accent transition-colors">
+                      <Car size={24} />
+                    </div>
+                    <span className="text-sm font-black uppercase tracking-[0.2em]">Veículos</span>
+                  </div>
+                  <span className="text-3xl font-black font-display">{stats.totalVehicles}</span>
+                </div>
               </div>
             </div>
-            <div className="space-y-3 sm:space-y-4">
-              <div className="group flex items-center justify-between p-4 sm:p-5 bg-white/5 hover:bg-white/10 rounded-2xl sm:rounded-[1.5rem] border border-white/5 transition-all duration-300">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl text-zinc-400 group-hover:text-white transition-colors">
-                    <Users size={18} className="sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">Total de Clientes</span>
-                </div>
-                <span className="text-lg sm:text-xl font-black">{stats.totalClients}</span>
-              </div>
-              <div className="group flex items-center justify-between p-4 sm:p-5 bg-white/5 hover:bg-white/10 rounded-2xl sm:rounded-[1.5rem] border border-white/5 transition-all duration-300">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl text-zinc-400 group-hover:text-white transition-colors">
-                    <Car size={18} className="sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">Veículos Cadastrados</span>
-                </div>
-                <span className="text-lg sm:text-xl font-black">{stats.totalVehicles}</span>
-              </div>
-              <div className="group flex items-center justify-between p-4 sm:p-5 bg-white/5 hover:bg-white/10 rounded-2xl sm:rounded-[1.5rem] border border-white/5 transition-all duration-300">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <div className="p-2 sm:p-3 bg-white/10 rounded-xl text-zinc-400 group-hover:text-white transition-colors">
-                    <Calendar size={18} className="sm:w-5 sm:h-5" />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold tracking-wide">Agenda</span>
-                </div>
-                <span className="text-lg sm:text-xl font-black">{stats.todayAppointments}</span>
+
+            <div className="mt-12 p-10 bg-white/5 rounded-[2.5rem] text-white relative z-10 border border-white/5 group/sales">
+              <p className="text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-3">Vendas 7 Dias</p>
+              <h4 className="text-4xl font-black tracking-tighter font-display group-hover/sales:text-accent transition-colors">{formatCurrency(stats.salesLast7Days)}</h4>
+              <div className="flex items-center gap-3 text-[10px] font-black text-accent mt-6 bg-accent/10 px-4 py-2 rounded-2xl w-fit uppercase tracking-widest">
+                <Sparkles size={14} />
+                Crescimento Constante
               </div>
             </div>
+            
+            {/* Decorative background elements */}
+            <div className="absolute -top-20 -left-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
           </div>
 
-          <div className="mt-8 sm:mt-10 p-6 sm:p-8 bg-white rounded-2xl sm:rounded-[2rem] text-zinc-900 relative z-10 shadow-xl">
-            <p className="text-[8px] sm:text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-1 sm:mb-2">Vendas Últimos 7 Dias</p>
-            <h4 className="text-2xl sm:text-4xl font-black tracking-tighter">{formatCurrency(stats.salesLast7Days)}</h4>
-            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold text-green-600 mt-3 sm:mt-4 bg-green-50 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg w-fit">
-              <TrendingUp size={12} className="sm:w-3.5 sm:h-3.5" />
-              Crescimento Constante
+          <div className="modern-card !p-10 group">
+            <h3 className="text-xl font-black text-zinc-900 mb-8 font-display">Atalhos Rápidos</h3>
+            <div className="grid grid-cols-2 gap-5">
+              {[
+                { label: 'Nova OS', icon: Plus, link: '#os', color: 'bg-zinc-900 text-white hover:bg-accent hover:text-accent-foreground' },
+                { label: 'Novo Lead', icon: UserPlus, link: '#leads', color: 'bg-zinc-50 text-zinc-900 hover:bg-zinc-100' },
+                { label: 'Financeiro', icon: DollarSign, link: '#finance', color: 'bg-zinc-50 text-zinc-900 hover:bg-zinc-100' },
+                { label: 'Estoque', icon: Package, link: '#inventory', color: 'bg-zinc-50 text-zinc-900 hover:bg-zinc-100' },
+              ].map((action, i) => (
+                <button
+                  key={i}
+                  onClick={() => setActiveTab?.(action.link.replace('#', ''))}
+                  className={cn(
+                    "flex flex-col items-center justify-center gap-4 p-6 rounded-3xl transition-all duration-300 hover:translate-y-[-4px] active:scale-95 shadow-sm border border-zinc-100",
+                    action.color
+                  )}
+                >
+                  <div className="p-3 bg-current/10 rounded-xl">
+                    <action.icon size={24} />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em]">{action.label}</span>
+                </button>
+              ))}
             </div>
           </div>
-          
-          {/* Decorative background elements */}
-          <div className="absolute -top-20 -left-20 w-64 h-64 bg-white/5 rounded-full blur-3xl" />
-          <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-zinc-800 rounded-full blur-3xl" />
         </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-2xl sm:rounded-[2.5rem] border border-zinc-200 shadow-sm overflow-hidden">
-        <div className="p-6 sm:p-10 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="modern-card !p-0 overflow-hidden group">
+        <div className="p-10 sm:p-16 border-b border-zinc-100 flex flex-col sm:flex-row sm:items-center justify-between gap-8">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-10">
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-zinc-900 tracking-tight">Ordens de Serviço</h3>
-              <p className="text-xs sm:text-sm text-zinc-500 font-medium">Acompanhamento das Ordens de Serviço por data</p>
+              <h3 className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tight font-display">Ordens de Serviço</h3>
+              <p className="text-base sm:text-lg text-zinc-500 font-medium mt-2">Acompanhamento das Ordens de Serviço por data</p>
             </div>
-            <div className="flex items-center gap-2 bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-100">
-              <Calendar size={14} className="text-zinc-400" />
+            <div className="flex items-center gap-4 bg-zinc-50 px-6 py-3 rounded-2xl border border-zinc-100 shadow-sm focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+              <Calendar size={20} className="text-zinc-400" />
               <input 
                 type="date" 
-                className="bg-transparent border-none text-xs font-bold text-zinc-600 focus:ring-0 p-0"
+                className="bg-transparent border-none text-sm font-black text-zinc-700 focus:ring-0 p-0 uppercase tracking-widest"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
           </div>
           <button 
-            onClick={() => window.location.hash = '#os'}
-            className="w-full sm:w-auto px-6 py-2.5 bg-zinc-100 text-zinc-900 rounded-xl sm:rounded-2xl text-sm font-bold hover:bg-zinc-200 active:scale-95 transition-all"
+            onClick={() => setActiveTab?.('os')}
+            className="w-full sm:w-auto px-10 py-4 bg-zinc-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-accent hover:text-accent-foreground active:scale-95 transition-all shadow-xl shadow-zinc-900/10"
           >
             Ver todas as OS
           </button>
@@ -737,80 +665,80 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         {/* Mobile View: List of Cards */}
         <div className="block sm:hidden divide-y divide-zinc-100">
           {recentOS.length > 0 ? recentOS.map((os) => (
-            <div key={os.id} className="p-6 space-y-4">
+            <div key={os.id} className="p-8 space-y-6 hover:bg-zinc-50 transition-colors">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-[10px] font-bold text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md">
+                <span className="font-mono text-[10px] font-black text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-xl">
                   #{os.id.slice(0, 8).toUpperCase()}
                 </span>
                 <span className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest",
-                  os.status === 'in-progress' ? "bg-blue-50 text-blue-600 border border-blue-100" : 
-                  os.status === 'finished' ? "bg-green-50 text-green-600 border border-green-100" :
-                  os.status === 'cancelled' ? "bg-red-50 text-red-600 border border-red-100" :
+                  "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border",
+                  ['em_execucao', 'aprovada'].includes(os.status) ? "bg-blue-50 text-blue-600 border-blue-100" : 
+                  os.status === 'finalizada' ? "bg-green-50 text-green-600 border-green-100" :
+                  os.status === 'cancelada' ? "bg-red-50 text-red-600 border-red-100" :
                   "bg-zinc-100 text-zinc-600 border border-zinc-200"
                 )}>
-                  <div className={cn("w-1 h-1 rounded-full", os.status === 'in-progress' ? "bg-blue-600 animate-pulse" : os.status === 'finished' ? "bg-green-600" : os.status === 'cancelled' ? "bg-red-600" : "bg-zinc-400")} />
-                  {os.status === 'in-progress' ? 'Em Execução' : os.status === 'finished' ? 'Finalizado' : os.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
+                  <div className={cn("w-1.5 h-1.5 rounded-full", ['em_execucao', 'aprovada'].includes(os.status) ? "bg-blue-600 animate-pulse" : os.status === 'finalizada' ? "bg-green-600" : os.status === 'cancelada' ? "bg-red-600" : "bg-zinc-400")} />
+                  {os.status === 'em_execucao' ? 'Em Execução' : os.status === 'finalizada' ? 'Finalizado' : os.status === 'cancelada' ? 'Cancelado' : os.status === 'aprovada' ? 'Aprovada' : 'Aguardando'}
                 </span>
               </div>
               
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center font-black text-xs">
-                  {(clients[os.clientId] || 'C').slice(0, 2).toUpperCase()}
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center font-black text-sm shadow-lg shadow-accent/20">
+                  {(clients[os.clienteId] || 'C').slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-sm font-black text-zinc-900">{clients[os.clientId] || `Cliente ${os.clientId.slice(0, 4)}`}</span>
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pessoa Física</span>
+                  <span className="text-base font-black text-zinc-900">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
+                  <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
                 </div>
               </div>
               
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-50">
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
                 <div className="flex flex-col">
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Abertura</span>
-                  <span className="text-xs font-bold text-zinc-600">{format(new Date(os.createdAt), 'dd/MM/yyyy')}</span>
+                  <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Abertura</span>
+                  <span className="text-sm font-black text-zinc-600">{format(new Date(os.createdAt), 'dd/MM/yyyy')}</span>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Total</span>
-                  <p className="text-sm font-black text-zinc-900">{formatCurrency(os.totalValue)}</p>
+                  <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Total</span>
+                  <p className="text-lg font-black text-zinc-900 font-display">{formatCurrency(os.valorTotal)}</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 pt-2">
+              <div className="grid grid-cols-3 gap-3 pt-4">
                 <button 
-                  onClick={() => handleUpdateStatus(os, 'in-progress')}
+                  onClick={() => handleUpdateStatus(os, 'em_execucao')}
                   className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl text-[8px] font-bold uppercase transition-all",
-                    os.status === 'in-progress' ? "bg-blue-600 text-white shadow-md" : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all",
+                    os.status === 'em_execucao' ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "bg-blue-50 text-blue-600 hover:bg-blue-100"
                   )}
                 >
-                  <Clock size={14} />
+                  <Clock size={16} />
                   Andamento
                 </button>
                 <button 
-                  onClick={() => handleUpdateStatus(os, 'finished')}
+                  onClick={() => handleUpdateStatus(os, 'finalizada')}
                   className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl text-[8px] font-bold uppercase transition-all",
-                    os.status === 'finished' ? "bg-green-600 text-white shadow-md" : "bg-green-50 text-green-600 hover:bg-green-100"
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all",
+                    os.status === 'finalizada' ? "bg-green-600 text-white shadow-lg shadow-green-600/20" : "bg-green-50 text-green-600 hover:bg-green-100"
                   )}
                 >
-                  <CheckCircle2 size={14} />
+                  <CheckCircle2 size={16} />
                   Finalizar
                 </button>
                 <button 
-                  onClick={() => handleUpdateStatus(os, 'cancelled')}
+                  onClick={() => handleUpdateStatus(os, 'cancelada')}
                   className={cn(
-                    "flex flex-col items-center gap-1 p-2 rounded-xl text-[8px] font-bold uppercase transition-all",
-                    os.status === 'cancelled' ? "bg-red-600 text-white shadow-md" : "bg-red-50 text-red-600 hover:bg-red-100"
+                    "flex flex-col items-center gap-2 p-4 rounded-2xl text-[8px] font-black uppercase tracking-widest transition-all",
+                    os.status === 'cancelada' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-red-50 text-red-600 hover:bg-red-100"
                   )}
                 >
-                  <XCircle size={14} />
+                  <XCircle size={16} />
                   Cancelar
                 </button>
               </div>
             </div>
           )) : (
-            <div className="p-10 text-center">
-              <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Nenhuma OS para esta data</p>
+            <div className="p-16 text-center">
+              <p className="text-xs text-zinc-400 font-black uppercase tracking-[0.3em]">Nenhuma OS para esta data</p>
             </div>
           )}
         </div>
@@ -819,79 +747,79 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-zinc-50/50 text-zinc-400 text-[10px] font-black uppercase tracking-[0.2em]">
-                <th className="px-10 py-5">Identificador</th>
-                <th className="px-10 py-5">Cliente</th>
-                <th className="px-10 py-5">Status Atual</th>
-                <th className="px-10 py-5">Valor Total</th>
-                <th className="px-10 py-5">Ações Rápidas</th>
+              <tr className="bg-zinc-50/50 text-zinc-400 text-[10px] font-black uppercase tracking-[0.3em]">
+                <th className="px-12 py-8">Identificador</th>
+                <th className="px-12 py-8">Cliente</th>
+                <th className="px-12 py-8">Status Atual</th>
+                <th className="px-12 py-8">Valor Total</th>
+                <th className="px-12 py-8">Ações Rápidas</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {recentOS.map((os) => (
-                <tr key={os.id} className="group hover:bg-zinc-50/80 transition-all duration-200">
-                  <td className="px-10 py-6">
-                    <span className="font-mono text-[11px] font-bold text-zinc-400 bg-zinc-100 px-2 py-1 rounded-md group-hover:bg-white transition-colors">
+                <tr key={os.id} className="group/row hover:bg-zinc-50/80 transition-all duration-300">
+                  <td className="px-12 py-8">
+                    <span className="font-mono text-[11px] font-black text-zinc-400 bg-zinc-100 px-3 py-1.5 rounded-xl group-hover/row:bg-white transition-colors">
                       #{os.id.slice(0, 8).toUpperCase()}
                     </span>
                   </td>
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-zinc-900 text-white rounded-xl flex items-center justify-center font-black text-xs shadow-sm">
-                        {(clients[os.clientId] || 'C').slice(0, 2).toUpperCase()}
+                  <td className="px-12 py-8">
+                    <div className="flex items-center gap-5">
+                      <div className="w-12 h-12 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center font-black text-sm shadow-lg shadow-accent/10 group-hover/row:scale-110 transition-transform">
+                        {(clients[os.clienteId] || 'C').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-black text-zinc-900">{clients[os.clientId] || `Cliente ${os.clientId.slice(0, 4)}`}</span>
-                        <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Pessoa Física</span>
+                        <span className="text-base font-black text-zinc-900 group-hover/row:text-accent transition-colors">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
+                        <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
                       </div>
                     </div>
                   </td>
-                  <td className="px-10 py-6">
+                  <td className="px-12 py-8">
                     <span className={cn(
-                      "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm",
-                      os.status === 'in-progress' ? "bg-blue-50 text-blue-600 border border-blue-100" : 
-                      os.status === 'finished' ? "bg-green-50 text-green-600 border border-green-100" :
-                      os.status === 'cancelled' ? "bg-red-50 text-red-600 border border-red-100" :
+                      "inline-flex items-center gap-3 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-sm border",
+                      ['em_execucao', 'aprovada'].includes(os.status) ? "bg-blue-50 text-blue-600 border-blue-100" : 
+                      os.status === 'finalizada' ? "bg-green-50 text-green-600 border-green-100" :
+                      os.status === 'cancelada' ? "bg-red-50 text-red-600 border-red-100" :
                       "bg-zinc-100 text-zinc-600 border border-zinc-200"
                     )}>
-                      <div className={cn("w-1.5 h-1.5 rounded-full", os.status === 'in-progress' ? "bg-blue-600 animate-pulse" : os.status === 'finished' ? "bg-green-600" : os.status === 'cancelled' ? "bg-red-600" : "bg-zinc-400")} />
-                      {os.status === 'in-progress' ? 'Em Execução' : os.status === 'finished' ? 'Finalizado' : os.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
+                      <div className={cn("w-2 h-2 rounded-full", ['em_execucao', 'aprovada'].includes(os.status) ? "bg-blue-600 animate-pulse" : os.status === 'finalizada' ? "bg-green-600" : os.status === 'cancelada' ? "bg-red-600" : "bg-zinc-400")} />
+                      {os.status === 'em_execucao' ? 'Em Execução' : os.status === 'finalizada' ? 'Finalizado' : os.status === 'cancelada' ? 'Cancelado' : os.status === 'aprovada' ? 'Aprovada' : 'Aguardando'}
                     </span>
                   </td>
-                  <td className="px-10 py-6">
-                    <span className="text-sm font-black text-zinc-900">{formatCurrency(os.totalValue)}</span>
+                  <td className="px-12 py-8">
+                    <span className="text-lg font-black text-zinc-900 font-display">{formatCurrency(os.valorTotal)}</span>
                   </td>
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-2">
+                  <td className="px-12 py-8">
+                    <div className="flex items-center gap-3">
                       <button 
-                        onClick={() => handleUpdateStatus(os, 'in-progress')}
+                        onClick={() => handleUpdateStatus(os, 'em_execucao')}
                         className={cn(
-                          "p-2 rounded-lg transition-all",
-                          os.status === 'in-progress' ? "bg-blue-600 text-white shadow-md" : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                          "p-3 rounded-xl transition-all duration-300 hover:scale-110 active:scale-95",
+                          os.status === 'em_execucao' ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20" : "bg-blue-50 text-blue-600 hover:bg-blue-100"
                         )}
                         title="Em Andamento"
                       >
-                        <Clock size={16} />
+                        <Clock size={20} />
                       </button>
                       <button 
-                        onClick={() => handleUpdateStatus(os, 'finished')}
+                        onClick={() => handleUpdateStatus(os, 'finalizada')}
                         className={cn(
-                          "p-2 rounded-lg transition-all",
-                          os.status === 'finished' ? "bg-green-600 text-white shadow-md" : "bg-green-50 text-green-600 hover:bg-green-100"
+                          "p-3 rounded-xl transition-all duration-300 hover:scale-110 active:scale-95",
+                          os.status === 'finalizada' ? "bg-green-600 text-white shadow-lg shadow-green-600/20" : "bg-green-50 text-green-600 hover:bg-green-100"
                         )}
                         title="Finalizar"
                       >
-                        <CheckCircle2 size={16} />
+                        <CheckCircle2 size={20} />
                       </button>
                       <button 
-                        onClick={() => handleUpdateStatus(os, 'cancelled')}
+                        onClick={() => handleUpdateStatus(os, 'cancelada')}
                         className={cn(
-                          "p-2 rounded-lg transition-all",
-                          os.status === 'cancelled' ? "bg-red-600 text-white shadow-md" : "bg-red-50 text-red-600 hover:bg-red-100"
+                          "p-3 rounded-xl transition-all duration-300 hover:scale-110 active:scale-95",
+                          os.status === 'cancelada' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "bg-red-50 text-red-600 hover:bg-red-100"
                         )}
                         title="Cancelar"
                       >
-                        <XCircle size={16} />
+                        <XCircle size={20} />
                       </button>
                     </div>
                   </td>

@@ -45,26 +45,26 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'clients', label: 'Clientes', icon: Users },
-    { id: 'leads', label: 'Leads', icon: UserPlus },
+    { id: 'leads', label: 'CRM / Leads', icon: UserPlus },
     { id: 'vehicles', label: 'Veículos', icon: Car },
     { id: 'os', label: 'Ordens de Serviço', icon: ClipboardList },
     { id: 'agenda', label: 'Agenda', icon: Calendar },
-    { id: 'services', label: 'Serviços', icon: Wrench },
+    { id: 'services', label: 'Catálogo de Serviços', icon: Wrench },
     { 
       id: 'gestao', 
-      label: 'Gestão', 
+      label: 'Gestão & ERP', 
       icon: SettingsIcon,
       isParent: true,
       subItems: [
-        { id: 'inventory', label: 'Estoque', icon: Package },
+        { id: 'inventory', label: 'Inventário / Estoque', icon: Package },
         { id: 'suppliers', label: 'Fornecedores', icon: Truck },
-        { id: 'stock', label: 'Movimentação', icon: ArrowUpDown },
-        { id: 'finance', label: 'Financeiro', icon: DollarSign, adminOnly: true },
-        { id: 'fiscal', label: 'Fiscal', icon: FileText, adminOnly: true },
+        { id: 'stock', label: 'Movimentações', icon: ArrowUpDown },
+        { id: 'finance', label: 'Financeiro (Contas)', icon: DollarSign },
+        { id: 'fiscal', label: 'Fiscal / NF-e', icon: FileText },
       ]
     },
-    { id: 'resale', label: 'Revenda', icon: ShoppingBag },
-    { id: 'users', label: 'Usuários', icon: Users, adminOnly: true },
+    { id: 'resale', label: 'Revenda de Veículos', icon: ShoppingBag },
+    { id: 'users', label: 'Equipe / Usuários', icon: Users },
     { id: 'settings', label: 'Configurações', icon: SettingsIcon },
   ];
 
@@ -95,7 +95,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex">
+    <div className="min-h-screen bg-white flex">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div 
@@ -106,12 +106,15 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 w-72 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 z-50 transform transition-transform duration-300 ease-in-out lg:translate-x-0",
+        "fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-zinc-100 z-50 transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:translate-x-0 shadow-modern",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="h-full flex flex-col p-6 overflow-y-auto">
-          <div className="flex items-center gap-3 mb-10 px-2 shrink-0">
-            <div className="w-10 h-10 bg-accent text-accent-foreground rounded-xl flex items-center justify-center shadow-lg shadow-zinc-200 dark:shadow-none overflow-hidden">
+        <div className="h-full flex flex-col p-8 overflow-y-auto custom-scrollbar relative">
+          {/* Decorative background element */}
+          <div className="absolute -top-20 -left-20 w-64 h-64 bg-accent/5 rounded-full blur-3xl pointer-events-none" />
+          
+          <div className="flex items-center gap-4 mb-12 px-2 shrink-0 group relative z-10">
+            <div className="w-14 h-14 bg-accent text-accent-foreground rounded-[1.25rem] flex items-center justify-center shadow-2xl shadow-accent/30 overflow-hidden rotate-3 group-hover:rotate-0 transition-all duration-700 ease-out">
               {localStorage.getItem('companyLogo') ? (
                 <img 
                   src={localStorage.getItem('companyLogo') || ''} 
@@ -120,16 +123,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <Car size={24} />
+                <Car size={32} className="group-hover:scale-110 transition-transform duration-700" />
               )}
             </div>
             <div className="flex flex-col">
-              <span className="text-xl font-black text-zinc-900 dark:text-white tracking-tight leading-none">AutoGestão</span>
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Sistema Pro</span>
+              <span className="text-2xl font-black text-zinc-900 tracking-tighter leading-none font-display group-hover:text-accent transition-colors duration-500">AutoGestão</span>
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-2">Sistema Pro</span>
             </div>
           </div>
 
-          <nav className="flex-1 space-y-1">
+          <nav className="flex-1 space-y-3 relative z-10">
             {menuItems.map((item) => {
               if (!checkPermission(item)) return null;
 
@@ -140,26 +143,27 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 if (!hasVisibleSubItems) return null;
 
                 return (
-                  <div key={item.id} className="space-y-1">
+                  <div key={item.id} className="space-y-2">
                     <button
                       onClick={handleToggleGestao}
                       className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group",
-                        isAnySubActive ? "text-accent font-bold bg-accent/5" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+                        "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
+                        isAnySubActive ? "bg-zinc-50 text-zinc-900 shadow-sm" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
                       )}
                     >
-                      <item.icon size={20} className={cn(
-                        "transition-colors",
-                        isAnySubActive ? "text-zinc-900" : "text-zinc-400 group-hover:text-zinc-900"
+                      <item.icon size={22} className={cn(
+                        "transition-all duration-500",
+                        isAnySubActive ? "text-accent scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
                       )} />
-                      <span className="font-bold flex-1 text-left text-sm">{item.label}</span>
-                      <ChevronRight size={16} className={cn("transition-transform duration-200", isGestaoOpen && "rotate-90")} />
+                      <span className="font-bold flex-1 text-left text-sm tracking-tight">{item.label}</span>
+                      <ChevronRight size={18} className={cn("transition-transform duration-500 ease-out", isGestaoOpen && "rotate-90")} />
                     </button>
                     
                     {isGestaoOpen && (
-                      <div className="pl-4 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                      <div className="pl-6 space-y-2 animate-in">
                         {item.subItems?.map(sub => {
                           if (!checkPermission(sub)) return null;
+                          const isActive = activeTab === sub.id;
                           return (
                             <button
                               key={sub.id}
@@ -168,19 +172,22 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                                 setIsSidebarOpen(false);
                               }}
                               className={cn(
-                                "w-full flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group relative",
-                                activeTab === sub.id 
-                                  ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
-                                  : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+                                "w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden",
+                                isActive 
+                                  ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
+                                  : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:translate-x-1"
                               )}
                             >
-                              <sub.icon size={18} className={cn(
-                                "transition-colors",
-                                activeTab === sub.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
+                              {isActive && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-50" />
+                              )}
+                              <sub.icon size={20} className={cn(
+                                "transition-all duration-500",
+                                isActive ? "text-accent-foreground scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
                               )} />
-                              <span className="text-sm font-bold flex-1 text-left">{sub.label}</span>
-                              {activeTab === sub.id && (
-                                <div className="absolute right-2 w-1.5 h-1.5 bg-white rounded-full" />
+                              <span className="text-sm font-bold flex-1 text-left tracking-tight">{sub.label}</span>
+                              {isActive && (
+                                <div className="absolute right-4 w-1.5 h-1.5 bg-accent-foreground rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
                               )}
                             </button>
                           );
@@ -191,6 +198,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 );
               }
 
+              const isActive = activeTab === item.id;
               return (
                 <button
                   key={item.id}
@@ -199,42 +207,45 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                     setIsSidebarOpen(false);
                   }}
                   className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group relative",
-                    activeTab === item.id 
-                      ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
-                      : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+                    "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
+                    isActive 
+                      ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
+                      : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:translate-x-1"
                   )}
                 >
-                  <item.icon size={20} className={cn(
-                    "transition-colors",
-                    activeTab === item.id ? "text-white" : "text-zinc-400 group-hover:text-zinc-900"
+                  {isActive && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-50" />
+                  )}
+                  <item.icon size={22} className={cn(
+                    "transition-all duration-500",
+                    isActive ? "text-accent-foreground scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
                   )} />
-                  <span className="font-bold flex-1 text-left text-sm">{item.label}</span>
-                  {activeTab === item.id && (
-                    <div className="absolute right-4 w-1.5 h-1.5 bg-white rounded-full" />
+                  <span className="font-bold flex-1 text-left text-sm tracking-tight">{item.label}</span>
+                  {isActive && (
+                    <div className="absolute right-5 w-1.5 h-1.5 bg-accent-foreground rounded-full shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
                   )}
                 </button>
               );
             })}
           </nav>
 
-          <div className="mt-auto pt-6 border-t border-zinc-100 dark:border-zinc-800">
-            <div className="bg-zinc-50 dark:bg-zinc-900 p-4 rounded-2xl mb-4 border border-zinc-100 dark:border-zinc-800">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 bg-white dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 shadow-sm">
-                  <UserCircle size={24} />
+          <div className="mt-auto pt-8 border-t border-zinc-100 relative z-10">
+            <div className="bg-zinc-50 p-6 rounded-[2.5rem] mb-4 border border-zinc-100 shadow-sm group/profile hover:bg-white hover:shadow-xl hover:shadow-zinc-100 transition-all duration-500">
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm group-hover/profile:scale-110 group-hover/profile:rotate-3 transition-all duration-500">
+                  <UserCircle size={32} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{profile?.name}</p>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{profile?.role}</p>
+                  <p className="text-sm font-black text-zinc-900 truncate tracking-tight">{profile?.name}</p>
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-1">{profile?.role}</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-xl transition-all duration-200 text-xs font-bold"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white border border-zinc-200 text-zinc-600 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
               >
                 <LogOut size={14} />
-                Trocar Usuário
+                Sair do Sistema
               </button>
             </div>
           </div>
@@ -242,42 +253,42 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-zinc-50 dark:bg-zinc-950 transition-colors duration-300">
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-app-bg transition-colors duration-500">
         {/* Header */}
-        <header className="h-16 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-24 bg-white/70 backdrop-blur-2xl border-b border-zinc-100 flex items-center justify-between px-10 sticky top-0 z-30 shadow-sm">
           <button 
-            className="lg:hidden text-zinc-500 p-2 -ml-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            className="lg:hidden text-zinc-500 p-4 -ml-4 hover:bg-zinc-50 rounded-2xl transition-all active:scale-90"
             onClick={() => setIsSidebarOpen(true)}
           >
             <Menu size={24} />
           </button>
           
-          <div className="flex-1 px-4">
-            <h2 className="text-lg font-bold text-zinc-900 dark:text-white">
+          <div className="flex-1 px-8">
+            <h2 className="text-3xl font-black text-zinc-900 tracking-tighter font-display">
               {getActiveLabel()}
             </h2>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-8">
             <button
               onClick={() => setIsAIOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl text-xs font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 dark:shadow-none"
+              className="btn-modern !px-6 !py-3 flex items-center gap-3 group/ai"
             >
-              <Sparkles size={14} className="text-amber-400" />
-              Assistente IA
+              <Sparkles size={18} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+              <span className="text-sm font-black uppercase tracking-widest">Assistente IA</span>
             </button>
             <div className="hidden sm:flex flex-col items-end">
-              <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest">Status</span>
-              <span className="text-xs font-bold text-green-500 flex items-center gap-1">
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-1">Status do Servidor</span>
+              <span className="text-[10px] font-black text-green-500 flex items-center gap-2 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full border border-green-100">
                 <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                Sistema Online
+                Online
               </span>
             </div>
           </div>
         </header>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10">
+        <div className="flex-1 overflow-y-auto p-6 sm:p-10 lg:p-12 custom-scrollbar">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

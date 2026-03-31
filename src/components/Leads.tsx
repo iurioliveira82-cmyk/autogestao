@@ -18,7 +18,7 @@ import {
   TrendingUp,
   Clock
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Lead, OperationType } from '../types';
 import { useAuth } from './Auth';
@@ -27,7 +27,11 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ConfirmationModal } from './ConfirmationModal';
 
-const Leads: React.FC = () => {
+interface LeadsProps {
+  setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
+}
+
+const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
   const { profile, isAdmin } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,13 +47,18 @@ const Leads: React.FC = () => {
     phone: '',
     email: '',
     source: '',
-    status: 'new' as Lead['status'],
+    status: 'novo_lead' as Lead['status'],
     temperature: 'warm' as Lead['temperature'],
     notes: ''
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
+    if (!profile?.empresaId) return;
+    const q = query(
+      collection(db, 'leads'), 
+      where('empresaId', '==', profile.empresaId),
+      orderBy('createdAt', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const leadsData = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -57,12 +66,12 @@ const Leads: React.FC = () => {
       })) as Lead[];
       setLeads(leadsData);
     }, (error) => {
-      console.error('Error fetching leads:', error);
+      handleFirestoreError(error, OperationType.GET, 'leads');
       toast.error('Erro ao carregar leads.');
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [profile]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +89,7 @@ const Leads: React.FC = () => {
     try {
       const data = {
         ...formData,
+        empresaId: profile?.empresaId,
         updatedAt: serverTimestamp()
       };
 
@@ -95,7 +105,7 @@ const Leads: React.FC = () => {
       }
       closeModal();
     } catch (error) {
-      console.error(error);
+      handleFirestoreError(error, editingLead ? OperationType.UPDATE : OperationType.CREATE, 'leads');
       toast.error('Erro ao salvar lead.');
     }
   };
@@ -137,7 +147,7 @@ const Leads: React.FC = () => {
         phone: '',
         email: '',
         source: '',
-        status: 'new',
+        status: 'novo_lead',
         temperature: 'warm',
         notes: ''
       });
@@ -148,6 +158,33 @@ const Leads: React.FC = () => {
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingLead(null);
+  };
+
+  const convertToClient = async (lead: Lead) => {
+    try {
+      // 1. Create client
+      const clientData = {
+        empresaId: profile?.empresaId,
+        name: lead.name,
+        phone: lead.phone,
+        email: lead.email || '',
+        status: 'active',
+        createdAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, 'clientes'), clientData);
+      
+      // 2. Update lead status
+      await updateDoc(doc(db, 'leads', lead.id), {
+        status: 'convertido',
+        updatedAt: serverTimestamp()
+      });
+      
+      toast.success('Lead convertido em cliente com sucesso!');
+      setActiveTab('clients');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `leads/${lead.id}`);
+      toast.error('Erro ao converter lead.');
+    }
   };
 
   const filteredLeads = leads.filter(lead => {
@@ -168,11 +205,11 @@ const Leads: React.FC = () => {
 
   const getStatusColor = (status: Lead['status']) => {
     switch (status) {
-      case 'new': return 'bg-blue-100 text-blue-700';
-      case 'contacted': return 'bg-yellow-100 text-yellow-700';
-      case 'qualified': return 'bg-green-100 text-green-700';
-      case 'converted': return 'bg-purple-100 text-purple-700';
-      case 'lost': return 'bg-red-100 text-red-700';
+      case 'novo_lead': return 'bg-blue-100 text-blue-700';
+      case 'contato_realizado': return 'bg-yellow-100 text-yellow-700';
+      case 'negociacao': return 'bg-green-100 text-green-700';
+      case 'convertido': return 'bg-purple-100 text-purple-700';
+      case 'perdido': return 'bg-red-100 text-red-700';
       default: return 'bg-zinc-100 text-zinc-700';
     }
   };
@@ -194,7 +231,7 @@ const Leads: React.FC = () => {
           <input
             type="text"
             placeholder="Buscar leads por nome, email ou telefone..."
-            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -202,7 +239,7 @@ const Leads: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => openModal()}
-            className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
+            className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
           >
             <UserPlus size={18} />
             Novo Lead
@@ -220,11 +257,11 @@ const Leads: React.FC = () => {
             onChange={(e) => setFilterStatus(e.target.value)}
           >
             <option value="all">Todos os Status</option>
-            <option value="new">Novo</option>
-            <option value="contacted">Contatado</option>
-            <option value="qualified">Qualificado</option>
-            <option value="converted">Convertido</option>
-            <option value="lost">Perdido</option>
+            <option value="novo_lead">Novo</option>
+            <option value="contato_realizado">Contatado</option>
+            <option value="negociacao">Qualificado</option>
+            <option value="convertido">Convertido</option>
+            <option value="perdido">Perdido</option>
           </select>
         </div>
         <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
@@ -303,16 +340,26 @@ const Leads: React.FC = () => {
             <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                 <Calendar size={12} />
-                {lead.createdAt ? format(new Date(lead.createdAt?.seconds ? lead.createdAt.toDate() : lead.createdAt), 'dd/MM/yyyy') : 'Recent'}
+                {lead.createdAt ? format(new Date(lead.createdAt), 'dd/MM/yyyy') : 'Recente'}
               </div>
               <button
                 onClick={() => openModal(lead)}
-                className="text-xs font-bold text-zinc-900 dark:text-white flex items-center gap-1 hover:gap-2 transition-all"
+                className="text-xs font-bold text-accent dark:text-white flex items-center gap-1 hover:gap-2 transition-all"
               >
                 Detalhes
                 <ChevronRight size={14} />
               </button>
             </div>
+            
+            {lead.status !== 'convertido' && (
+              <button
+                onClick={() => convertToClient(lead)}
+                className="mt-4 w-full py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/40 transition-all flex items-center justify-center gap-2"
+              >
+                <CheckCircle2 size={14} />
+                Converter em Cliente
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -339,7 +386,7 @@ const Leads: React.FC = () => {
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Nome Completo</label>
                   <input
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="Ex: João Silva"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -351,7 +398,7 @@ const Leads: React.FC = () => {
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Telefone</label>
                     <input
                       required
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                       placeholder="(00) 00000-0000"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
@@ -361,7 +408,7 @@ const Leads: React.FC = () => {
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Email</label>
                     <input
                       type="email"
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                       placeholder="email@exemplo.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -373,21 +420,21 @@ const Leads: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Status</label>
                     <select
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value as Lead['status'] })}
                     >
-                      <option value="new">Novo</option>
-                      <option value="contacted">Contatado</option>
-                      <option value="qualified">Qualificado</option>
-                      <option value="converted">Convertido</option>
-                      <option value="lost">Perdido</option>
+                      <option value="novo_lead">Novo</option>
+                      <option value="contato_realizado">Contatado</option>
+                      <option value="negociacao">Qualificado</option>
+                      <option value="convertido">Convertido</option>
+                      <option value="perdido">Perdido</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Temperatura</label>
                     <select
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
+                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
                       value={formData.temperature}
                       onChange={(e) => setFormData({ ...formData, temperature: e.target.value as Lead['temperature'] })}
                     >
@@ -401,7 +448,7 @@ const Leads: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Origem</label>
                   <input
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     placeholder="Ex: Instagram, Indicação, Site"
                     value={formData.source}
                     onChange={(e) => setFormData({ ...formData, source: e.target.value })}
@@ -411,7 +458,7 @@ const Leads: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Observações</label>
                   <textarea
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium min-h-[100px]"
+                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium min-h-[100px]"
                     placeholder="Detalhes sobre o lead..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
@@ -429,7 +476,7 @@ const Leads: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 px-8 py-4 bg-zinc-900 text-white rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
+                  className="flex-1 px-8 py-4 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
                 >
                   {editingLead ? 'Salvar Alterações' : 'Cadastrar Lead'}
                 </button>

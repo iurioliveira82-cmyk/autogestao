@@ -24,7 +24,7 @@ import { defaultPermissions, adminPermissions } from '../lib/permissions';
 import { cn, handleFirestoreError } from '../lib/utils';
 import { toast } from 'sonner';
 
-const Users: React.FC = () => {
+const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
   const { profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,19 +36,23 @@ const Users: React.FC = () => {
   const [newUserFormData, setNewUserFormData] = useState({
     name: '',
     email: '',
-    role: 'employee' as UserRole
+    role: 'consultor' as UserRole
   });
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditingBasicInfo, setIsEditingBasicInfo] = useState(false);
   const [basicInfoForm, setBasicInfoForm] = useState({
     name: '',
-    role: 'employee' as UserRole
+    role: 'consultor' as UserRole
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
 
-    const q = query(collection(db, 'users'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'usuarios'), 
+      where('empresaId', '==', profile.empresaId),
+      orderBy('name', 'asc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: UserProfile[] = [];
       snapshot.forEach((doc) => {
@@ -57,7 +61,7 @@ const Users: React.FC = () => {
       setUsers(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'users');
+      handleFirestoreError(error, OperationType.GET, 'usuarios');
       setLoading(false);
     });
 
@@ -112,7 +116,7 @@ const Users: React.FC = () => {
     if (!selectedUser || !editedPermissions) return;
 
     try {
-      await updateDoc(doc(db, 'users', selectedUser.uid), {
+      await updateDoc(doc(db, 'usuarios', selectedUser.uid), {
         permissions: editedPermissions,
         updatedAt: serverTimestamp()
       });
@@ -121,7 +125,7 @@ const Users: React.FC = () => {
       // Update local state to reflect changes immediately
       setSelectedUser({ ...selectedUser, permissions: editedPermissions });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${selectedUser.uid}`);
+      handleFirestoreError(error, OperationType.UPDATE, `usuarios/${selectedUser.uid}`);
     }
   };
 
@@ -140,7 +144,7 @@ const Users: React.FC = () => {
         updates.permissions = basicInfoForm.role === 'admin' ? adminPermissions : defaultPermissions;
       }
 
-      await updateDoc(doc(db, 'users', selectedUser.uid), updates);
+      await updateDoc(doc(db, 'usuarios', selectedUser.uid), updates);
       toast.success('Informações atualizadas com sucesso!');
       setIsEditingBasicInfo(false);
       setSelectedUser({ 
@@ -150,7 +154,7 @@ const Users: React.FC = () => {
         permissions: updates.permissions || selectedUser.permissions
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${selectedUser.uid}`);
+      handleFirestoreError(error, OperationType.UPDATE, `usuarios/${selectedUser.uid}`);
     }
   };
 
@@ -159,7 +163,7 @@ const Users: React.FC = () => {
 
     try {
       const newPermissions = newRole === 'admin' ? adminPermissions : defaultPermissions;
-      await updateDoc(doc(db, 'users', selectedUser.uid), {
+      await updateDoc(doc(db, 'usuarios', selectedUser.uid), {
         role: newRole,
         permissions: newPermissions,
         updatedAt: serverTimestamp()
@@ -167,7 +171,7 @@ const Users: React.FC = () => {
       toast.success('Cargo atualizado com sucesso!');
       setSelectedUser({ ...selectedUser, role: newRole, permissions: newPermissions });
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `users/${selectedUser.uid}`);
+      handleFirestoreError(error, OperationType.UPDATE, `usuarios/${selectedUser.uid}`);
     }
   };
 
@@ -175,12 +179,12 @@ const Users: React.FC = () => {
     if (!selectedUser) return;
 
     try {
-      await deleteDoc(doc(db, 'users', selectedUser.uid));
+      await deleteDoc(doc(db, 'usuarios', selectedUser.uid));
       toast.success('Usuário removido do sistema.');
       setSelectedUser(null);
       setIsDeleteModalOpen(false);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `users/${selectedUser.uid}`);
+      handleFirestoreError(error, OperationType.DELETE, `usuarios/${selectedUser.uid}`);
     }
   };
 
@@ -193,7 +197,11 @@ const Users: React.FC = () => {
 
     try {
       // Check if user already exists
-      const q = query(collection(db, 'users'), where('email', '==', newUserFormData.email));
+      const q = query(
+        collection(db, 'usuarios'), 
+        where('email', '==', newUserFormData.email),
+        where('empresaId', '==', profile.empresaId)
+      );
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
@@ -202,12 +210,13 @@ const Users: React.FC = () => {
       }
 
       // Use email as temporary UID for pre-created users
-      const userDocRef = doc(db, 'users', newUserFormData.email);
+      const userDocRef = doc(db, 'usuarios', newUserFormData.email);
       const newProfile: UserProfile = {
         uid: newUserFormData.email,
         name: newUserFormData.name,
         email: newUserFormData.email,
         role: newUserFormData.role,
+        empresaId: profile.empresaId,
         permissions: newUserFormData.role === 'admin' ? adminPermissions : defaultPermissions,
         createdAt: new Date().toISOString()
       };
@@ -219,9 +228,9 @@ const Users: React.FC = () => {
 
       toast.success('Usuário adicionado com sucesso!');
       setIsAddModalOpen(false);
-      setNewUserFormData({ name: '', email: '', role: 'employee' });
+      setNewUserFormData({ name: '', email: '', role: 'consultor' });
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'users');
+      handleFirestoreError(error, OperationType.CREATE, 'usuarios');
     }
   };
 
@@ -262,14 +271,14 @@ const Users: React.FC = () => {
           <input 
             type="text" 
             placeholder="Buscar usuários..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
         <button 
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-zinc-200 text-sm"
+          className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
         >
           <UserPlus size={20} />
           Novo Usuário
@@ -288,7 +297,7 @@ const Users: React.FC = () => {
           <div className="divide-y divide-zinc-100 max-h-[600px] overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="p-8 text-center">
-                <div className="w-6 h-6 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
                 <p className="text-zinc-400 text-xs italic">Carregando...</p>
               </div>
             ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
@@ -297,7 +306,7 @@ const Users: React.FC = () => {
                 onClick={() => handleEditPermissions(user)}
                 className={cn(
                   "w-full p-5 flex items-center gap-4 hover:bg-zinc-50 transition-all text-left group",
-                  selectedUser?.uid === user.uid && "bg-zinc-50 border-l-4 border-zinc-900"
+                  selectedUser?.uid === user.uid && "bg-zinc-50 border-l-4 border-accent"
                 )}
               >
                 <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-600 font-black border border-zinc-200 group-hover:scale-105 transition-transform">
@@ -309,7 +318,7 @@ const Users: React.FC = () => {
                 </div>
                 <div className={cn(
                   "p-2 rounded-xl shadow-sm",
-                  user.role === 'admin' ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-400"
+                  user.role === 'admin' ? "bg-accent text-accent-foreground" : "bg-zinc-100 text-zinc-400"
                 )}>
                   {user.role === 'admin' ? <ShieldCheck size={16} /> : <Shield size={16} />}
                 </div>
@@ -327,7 +336,7 @@ const Users: React.FC = () => {
         <div className="lg:col-span-2 space-y-6">
           {selectedUser ? (
             <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-900 text-white relative overflow-hidden">
+              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl" />
                 <div className="flex items-center gap-6 relative z-10">
                   <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black border border-white/10 shadow-xl">
@@ -348,12 +357,12 @@ const Users: React.FC = () => {
                             value={basicInfoForm.role}
                             onChange={(e) => setBasicInfoForm({ ...basicInfoForm, role: e.target.value as UserRole })}
                           >
-                            <option value="employee" className="bg-zinc-900">Funcionário</option>
-                            <option value="admin" className="bg-zinc-900">Administrador</option>
+                            <option value="employee" className="bg-accent">Funcionário</option>
+                            <option value="admin" className="bg-accent">Administrador</option>
                           </select>
                           <button
                             onClick={handleSaveBasicInfo}
-                            className="text-[10px] bg-white text-zinc-900 px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg"
+                            className="text-[10px] bg-white text-accent px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg"
                           >
                             Salvar
                           </button>
@@ -403,7 +412,7 @@ const Users: React.FC = () => {
                       </button>
                       <button 
                         onClick={handleSavePermissions}
-                        className="flex items-center gap-2 bg-white text-zinc-900 px-6 py-3 rounded-2xl font-black hover:bg-zinc-100 transition-all shadow-xl"
+                        className="flex items-center gap-2 bg-white text-accent px-6 py-3 rounded-2xl font-black hover:bg-zinc-100 transition-all shadow-xl"
                       >
                         <Save size={20} />
                         Salvar
@@ -463,7 +472,7 @@ const Users: React.FC = () => {
                                   className={cn(
                                     "p-2.5 rounded-2xl transition-all shadow-sm",
                                     isAllowed 
-                                      ? "text-zinc-900 bg-zinc-100 hover:bg-zinc-200" 
+                                      ? "text-accent-foreground bg-accent/10 hover:bg-accent/20" 
                                       : "text-zinc-300 bg-zinc-50 hover:bg-zinc-100",
                                     (!isEditingPermissions || selectedUser.role === 'admin') && "cursor-default opacity-80 shadow-none"
                                   )}
@@ -480,7 +489,7 @@ const Users: React.FC = () => {
                 </div>
 
                 {selectedUser.role === 'admin' && (
-                  <div className="mt-8 p-6 bg-zinc-900 text-white rounded-[2rem] flex items-center gap-4 shadow-xl shadow-zinc-200 relative overflow-hidden">
+                  <div className="mt-8 p-6 bg-accent text-accent-foreground rounded-[2rem] flex items-center gap-4 shadow-xl shadow-accent/20 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white relative z-10">
                       <Lock size={24} />
@@ -530,7 +539,7 @@ const Users: React.FC = () => {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
                   value={newUserFormData.name}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
                 />
@@ -541,7 +550,7 @@ const Users: React.FC = () => {
                 <input 
                   type="email" 
                   required
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                   value={newUserFormData.email}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
                 />
@@ -550,7 +559,7 @@ const Users: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cargo / Função</label>
                 <select 
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
                   value={newUserFormData.role}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as any })}
                 >
@@ -569,7 +578,7 @@ const Users: React.FC = () => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
                 >
                   Adicionar
                 </button>

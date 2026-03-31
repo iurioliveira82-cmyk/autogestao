@@ -30,7 +30,11 @@ import { toast } from 'sonner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
-const Finance: React.FC = () => {
+interface FinanceProps {
+  setActiveTab?: (tab: string, itemId?: string) => void;
+}
+
+const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
   const { profile } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
@@ -50,7 +54,7 @@ const Finance: React.FC = () => {
     status: 'all' as 'all' | 'paid' | 'pending' | 'cancelled',
     type: 'all' as 'all' | 'in' | 'out',
     searchTerm: '',
-    relatedOSId: 'all',
+    relatedId: 'all',
     supplierId: 'all',
     clientId: 'all',
     startDate: '',
@@ -68,7 +72,7 @@ const Finance: React.FC = () => {
     paymentMethod: 'pix',
     status: 'paid' as 'paid' | 'pending',
     supplierId: '',
-    relatedOSId: '',
+    relatedId: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     dueDate: format(new Date(), 'yyyy-MM-dd')
   });
@@ -115,7 +119,7 @@ const Finance: React.FC = () => {
     if (diffDays <= 0) return 0;
     
     // Find client to get interest rate
-    const client = clients.find(c => c.id === transaction.clientId);
+    const client = clients.find(c => c.id === transaction.clienteId);
     const rate = client?.interestRate || 0; // monthly rate
     
     // Simple interest calculation: (value * rate/100) * (days / 30)
@@ -124,14 +128,18 @@ const Finance: React.FC = () => {
   };
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
     
     if (profile.role !== 'admin') {
       setLoading(false);
       return;
     }
 
-    const q = query(collection(db, 'transactions'), orderBy('date', 'desc'));
+    const q = query(
+      collection(db, 'transacoes_financeiras'), 
+      where('empresaId', '==', profile.empresaId),
+      orderBy('date', 'desc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Transaction[] = [];
       let inc = 0;
@@ -168,27 +176,36 @@ const Finance: React.FC = () => {
       });
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'transactions');
+      handleFirestoreError(error, OperationType.GET, 'transacoes_financeiras');
       setLoading(false);
     });
 
-    const unsubscribeSuppliers = onSnapshot(collection(db, 'suppliers'), (snapshot) => {
-      const list: Supplier[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
-      setSuppliers(list);
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'suppliers'));
+    const unsubscribeSuppliers = onSnapshot(
+      query(collection(db, 'fornecedores'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Supplier[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
+        setSuppliers(list);
+      }, (error) => handleFirestoreError(error, OperationType.GET, 'fornecedores')
+    );
 
-    const unsubscribeOS = onSnapshot(collection(db, 'serviceOrders'), (snapshot) => {
-      const list: ServiceOrder[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
-      setServiceOrders(list);
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'serviceOrders'));
+    const unsubscribeOS = onSnapshot(
+      query(collection(db, 'ordens_servico'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: ServiceOrder[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
+        setServiceOrders(list);
+      }, (error) => handleFirestoreError(error, OperationType.GET, 'ordens_servico')
+    );
 
-    const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
-      const list: Client[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
-      setClients(list);
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'clients'));
+    const unsubscribeClients = onSnapshot(
+      query(collection(db, 'clientes'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Client[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
+        setClients(list);
+      }, (error) => handleFirestoreError(error, OperationType.GET, 'clientes')
+    );
 
     return () => {
       unsubscribe();
@@ -205,13 +222,13 @@ const Finance: React.FC = () => {
 
     const matchesStatus = filters.status === 'all' || t.status === filters.status;
     const matchesType = filters.type === 'all' || t.type === filters.type;
-    const matchesOS = filters.relatedOSId === 'all' || t.relatedOSId === filters.relatedOSId;
-    const matchesSupplier = filters.supplierId === 'all' || t.supplierId === filters.supplierId;
+    const matchesOS = filters.relatedId === 'all' || t.relatedId === filters.relatedId;
+    const matchesSupplier = filters.supplierId === 'all' || t.fornecedorId === filters.supplierId;
     
     let matchesClient = true;
     if (filters.clientId !== 'all') {
-      const os = serviceOrders.find(o => o.id === t.relatedOSId);
-      matchesClient = os?.clientId === filters.clientId;
+      const os = serviceOrders.find(o => o.id === t.relatedId);
+      matchesClient = os?.clienteId === filters.clientId;
     }
 
     const matchesSearch = t.description.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
@@ -248,14 +265,15 @@ const Finance: React.FC = () => {
     }
 
     try {
-      await addDoc(collection(db, 'transactions'), {
+      await addDoc(collection(db, 'transacoes_financeiras'), {
         ...formData,
+        empresaId: profile.empresaId,
         value: parseFloat(formData.value),
         date: formData.date || new Date().toISOString(),
         dueDate: formData.status === 'pending' ? formData.dueDate : undefined,
         status: formData.status,
         supplierId: formData.type === 'out' ? formData.supplierId : undefined,
-        relatedOSId: formData.relatedOSId || undefined,
+        relatedId: formData.relatedId || undefined,
         createdAt: serverTimestamp()
       });
       
@@ -270,7 +288,7 @@ const Finance: React.FC = () => {
   const toggleStatus = async (transaction: Transaction) => {
     try {
       const newStatus = transaction.status === 'paid' ? 'pending' : 'paid';
-      await updateDoc(doc(db, 'transactions', transaction.id), {
+      await updateDoc(doc(db, 'transacoes_financeiras', transaction.id), {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
@@ -289,7 +307,7 @@ const Finance: React.FC = () => {
       type: 'success',
       onConfirm: async () => {
         try {
-          await updateDoc(doc(db, 'transactions', id), {
+          await updateDoc(doc(db, 'transacoes_financeiras', id), {
             status: 'paid',
             updatedAt: serverTimestamp()
           });
@@ -312,7 +330,7 @@ const Finance: React.FC = () => {
       type: 'danger',
       onConfirm: async () => {
         try {
-          await updateDoc(doc(db, 'transactions', id), {
+          await updateDoc(doc(db, 'transacoes_financeiras', id), {
             status: 'cancelled',
             updatedAt: serverTimestamp()
           });
@@ -336,7 +354,7 @@ const Finance: React.FC = () => {
       paymentMethod: type === 'out' ? 'boleto' : 'pix',
       status: 'pending',
       supplierId: '',
-      relatedOSId: '',
+      relatedId: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       dueDate: format(new Date(), 'yyyy-MM-dd')
     });
@@ -345,9 +363,9 @@ const Finance: React.FC = () => {
 
   const openReceipt = async (transaction: Transaction) => {
     setSelectedTransaction(transaction);
-    if (transaction.relatedOSId) {
+    if (transaction.relatedId) {
       try {
-        const osDoc = await getDoc(doc(db, 'serviceOrders', transaction.relatedOSId));
+        const osDoc = await getDoc(doc(db, 'ordens_servico', transaction.relatedId));
         if (osDoc.exists()) {
           setRelatedOS({ id: osDoc.id, ...osDoc.data() });
         }
@@ -374,7 +392,7 @@ const Finance: React.FC = () => {
       paymentMethod: 'pix',
       status: 'paid',
       supplierId: '',
-      relatedOSId: '',
+      relatedId: '',
       date: format(new Date(), 'yyyy-MM-dd'),
       dueDate: format(new Date(), 'yyyy-MM-dd')
     });
@@ -448,7 +466,7 @@ const Finance: React.FC = () => {
         </div>
 
         <div 
-          className="bg-zinc-900 p-4 rounded-2xl shadow-sm text-white flex flex-col justify-center cursor-pointer hover:bg-zinc-800 transition-all sm:col-span-2 lg:col-span-1"
+          className="bg-accent p-4 rounded-2xl shadow-sm text-accent-foreground flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all sm:col-span-2 lg:col-span-1"
           onClick={() => handleSetFinanceTab('all')}
         >
           <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saldo</p>
@@ -501,7 +519,7 @@ const Finance: React.FC = () => {
               className={cn(
                 "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
                 financeTab === 'all' 
-                  ? "bg-zinc-900 text-white shadow-lg shadow-zinc-200" 
+                  ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
                   : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
               )}
             >
@@ -574,7 +592,7 @@ const Finance: React.FC = () => {
                     <input 
                       type="text" 
                       placeholder="Buscar por descrição ou categoria..."
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={filters.searchTerm}
                       onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                     />
@@ -618,7 +636,7 @@ const Finance: React.FC = () => {
                         type: 'all', 
                         clientId: 'all', 
                         supplierId: 'all', 
-                        relatedOSId: 'all',
+                        relatedId: 'all',
                         startDate: '',
                         endDate: '',
                         startDueDate: '',
@@ -637,7 +655,7 @@ const Finance: React.FC = () => {
                       onClick={() => setFilters({ ...filters, status: 'all' })}
                       className={cn(
                         "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'all' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                        filters.status === 'all' ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-400 hover:text-zinc-600"
                       )}
                     >
                       Todos
@@ -663,7 +681,7 @@ const Finance: React.FC = () => {
                   </div>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={filters.type}
                     onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
                   >
@@ -673,7 +691,7 @@ const Finance: React.FC = () => {
                   </select>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={filters.clientId}
                     onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
                   >
@@ -684,13 +702,13 @@ const Finance: React.FC = () => {
                   </select>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={filters.relatedOSId}
-                    onChange={(e) => setFilters({ ...filters, relatedOSId: e.target.value })}
+                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    value={filters.relatedId}
+                    onChange={(e) => setFilters({ ...filters, relatedId: e.target.value })}
                   >
                     <option value="all">Todas OS</option>
                     {serviceOrders
-                      .filter(os => transactions.some(t => t.relatedOSId === os.id))
+                      .filter(os => transactions.some(t => t.relatedId === os.id))
                       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                       .map(os => (
                         <option key={os.id} value={os.id}>
@@ -705,7 +723,7 @@ const Finance: React.FC = () => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={filters.startDate}
                       onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                     />
@@ -714,7 +732,7 @@ const Finance: React.FC = () => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={filters.endDate}
                       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                     />
@@ -723,7 +741,7 @@ const Finance: React.FC = () => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={filters.startDueDate}
                       onChange={(e) => setFilters({ ...filters, startDueDate: e.target.value })}
                     />
@@ -732,7 +750,7 @@ const Finance: React.FC = () => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={filters.endDueDate}
                       onChange={(e) => setFilters({ ...filters, endDueDate: e.target.value })}
                     />
@@ -755,7 +773,7 @@ const Finance: React.FC = () => {
                   </div>
                   <div className="bg-zinc-100/50 p-4 rounded-3xl border border-zinc-200">
                     <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Saldo</p>
-                    <p className="text-xl font-black text-zinc-900">
+                    <p className="text-xl font-black text-accent">
                       {formatCurrency(
                         filteredTransactions.filter(t => t.status !== 'cancelled').reduce((acc, t) => t.type === 'in' ? acc + t.value : acc - t.value, 0)
                       )}
@@ -792,9 +810,9 @@ const Finance: React.FC = () => {
                     </motion.tr>
                   ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
                     const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
-                    const os = serviceOrders.find(o => o.id === t.relatedOSId);
-                    const client = t.clientId ? clients.find(c => c.id === t.clientId) : (os ? clients.find(c => c.id === os.clientId) : null);
-                    const supplier = suppliers.find(s => s.id === t.supplierId);
+                    const os = serviceOrders.find(o => o.id === t.relatedId);
+                    const client = t.clienteId ? clients.find(c => c.id === t.clienteId) : (os ? clients.find(c => c.id === os.clienteId) : null);
+                    const supplier = suppliers.find(s => s.id === t.fornecedorId);
                     const interest = calculateInterest(t);
                     const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
 
@@ -816,7 +834,7 @@ const Finance: React.FC = () => {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Calendar size={12} className="text-zinc-400" />
-                            <span className="text-xs font-bold text-zinc-900">{format(new Date(t.date), 'dd/MM/yy')}</span>
+                            <span className="text-xs font-bold text-accent">{format(new Date(t.date), 'dd/MM/yy')}</span>
                             <span className="text-[8px] text-zinc-400 uppercase font-black">Lanç.</span>
                           </div>
                           {t.dueDate && t.status === 'pending' && (
@@ -834,24 +852,35 @@ const Finance: React.FC = () => {
                         <div className="flex flex-col">
                           {financeTab === 'receivable' ? (
                             <>
-                              <span className="text-sm font-bold text-zinc-900">{client?.name || 'Cliente não identificado'}</span>
-                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                                OS #{t.relatedOSId?.slice(-4).toUpperCase()} - {t.description}
-                              </span>
+                              <span className="text-sm font-bold text-accent">{client?.name || 'Cliente não identificado'}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                  OS #{t.relatedId?.slice(-4).toUpperCase()} - {t.description}
+                                </span>
+                                {t.relatedId && setActiveTab && (
+                                  <button 
+                                    onClick={() => setActiveTab('os', t.relatedId)}
+                                    className="p-1 text-accent hover:bg-accent/10 rounded-md transition-all"
+                                    title="Ver OS"
+                                  >
+                                    <ArrowUpRight size={12} />
+                                  </button>
+                                )}
+                              </div>
                             </>
                           ) : financeTab === 'payable' ? (
                             <>
-                              <span className="text-sm font-bold text-zinc-900">{supplier?.name || 'Fornecedor não identificado'}</span>
+                              <span className="text-sm font-bold text-accent">{supplier?.name || 'Fornecedor não identificado'}</span>
                               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
                                 {t.description}
                               </span>
                             </>
                           ) : (
                             <>
-                              <span className="text-sm font-bold text-zinc-900">{t.description}</span>
+                              <span className="text-sm font-bold text-accent">{t.description}</span>
                               <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
-                                {t.supplierId && (
+                                {t.fornecedorId && (
                                   <>
                                     <span className="text-zinc-300">|</span>
                                     <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
@@ -859,11 +888,11 @@ const Finance: React.FC = () => {
                                     </span>
                                   </>
                                 )}
-                                {t.relatedOSId && (
+                                {t.relatedId && (
                                   <>
                                     <span className="text-zinc-300">|</span>
                                     <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
-                                      OS #{t.relatedOSId.slice(-4).toUpperCase()}
+                                      OS #{t.relatedId.slice(-4).toUpperCase()}
                                     </span>
                                   </>
                                 )}
@@ -935,7 +964,7 @@ const Finance: React.FC = () => {
                         {t.status === 'paid' && t.type === 'in' && (
                           <button 
                             onClick={() => openReceipt(t)}
-                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
+                            className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
                             title="Gerar Comprovante"
                           >
                             <Download size={18} />
@@ -964,9 +993,9 @@ const Finance: React.FC = () => {
               <div className="py-10 text-center text-zinc-400 italic">Carregando transações...</div>
             ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
               const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
-              const os = serviceOrders.find(o => o.id === t.relatedOSId);
-              const client = t.clientId ? clients.find(c => c.id === t.clientId) : (os ? clients.find(c => c.id === os.clientId) : null);
-              const supplier = suppliers.find(s => s.id === t.supplierId);
+              const os = serviceOrders.find(o => o.id === t.relatedId);
+              const client = t.clienteId ? clients.find(c => c.id === t.clienteId) : (os ? clients.find(c => c.id === os.clienteId) : null);
+              const supplier = suppliers.find(s => s.id === t.fornecedorId);
               const interest = calculateInterest(t);
               const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
 
@@ -983,9 +1012,9 @@ const Finance: React.FC = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Calendar size={12} className="text-zinc-400" />
-                        <span className="text-xs font-bold text-zinc-900">{format(new Date(t.date), 'dd/MM/yy')}</span>
+                        <span className="text-xs font-bold text-accent">{format(new Date(t.date), 'dd/MM/yy')}</span>
                       </div>
-                      <h4 className="text-sm font-bold text-zinc-900">
+                      <h4 className="text-sm font-bold text-accent">
                         {financeTab === 'receivable' ? (client?.name || 'Cliente') : 
                          financeTab === 'payable' ? (supplier?.name || 'Fornecedor') : t.description}
                       </h4>
@@ -1040,7 +1069,7 @@ const Finance: React.FC = () => {
                       {t.status === 'paid' && t.type === 'in' && (
                         <button 
                           onClick={() => openReceipt(t)}
-                          className="p-2 text-zinc-400 hover:text-zinc-900"
+                          className="p-2 text-zinc-400 hover:text-accent"
                         >
                           <Download size={16} />
                         </button>
@@ -1060,11 +1089,11 @@ const Finance: React.FC = () => {
         {/* Distribution Chart */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-zinc-200 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-            <h3 className="text-lg sm:text-xl font-bold text-zinc-900">Distribuição</h3>
+            <h3 className="text-lg sm:text-xl font-bold text-accent">Distribuição</h3>
             <div className="flex bg-zinc-100 p-1 rounded-lg w-full sm:w-auto">
               <button 
                 onClick={() => setChartView('general')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500")}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-500")}
               >
                 Geral
               </button>
@@ -1114,12 +1143,12 @@ const Finance: React.FC = () => {
             <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Lucratividade</p>
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-zinc-900">
+                <span className="text-2xl font-black text-accent">
                   {summary.income > 0 ? Math.round((summary.balance / summary.income) * 100) : 0}%
                 </span>
                 <div className="w-24 h-2 bg-zinc-200 rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-zinc-900" 
+                    className="h-full bg-accent" 
                     style={{ width: `${summary.income > 0 ? Math.min(100, Math.max(0, (summary.balance / summary.income) * 100)) : 0}%` }} 
                   />
                 </div>
@@ -1131,13 +1160,13 @@ const Finance: React.FC = () => {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">
+              <h3 className="text-xl font-bold text-accent">
                 {formData.type === 'in' ? 'Lançar Recebimento' : 'Lançar Pagamento'}
               </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-lg">
                 <XCircle size={24} />
               </button>
             </div>
@@ -1172,7 +1201,7 @@ const Finance: React.FC = () => {
                   <input 
                     type="date" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
@@ -1183,7 +1212,7 @@ const Finance: React.FC = () => {
                     type="date" 
                     required={formData.status === 'pending'}
                     disabled={formData.status === 'paid'}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all disabled:opacity-50"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all disabled:opacity-50"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   />
@@ -1197,7 +1226,7 @@ const Finance: React.FC = () => {
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-bold"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold"
                     placeholder="0.00"
                     value={formData.value}
                     onChange={(e) => setFormData({ ...formData, value: e.target.value })}
@@ -1206,7 +1235,7 @@ const Finance: React.FC = () => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -1219,7 +1248,7 @@ const Finance: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Pagamento</label>
                 <select 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                   value={formData.paymentMethod}
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                 >
@@ -1236,7 +1265,7 @@ const Finance: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
                     <select 
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={formData.supplierId}
                       onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                     >
@@ -1249,16 +1278,16 @@ const Finance: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">OS Relacionada</label>
                     <select 
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                      value={formData.relatedOSId}
-                      onChange={(e) => setFormData({ ...formData, relatedOSId: e.target.value })}
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      value={formData.relatedId}
+                      onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
                     >
                       <option value="">Opcional...</option>
                       {serviceOrders
-                        .filter(os => os.status !== 'cancelled')
+                        .filter(os => os.status !== 'cancelada')
                         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                         .map(os => {
-                          const client = clients.find(c => c.id === os.clientId);
+                          const client = clients.find(c => c.id === os.clienteId);
                           return (
                             <option key={os.id} value={os.id}>
                               OS #{os.id.slice(-4).toUpperCase()} - {client?.name || 'Cliente'}
@@ -1275,7 +1304,7 @@ const Finance: React.FC = () => {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                   placeholder="Ex: Peças, Aluguel, Salários..."
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -1285,7 +1314,7 @@ const Finance: React.FC = () => {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Descrição</label>
                 <textarea 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all min-h-[80px]"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all min-h-[80px]"
                   placeholder="Detalhes da transação..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -1302,7 +1331,7 @@ const Finance: React.FC = () => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                 >
                   Confirmar Lançamento
                 </button>
@@ -1314,7 +1343,7 @@ const Finance: React.FC = () => {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {confirmAction.isOpen && (
-          <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 bg-zinc-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -1328,7 +1357,7 @@ const Finance: React.FC = () => {
                 )}>
                   {confirmAction.type === 'danger' ? <Ban size={32} /> : <CheckCircle2 size={32} />}
                 </div>
-                <h3 className="text-xl font-bold text-zinc-900 mb-2">{confirmAction.title}</h3>
+                <h3 className="text-xl font-bold text-accent mb-2">{confirmAction.title}</h3>
                 <p className="text-zinc-500 text-sm leading-relaxed">{confirmAction.message}</p>
               </div>
               <div className="p-8 bg-zinc-50 flex items-center gap-3">
@@ -1355,14 +1384,14 @@ const Finance: React.FC = () => {
 
       {/* Receipt Modal */}
       {isReceiptModalOpen && selectedTransaction && (
-        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-900 text-white">
+            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground">
               <div>
                 <h3 className="text-xl font-bold">Comprovante de Serviço</h3>
-                <p className="text-xs text-zinc-400 uppercase tracking-widest mt-1">Recibo de Pagamento</p>
+                <p className="text-xs text-accent-foreground/60 uppercase tracking-widest mt-1">Recibo de Pagamento</p>
               </div>
-              <button onClick={closeReceipt} className="p-2 text-zinc-400 hover:text-white rounded-lg transition-all">
+              <button onClick={closeReceipt} className="p-2 text-accent-foreground/60 hover:text-accent-foreground rounded-lg transition-all">
                 <XCircle size={24} />
               </button>
             </div>
@@ -1371,11 +1400,11 @@ const Finance: React.FC = () => {
               {/* Header Info */}
               <div className="flex justify-between items-start">
                 <div>
-                  <h4 className="text-2xl font-black text-zinc-900">AutoGestão SaaS</h4>
+                  <h4 className="text-2xl font-black text-accent">AutoGestão SaaS</h4>
                   <p className="text-sm text-zinc-500">Soluções Automotivas</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-zinc-900">Data: {format(new Date(selectedTransaction.date), 'dd/MM/yyyy HH:mm')}</p>
+                  <p className="text-sm font-bold text-accent">Data: {format(new Date(selectedTransaction.date), 'dd/MM/yyyy HH:mm')}</p>
                   <p className="text-xs text-zinc-500">Nº {selectedTransaction.id.slice(0, 8).toUpperCase()}</p>
                 </div>
               </div>
@@ -1388,11 +1417,11 @@ const Finance: React.FC = () => {
                 <div className="grid grid-cols-2 gap-8">
                   <div>
                     <p className="text-xs text-zinc-500 mb-1">Descrição</p>
-                    <p className="text-sm font-bold text-zinc-900">{selectedTransaction.description}</p>
+                    <p className="text-sm font-bold text-accent">{selectedTransaction.description}</p>
                   </div>
                   <div>
                     <p className="text-xs text-zinc-500 mb-1">Método de Pagamento</p>
-                    <p className="text-sm font-bold text-zinc-900 uppercase">{selectedTransaction.paymentMethod}</p>
+                    <p className="text-sm font-bold text-accent uppercase">{selectedTransaction.paymentMethod}</p>
                   </div>
                 </div>
               </div>
@@ -1410,10 +1439,10 @@ const Finance: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-zinc-100">
-                        {relatedOS.services?.map((s: any, idx: number) => (
+                        {relatedOS.servicos?.map((s: any, idx: number) => (
                           <tr key={idx}>
-                            <td className="px-4 py-3 font-medium text-zinc-900">{s.name}</td>
-                            <td className="px-4 py-3 text-right font-bold text-zinc-900">{formatCurrency(s.price)}</td>
+                            <td className="px-4 py-3 font-medium text-accent">{s.name}</td>
+                            <td className="px-4 py-3 text-right font-bold text-accent">{formatCurrency(s.price)}</td>
                           </tr>
                         ))}
                         {relatedOS.discount > 0 && (
@@ -1431,7 +1460,7 @@ const Finance: React.FC = () => {
               <div className="h-px bg-zinc-100" />
 
               {/* Total */}
-              <div className="flex justify-between items-center bg-zinc-900 text-white p-6 rounded-2xl">
+              <div className="flex justify-between items-center bg-accent text-accent-foreground p-6 rounded-2xl">
                 <span className="text-sm font-bold uppercase tracking-widest">Valor Total Pago</span>
                 <span className="text-3xl font-black">{formatCurrency(selectedTransaction.value)}</span>
               </div>
@@ -1444,7 +1473,7 @@ const Finance: React.FC = () => {
             <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex gap-4">
               <button 
                 onClick={() => window.print()}
-                className="flex-1 flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-4 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg"
+                className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
               >
                 <Printer size={20} />
                 Imprimir

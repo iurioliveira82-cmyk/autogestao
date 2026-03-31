@@ -45,3 +45,36 @@ export const adminPermissions: UserPermissions = {
   users: adminModulePermissions,
   fiscal: adminModulePermissions
 };
+
+export const gerentePermissions: UserPermissions = {
+  ...adminPermissions,
+  users: { ...adminModulePermissions, delete: false }
+};
+
+export const tecnicoPermissions: UserPermissions = {
+  ...defaultPermissions,
+  os: { ...defaultModulePermissions, edit: true },
+  inventory: { ...defaultModulePermissions, view: true },
+  services: { ...defaultModulePermissions, view: true }
+};
+
+export const financeiroPermissions: UserPermissions = {
+  ...defaultPermissions,
+  finance: adminModulePermissions,
+  fiscal: adminModulePermissions
+};
+
+export const estoquePermissions: UserPermissions = {
+  ...defaultPermissions,
+  inventory: adminModulePermissions,
+  stock: adminModulePermissions,
+  suppliers: adminModulePermissions
+};
+
+export const atendimentoPermissions: UserPermissions = {
+  ...defaultPermissions,
+  clients: adminModulePermissions,
+  vehicles: adminModulePermissions,
+  os: { ...defaultModulePermissions, create: true, view: true },
+  agenda: adminModulePermissions
+};

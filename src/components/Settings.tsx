@@ -16,10 +16,10 @@ import { useAuth } from './Auth';
 import { cn } from '../lib/utils';
 import { toast } from 'sonner';
 import { db } from '../firebase';
-import { collection, getDocs, deleteDoc, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, setDoc, onSnapshot, query, where } from 'firebase/firestore';
 import { ConfirmationModal } from './ConfirmationModal';
 
-const Settings: React.FC = () => {
+const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
   const { isAdmin, profile } = useAuth();
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return localStorage.getItem('darkMode') === 'true';
@@ -99,7 +99,8 @@ const Settings: React.FC = () => {
       toast.loading('Limpando banco de dados...', { id: 'reset' });
 
       for (const collName of collections) {
-        const snapshot = await getDocs(collection(db, collName));
+        const q = query(collection(db, collName), where('empresaId', '==', profile.empresaId));
+        const snapshot = await getDocs(q);
         const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, collName, d.id)));
         await Promise.all(deletePromises);
       }
@@ -123,7 +124,7 @@ const Settings: React.FC = () => {
         <button
           onClick={handleSaveSettings}
           disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-zinc-200 disabled:opacity-50"
         >
           {isSaving ? <RefreshCcw className="animate-spin" size={20} /> : <Save size={20} />}
           Salvar Alterações
@@ -154,7 +155,7 @@ const Settings: React.FC = () => {
                 onClick={() => setIsDarkMode(!isDarkMode)}
                 className={cn(
                   "w-12 h-6 rounded-full transition-all relative",
-                  isDarkMode ? "bg-zinc-900" : "bg-zinc-200"
+                  isDarkMode ? "bg-accent" : "bg-zinc-200"
                 )}
               >
                 <div className={cn(
@@ -174,13 +175,13 @@ const Settings: React.FC = () => {
                     onClick={() => setAccentColor(color.id)}
                     className={cn(
                       "group relative flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all",
-                      accentColor === color.id ? "border-zinc-900 bg-zinc-50" : "border-transparent hover:bg-zinc-50"
+                      accentColor === color.id ? "border-accent bg-zinc-50" : "border-transparent hover:bg-zinc-50"
                     )}
                   >
                     <div className={cn("w-8 h-8 rounded-lg shadow-sm", color.color)} />
                     <span className="text-[10px] font-bold text-zinc-500 uppercase">{color.label}</span>
                     {accentColor === color.id && (
-                      <div className="absolute -top-1 -right-1 bg-zinc-900 text-white rounded-full p-0.5">
+                      <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground rounded-full p-0.5">
                         <CheckCircle2 size={10} />
                       </div>
                     )}
@@ -199,13 +200,13 @@ const Settings: React.FC = () => {
                     onClick={() => setBgColor(color.id)}
                     className={cn(
                       "group relative flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all",
-                      bgColor === color.id ? "border-zinc-900 bg-zinc-50" : "border-transparent hover:bg-zinc-50"
+                      bgColor === color.id ? "border-accent bg-zinc-50" : "border-transparent hover:bg-zinc-50"
                     )}
                   >
                     <div className={cn("w-8 h-8 rounded-lg shadow-sm border border-zinc-200", color.color)} />
                     <span className="text-[10px] font-bold text-zinc-500 uppercase">{color.label}</span>
                     {bgColor === color.id && (
-                      <div className="absolute -top-1 -right-1 bg-zinc-900 text-white rounded-full p-0.5">
+                      <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground rounded-full p-0.5">
                         <CheckCircle2 size={10} />
                       </div>
                     )}
@@ -225,7 +226,7 @@ const Settings: React.FC = () => {
                 <input
                   type="text"
                   placeholder="https://exemplo.com/logo.png"
-                  className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
+                  className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
                   value={companyLogo}
                   onChange={(e) => setCompanyLogo(e.target.value)}
                 />

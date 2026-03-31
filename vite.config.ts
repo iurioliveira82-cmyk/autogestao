@@ -8,7 +8,7 @@ export default defineConfig(({mode}) => {
   return {
     plugins: [react(), tailwindcss()],
     build: {
-      outDir: 'dist',
+      outDir: 'build_output',
       emptyOutDir: true,
       sourcemap: false,
       minify: true,

@@ -1,260 +1,259 @@
 {
   "entities": {
+    "Company": {
+      "title": "Company",
+      "description": "Tenant information",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "plan": { "type": "string", "enum": ["basic", "pro", "enterprise"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name"]
+    },
     "User": {
       "title": "User",
-      "description": "User profile and role",
+      "description": "User profile with RBAC",
       "type": "object",
       "properties": {
         "uid": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["admin", "employee"] },
+        "role": { "type": "string", "enum": ["admin", "gerente", "consultor", "tecnico", "financeiro", "estoque", "atendimento"] },
+        "empresaId": { "type": "string" },
         "permissions": { "type": "object" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["uid", "name", "email", "role"]
+      "required": ["uid", "name", "email", "role", "empresaId"]
     },
     "Client": {
       "title": "Client",
       "description": "Customer information",
       "type": "object",
       "properties": {
+        "empresaId": { "type": "string" },
         "name": { "type": "string" },
-        "phone": { "type": "string" },
         "email": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "inactive"] },
-        "birthDate": { "type": "string", "format": "date" },
-        "contactPreference": { "type": "string", "enum": ["email", "phone", "whatsapp", "none"] },
-        "purchaseHistory": { "type": "string" },
+        "phone": { "type": "string" },
+        "document": { "type": "string" },
+        "address": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name", "phone", "status"]
+      "required": ["empresaId", "name", "phone"]
     },
     "Vehicle": {
       "title": "Vehicle",
-      "description": "Vehicle details linked to a client",
+      "description": "Vehicle details",
       "type": "object",
       "properties": {
+        "empresaId": { "type": "string" },
+        "clienteId": { "type": "string" },
         "plate": { "type": "string" },
         "brand": { "type": "string" },
         "model": { "type": "string" },
         "year": { "type": "integer" },
         "color": { "type": "string" },
-        "km": { "type": "integer" },
-        "clientId": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["plate", "brand", "model", "clientId"]
-    },
-    "Service": {
-      "title": "Service",
-      "description": "Service catalog",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "price": { "type": "number" },
-        "averageTime": { "type": "integer", "description": "Time in minutes" }
-      },
-      "required": ["name", "price"]
-    },
-    "ServiceOrder": {
-      "title": "ServiceOrder",
-      "description": "Service order details",
-      "type": "object",
-      "properties": {
-        "clientId": { "type": "string" },
-        "vehicleId": { "type": "string" },
-        "services": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "serviceId": { "type": "string" },
-              "name": { "type": "string" },
-              "price": { "type": "number" }
-            }
-          }
-        },
-        "status": { "type": "string", "enum": ["waiting", "in-progress", "finished", "cancelled"] },
-        "photosBefore": { "type": "array", "items": { "type": "string" } },
-        "photosAfter": { "type": "array", "items": { "type": "string" } },
-        "observations": { "type": "string" },
-        "totalValue": { "type": "number" },
-        "discount": { "type": "number" },
-        "paymentMethod": { "type": "string", "enum": ["cash", "pix", "card"] },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["clientId", "vehicleId", "status", "totalValue"]
-    },
-    "Appointment": {
-      "title": "Appointment",
-      "description": "Scheduled services",
-      "type": "object",
-      "properties": {
-        "clientId": { "type": "string" },
-        "vehicleId": { "type": "string" },
-        "serviceIds": { "type": "array", "items": { "type": "string" } },
-        "startTime": { "type": "string", "format": "date-time" },
-        "endTime": { "type": "string", "format": "date-time" },
-        "status": { "type": "string", "enum": ["scheduled", "confirmed", "cancelled"] }
-      },
-      "required": ["clientId", "vehicleId", "startTime", "endTime"]
-    },
-    "InventoryItem": {
-      "title": "InventoryItem",
-      "description": "Products in stock",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "quantity": { "type": "number" },
-        "minQuantity": { "type": "number" },
-        "price": { "type": "number" },
-        "cost": { "type": "number" },
-        "supplierId": { "type": "string" },
-        "category": { "type": "string" }
-      },
-      "required": ["name", "quantity", "price"]
-    },
-    "Supplier": {
-      "title": "Supplier",
-      "description": "Product suppliers",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "cnpj": { "type": "string" },
-        "phone": { "type": "string" },
-        "email": { "type": "string" },
-        "address": { "type": "string" },
-        "category": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "phone"]
-    },
-    "StockMovement": {
-      "title": "StockMovement",
-      "description": "Stock in/out movements",
-      "type": "object",
-      "properties": {
-        "itemId": { "type": "string" },
-        "type": { "type": "string", "enum": ["in", "out"] },
-        "quantity": { "type": "number" },
-        "date": { "type": "string", "format": "date-time" },
-        "reason": { "type": "string" },
-        "supplierId": { "type": "string" },
-        "cost": { "type": "number" },
-        "userId": { "type": "string" }
-      },
-      "required": ["itemId", "type", "quantity", "date", "userId"]
-    },
-    "Transaction": {
-      "title": "Transaction",
-      "description": "Financial records",
-      "type": "object",
-      "properties": {
-        "type": { "type": "string", "enum": ["in", "out"] },
-        "value": { "type": "number" },
-        "category": { "type": "string" },
-        "description": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "paymentMethod": { "type": "string" },
-        "relatedOSId": { "type": "string" }
-      },
-      "required": ["type", "value", "date"]
-    },
-    "ResaleVehicle": {
-      "title": "ResaleVehicle",
-      "description": "Vehicles for sale",
-      "type": "object",
-      "properties": {
-        "brand": { "type": "string" },
-        "model": { "type": "string" },
-        "year": { "type": "integer" },
-        "buyPrice": { "type": "number" },
-        "sellPrice": { "type": "number" },
-        "status": { "type": "string", "enum": ["available", "reserved", "sold"] },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["brand", "model", "buyPrice", "status"]
+      "required": ["empresaId", "clienteId", "plate", "brand", "model"]
     },
     "Lead": {
       "title": "Lead",
       "description": "Sales lead",
       "type": "object",
       "properties": {
+        "empresaId": { "type": "string" },
         "name": { "type": "string" },
         "email": { "type": "string" },
         "phone": { "type": "string" },
         "source": { "type": "string" },
-        "status": { "type": "string", "enum": ["new", "contacted", "qualified", "lost", "converted"] },
+        "status": { "type": "string", "enum": ["novo_lead", "contato_realizado", "aguardando_retorno", "orcamento_enviado", "negociacao", "convertido", "perdido"] },
         "temperature": { "type": "string", "enum": ["cold", "warm", "hot"] },
         "notes": { "type": "string" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "phone", "status", "temperature"]
-    },
-    "Proposal": {
-      "title": "Proposal",
-      "description": "Sales proposal",
-      "type": "object",
-      "properties": {
-        "clientId": { "type": "string" },
-        "vehicleId": { "type": "string" },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "description": { "type": "string" },
-              "value": { "type": "number" }
-            }
-          }
-        },
-        "totalValue": { "type": "number" },
-        "status": { "type": "string", "enum": ["draft", "sent", "accepted", "rejected", "expired"] },
-        "validUntil": { "type": "string", "format": "date-time" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "updatedAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["clientId", "totalValue", "status"]
-    },
-    "FiscalRecord": {
-      "title": "FiscalRecord",
-      "description": "Tax and invoice records",
-      "type": "object",
-      "properties": {
-        "type": { "type": "string", "enum": ["nfe", "nfse", "cupom"] },
-        "number": { "type": "string" },
-        "series": { "type": "string" },
-        "date": { "type": "string", "format": "date-time" },
-        "value": { "type": "number" },
-        "taxValue": { "type": "number" },
-        "status": { "type": "string", "enum": ["emitted", "cancelled", "pending"] },
-        "relatedOSId": { "type": "string" },
-        "clientId": { "type": "string" },
-        "xmlUrl": { "type": "string" },
-        "pdfUrl": { "type": "string" },
-        "observations": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["type", "number", "date", "value", "status", "clientId"]
+      "required": ["empresaId", "name", "phone", "status"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Scheduled services",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "clienteId": { "type": "string" },
+        "veiculoId": { "type": "string" },
+        "startTime": { "type": "string", "format": "date-time" },
+        "endTime": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["scheduled", "confirmed", "cancelled"] }
+      },
+      "required": ["empresaId", "clienteId", "veiculoId", "startTime"]
+    },
+    "ServiceOrder": {
+      "title": "ServiceOrder",
+      "description": "Core operational document",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "numeroOS": { "type": "integer" },
+        "clienteId": { "type": "string" },
+        "veiculoId": { "type": "string" },
+        "tecnicoResponsavelId": { "type": "string" },
+        "status": { "type": "string", "enum": ["orcamento", "aguardando_aprovacao", "aprovada", "em_execucao", "aguardando_peca", "finalizada", "entregue", "cancelada", "garantia"] },
+        "prazoEntrega": { "type": "string", "format": "date-time" },
+        "valorTotal": { "type": "number" },
+        "desconto": { "type": "number" },
+        "observations": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "numeroOS", "clienteId", "veiculoId", "status"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Stock balance",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "sku": { "type": "string" },
+        "name": { "type": "string" },
+        "quantidadeAtual": { "type": "number" },
+        "estoqueMinimo": { "type": "number" },
+        "custoMedio": { "type": "number" },
+        "precoVenda": { "type": "number" },
+        "fornecedorPadraoId": { "type": "string" }
+      },
+      "required": ["empresaId", "name", "quantidadeAtual"]
+    },
+    "StockMovement": {
+      "title": "StockMovement",
+      "description": "In/Out history",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "itemId": { "type": "string" },
+        "tipo": { "type": "string", "enum": ["entrada", "saida"] },
+        "origem": { "type": "string" },
+        "ordemServicoId": { "type": "string" },
+        "quantidade": { "type": "number" },
+        "usuarioId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "itemId", "tipo", "quantidade"]
+    },
+    "AccountReceivable": {
+      "title": "AccountReceivable",
+      "description": "Income to receive",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "clienteId": { "type": "string" },
+        "ordemServicoId": { "type": "string" },
+        "value": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["pending", "paid", "cancelled"] }
+      },
+      "required": ["empresaId", "value", "dueDate"]
+    },
+    "AccountPayable": {
+      "title": "AccountPayable",
+      "description": "Expenses to pay",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "fornecedorId": { "type": "string" },
+        "description": { "type": "string" },
+        "value": { "type": "number" },
+        "dueDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["pending", "paid", "cancelled"] }
+      },
+      "required": ["empresaId", "value", "dueDate"]
+    },
+    "FinancialTransaction": {
+      "title": "FinancialTransaction",
+      "description": "Cash flow record",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "value": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "relatedId": { "type": "string" }
+      },
+      "required": ["empresaId", "type", "value", "date"]
+    },
+    "AuditLog": {
+      "title": "AuditLog",
+      "description": "System changes history",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "usuarioId": { "type": "string" },
+        "acao": { "type": "string" },
+        "documento": { "type": "string" },
+        "antes": { "type": "object" },
+        "depois": { "type": "object" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "usuarioId", "acao", "timestamp"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Service catalog item",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "tempoMedio": { "type": "integer" },
+        "precoCusto": { "type": "number" },
+        "produtos": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "name", "price"]
+    },
+    "Supplier": {
+      "title": "Supplier",
+      "description": "Vendor information",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "name": { "type": "string" },
+        "cnpj": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "name", "status"]
     }
   },
   "firestore": {
-    "/users/{uid}": { "schema": "User", "description": "User profiles" },
-    "/clients/{clientId}": { "schema": "Client", "description": "Customer records" },
-    "/vehicles/{vehicleId}": { "schema": "Vehicle", "description": "Vehicle records" },
-    "/services/{serviceId}": { "schema": "Service", "description": "Service catalog" },
-    "/serviceOrders/{osId}": { "schema": "ServiceOrder", "description": "Service orders" },
-    "/appointments/{appointmentId}": { "schema": "Appointment", "description": "Agenda" },
-    "/inventory/{itemId}": { "schema": "InventoryItem", "description": "Stock items" },
-    "/suppliers/{supplierId}": { "schema": "Supplier", "description": "Suppliers" },
-    "/stockMovements/{movementId}": { "schema": "StockMovement", "description": "Stock movements" },
-    "/transactions/{transactionId}": { "schema": "Transaction", "description": "Financial transactions" },
-    "/resaleVehicles/{resaleId}": { "schema": "ResaleVehicle", "description": "Resale inventory" },
-    "/fiscalRecords/{fiscalId}": { "schema": "FiscalRecord", "description": "Fiscal records" },
-    "/leads/{leadId}": { "schema": "Lead", "description": "Sales leads" },
-    "/proposals/{proposalId}": { "schema": "Proposal", "description": "Sales proposals" }
+    "/empresas/{empresaId}": { "schema": "Company", "description": "Tenants" },
+    "/usuarios/{uid}": { "schema": "User", "description": "Users" },
+    "/clientes/{clienteId}": { "schema": "Client", "description": "Customers" },
+    "/veiculos/{veiculoId}": { "schema": "Vehicle", "description": "Vehicles" },
+    "/leads/{leadId}": { "schema": "Lead", "description": "Leads" },
+    "/agendamentos/{agendamentoId}": { "schema": "Appointment", "description": "Agenda" },
+    "/ordens_servico/{osId}": { "schema": "ServiceOrder", "description": "Service Orders" },
+    "/ordens_servico/{osId}/servicos/{id}": { "schema": "object", "description": "OS Services" },
+    "/ordens_servico/{osId}/pecas/{id}": { "schema": "object", "description": "OS Parts" },
+    "/ordens_servico/{osId}/historico/{id}": { "schema": "object", "description": "OS History" },
+    "/ordens_servico/{osId}/fotos/{id}": { "schema": "object", "description": "OS Photos" },
+    "/inventario/{itemId}": { "schema": "InventoryItem", "description": "Stock" },
+    "/movimentacoes_estoque/{movId}": { "schema": "StockMovement", "description": "Stock Movements" },
+    "/contas_receber/{id}": { "schema": "AccountReceivable", "description": "Receivables" },
+    "/contas_pagar/{id}": { "schema": "AccountPayable", "description": "Payables" },
+    "/transacoes_financeiras/{id}": { "schema": "FinancialTransaction", "description": "Transactions" },
+    "/catalogo_servicos/{id}": { "schema": "Service", "description": "Service Catalog" },
+    "/fornecedores/{id}": { "schema": "Supplier", "description": "Suppliers" },
+    "/vistorias/{id}": { "schema": "object", "description": "Inspections" },
+    "/orcamentos/{id}": { "schema": "Orcamento", "description": "Quotes" },
+    "/veiculos_revenda/{id}": { "schema": "object", "description": "Resale Vehicles" },
+    "/dashboard_metrics/{id}": { "schema": "object", "description": "Metrics" },
+    "/auditoria_logs/{id}": { "schema": "AuditLog", "description": "Audit" }
   }
 }

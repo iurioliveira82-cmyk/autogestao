@@ -45,23 +45,24 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
 
   // Form state
   const [formData, setFormData] = useState({
-    clientId: '',
-    vehicleId: '',
-    serviceIds: [] as string[],
+    clienteId: '',
+    veiculoId: '',
+    servicoIds: [] as string[],
     startTime: '',
     endTime: '',
-    status: 'scheduled' as 'scheduled' | 'confirmed' | 'cancelled'
+    status: 'scheduled' as 'scheduled' | 'confirmed' | 'cancelled' | 'completed'
   });
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
 
     const start = startOfDay(selectedDate);
     const end = endOfDay(selectedDate);
 
     const q = query(
-      collection(db, 'appointments'),
+      collection(db, 'agendamentos'),
+      where('empresaId', '==', profile.empresaId),
       where('startTime', '>=', start.toISOString()),
       where('startTime', '<=', end.toISOString()),
       orderBy('startTime', 'asc')
@@ -75,33 +76,42 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
       setAppointments(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'appointments');
+      handleFirestoreError(error, OperationType.GET, 'agendamentos');
       setLoading(false);
     });
 
-    const unsubscribeClients = onSnapshot(collection(db, 'clients'), (snapshot) => {
-      const list: Client[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
-      setClients(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'clients');
-    });
+    const unsubscribeClients = onSnapshot(
+      query(collection(db, 'clientes'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Client[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
+        setClients(list);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'clientes');
+      }
+    );
 
-    const unsubscribeVehicles = onSnapshot(collection(db, 'vehicles'), (snapshot) => {
-      const list: Vehicle[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Vehicle));
-      setVehicles(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'vehicles');
-    });
+    const unsubscribeVehicles = onSnapshot(
+      query(collection(db, 'veiculos'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Vehicle[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Vehicle));
+        setVehicles(list);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'veiculos');
+      }
+    );
 
-    const unsubscribeServices = onSnapshot(collection(db, 'services'), (snapshot) => {
-      const list: Service[] = [];
-      snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Service));
-      setServices(list);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'services');
-    });
+    const unsubscribeServices = onSnapshot(
+      query(collection(db, 'catalogo_servicos'), where('empresaId', '==', profile.empresaId)), 
+      (snapshot) => {
+        const list: Service[] = [];
+        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Service));
+        setServices(list);
+      }, (error) => {
+        handleFirestoreError(error, OperationType.GET, 'catalogo_servicos');
+      }
+    );
 
     return () => {
       unsubscribe();
@@ -114,7 +124,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.clientId || !formData.vehicleId || !formData.startTime || !formData.endTime || formData.serviceIds.length === 0) {
+    if (!formData.clienteId || !formData.veiculoId || !formData.startTime || !formData.endTime || formData.servicoIds.length === 0) {
       toast.error('Todos os campos são obrigatórios, incluindo ao menos um serviço.');
       return;
     }
@@ -135,8 +145,9 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
         return;
       }
 
-      await addDoc(collection(db, 'appointments'), {
+      await addDoc(collection(db, 'agendamentos'), {
         ...formData,
+        empresaId: profile?.empresaId,
         createdAt: serverTimestamp()
       });
       
@@ -156,7 +167,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   const confirmDelete = async () => {
     if (!appointmentToDelete) return;
     try {
-      await deleteDoc(doc(db, 'appointments', appointmentToDelete));
+      await deleteDoc(doc(db, 'agendamentos', appointmentToDelete));
       toast.success('Agendamento excluído com sucesso!');
     } catch (error) {
       console.error(error);
@@ -168,30 +179,32 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
 
   const updateStatus = async (id: string, status: 'confirmed' | 'cancelled') => {
     try {
-      await updateDoc(doc(db, 'appointments', id), { status });
+      await updateDoc(doc(db, 'agendamentos', id), { status });
       
       if (status === 'confirmed') {
         const app = appointments.find(a => a.id === id);
         if (app) {
-          const selectedServices = services.filter(s => app.serviceIds?.includes(s.id));
+          const selectedServices = services.filter(s => app.servicoIds?.includes(s.id));
           if (selectedServices.length > 0) {
             const totalValue = selectedServices.reduce((acc, s) => acc + s.price, 0);
-            const totalCost = selectedServices.reduce((acc, s) => acc + (s.cost || 0), 0);
+            const totalCost = selectedServices.reduce((acc, s) => acc + (s.precoCusto || 0), 0);
             
-            await addDoc(collection(db, 'serviceOrders'), {
-              clientId: app.clientId,
-              vehicleId: app.vehicleId,
-              status: 'waiting',
+            await addDoc(collection(db, 'ordens_servico'), {
+              empresaId: profile?.empresaId,
+              clienteId: app.clienteId,
+              veiculoId: app.veiculoId,
+              status: 'aguardando',
               services: selectedServices.map(s => ({
                 serviceId: s.id,
                 name: s.name,
                 price: s.price,
-                cost: s.cost || 0,
-                products: s.products || []
+                cost: s.precoCusto || 0,
+                products: s.produtos || []
               })),
-              totalValue,
-              totalCost,
-              createdAt: new Date().toISOString(),
+              valorTotal: totalValue,
+              totalValue: totalValue, // Alias
+              desconto: 0,
+              createdAt: serverTimestamp(),
               updatedAt: serverTimestamp()
             });
             toast.success('OS gerada com sucesso!');
@@ -209,9 +222,9 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
 
   const openModal = () => {
     setFormData({
-      clientId: '',
-      vehicleId: '',
-      serviceIds: [],
+      clienteId: '',
+      veiculoId: '',
+      servicoIds: [],
       startTime: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
       endTime: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
       status: 'scheduled'
@@ -277,7 +290,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
         {canCreate && (
           <button 
             onClick={openModal}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-zinc-200"
           >
             <Plus size={20} />
             Agendar Horário
@@ -309,12 +322,12 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                     Até {format(new Date(app.endTime), 'HH:mm')}
                   </span>
                 </div>
-                <h4 className="text-lg font-bold text-zinc-900 mb-1">{getClientName(app.clientId)}</h4>
+                <h4 className="text-lg font-bold text-zinc-900 mb-1">{getClientName(app.clienteId)}</h4>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
-                  <span className="flex items-center gap-1.5"><Car size={14} /> {getVehicleInfo(app.vehicleId)}</span>
+                  <span className="flex items-center gap-1.5"><Car size={14} /> {getVehicleInfo(app.veiculoId || '')}</span>
                   <span className="flex items-center gap-1.5 font-bold text-zinc-900">
                     <AlertCircle size={14} className="text-zinc-400" /> 
-                    {getServiceNames(app.serviceIds)}
+                    {getServiceNames(app.servicoIds)}
                   </span>
                 </div>
               </div>
@@ -355,7 +368,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
             <p className="text-zinc-400 font-medium">Nenhum agendamento para este dia.</p>
             <button 
               onClick={openModal}
-              className="mt-4 text-sm font-bold text-zinc-900 hover:underline"
+              className="mt-4 text-sm font-bold text-accent hover:underline"
             >
               Agendar agora
             </button>
@@ -365,7 +378,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900">Novo Agendamento</h3>
@@ -379,9 +392,9 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cliente</label>
                 <select 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                  value={formData.clientId}
-                  onChange={(e) => setFormData({ ...formData, clientId: e.target.value, vehicleId: '' })}
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                  value={formData.clienteId}
+                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value, veiculoId: '' })}
                 >
                   <option value="">Selecione um cliente...</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -393,13 +406,13 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Veículo</label>
                   <select 
                     required
-                    disabled={!formData.clientId}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.vehicleId}
-                    onChange={(e) => setFormData({ ...formData, vehicleId: e.target.value })}
+                    disabled={!formData.clienteId}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    value={formData.veiculoId}
+                    onChange={(e) => setFormData({ ...formData, veiculoId: e.target.value })}
                   >
                     <option value="">Selecione um veículo...</option>
-                    {vehicles.filter(v => v.clientId === formData.clientId).map(v => (
+                    {vehicles.filter(v => v.clienteId === formData.clienteId).map(v => (
                       <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
                     ))}
                   </select>
@@ -407,27 +420,27 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest flex items-center justify-between">
                     <span>Serviços</span>
-                    <span className="text-[10px] text-zinc-400">{formData.serviceIds.length} selecionados</span>
+                    <span className="text-[10px] text-zinc-400">{formData.servicoIds.length} selecionados</span>
                   </label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
                     <input 
                       type="text" 
                       placeholder="Buscar serviço..." 
-                      className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={serviceSearchTerm}
                       onChange={(e) => setServiceSearchTerm(e.target.value)}
                     />
                   </div>
                 </div>
               </div>
-
+ 
               <div className="space-y-3">
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-50 rounded-xl border border-zinc-100">
                   {services
                     .filter(s => s.name.toLowerCase().includes(serviceSearchTerm.toLowerCase()))
                     .map(s => {
-                      const isSelected = formData.serviceIds.includes(s.id);
+                      const isSelected = formData.servicoIds.includes(s.id);
                       return (
                         <button
                           key={s.id}
@@ -435,15 +448,15 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                           onClick={() => {
                             setFormData(prev => ({
                               ...prev,
-                              serviceIds: isSelected 
-                                ? prev.serviceIds.filter(id => id !== s.id)
-                                : [...prev.serviceIds, s.id]
+                              servicoIds: isSelected 
+                                ? prev.servicoIds.filter(id => id !== s.id)
+                                : [...prev.servicoIds, s.id]
                             }));
                           }}
                           className={cn(
                             "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
                             isSelected 
-                              ? "bg-zinc-900 text-white border-zinc-900" 
+                              ? "bg-accent text-accent-foreground border-accent" 
                               : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
                           )}
                         >
@@ -460,7 +473,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <input 
                     type="datetime-local" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.startTime}
                     onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                   />
@@ -470,7 +483,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <input 
                     type="datetime-local" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.endTime}
                     onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                   />
@@ -487,7 +500,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200"
                 >
                   Confirmar Agendamento
                 </button>

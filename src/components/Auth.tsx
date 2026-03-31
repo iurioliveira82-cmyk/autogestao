@@ -12,7 +12,19 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { auth, db, handleFirestoreError, OperationType } from '../firebase';
 import { UserProfile, UserRole, UserPermissions, ModulePermissions } from '../types';
-import { defaultPermissions, adminPermissions } from '../lib/permissions';
+import { defaultPermissions, adminPermissions, gerentePermissions, tecnicoPermissions, financeiroPermissions, estoquePermissions, atendimentoPermissions } from '../lib/permissions';
+
+const getPermissionsByRole = (role: UserRole): UserPermissions => {
+  switch (role) {
+    case 'admin': return adminPermissions;
+    case 'gerente': return gerentePermissions;
+    case 'tecnico': return tecnicoPermissions;
+    case 'financeiro': return financeiroPermissions;
+    case 'estoque': return estoquePermissions;
+    case 'atendimento': return atendimentoPermissions;
+    default: return defaultPermissions;
+  }
+};
 import { LogIn, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,15 +50,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {
-        const docRef = doc(db, 'users', user.uid);
         try {
+          // 1. Try to get profile by UID
+          const docRef = doc(db, 'usuarios', user.uid);
           const docSnap = await getDoc(docRef);
           
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
-            // Check if there's a pre-created profile by email
-            const emailDocRef = doc(db, 'users', user.email || '');
+            // 2. Check if there's a pre-created profile by email (invited user)
+            const emailDocRef = doc(db, 'usuarios', user.email || 'no-email');
             const emailDocSnap = await getDoc(emailDocRef);
             
             if (emailDocSnap.exists()) {
@@ -57,28 +70,55 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 name: user.displayName || preProfile.name || 'Usuário',
                 updatedAt: serverTimestamp() as any
               };
+              // Create UID-based doc and delete email-based doc
               await setDoc(docRef, newProfile);
               await deleteDoc(emailDocRef);
               setProfile(newProfile);
+              toast.success('Perfil vinculado com sucesso!');
             } else {
+              // 3. First login: Create company and user profile
               const isAdminEmail = user.email === 'iurioliveira82@gmail.com';
-              const newProfile: UserProfile = {
+              const empresaId = `empresa_${Math.random().toString(36).substr(2, 9)}`;
+              
+              // Create company
+              const companyRef = doc(db, 'empresas', empresaId);
+              await setDoc(companyRef, {
+                id: empresaId,
+                name: `Oficina de ${user.displayName || 'Usuário'}`,
+                plan: 'pro',
+                createdAt: serverTimestamp()
+              });
+
+              // Create user profile
+              const role: UserRole = isAdminEmail ? 'admin' : 'gerente';
+              const newProfileData = {
                 uid: user.uid,
                 name: user.displayName || 'Usuário',
                 email: user.email || '',
-                role: isAdminEmail ? 'admin' : 'employee',
-                permissions: isAdminEmail ? adminPermissions : defaultPermissions,
-                createdAt: new Date().toISOString()
-              };
-              await setDoc(docRef, {
-                ...newProfile,
+                role,
+                empresaId: empresaId,
+                permissions: getPermissionsByRole(role),
                 createdAt: serverTimestamp()
-              });
-              setProfile(newProfile);
+              };
+              
+              await setDoc(docRef, newProfileData);
+              
+              // Set local state
+              setProfile({
+                ...newProfileData,
+                createdAt: new Date().toISOString()
+              } as UserProfile);
+              
+              toast.success('Bem-vindo! Sua conta foi configurada.');
             }
           }
         } catch (error) {
-          handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
+          console.error('Auth Profile Error:', error);
+          // Only show error if it's not a "permission denied" on a non-existent doc
+          // which can happen during the transition
+          if (!(error instanceof Error && error.message.includes('permission-denied'))) {
+            toast.error('Erro ao carregar perfil. Tente novamente.');
+          }
         }
       } else {
         setProfile(null);
@@ -195,7 +235,7 @@ export const LoginScreen: React.FC = () => {
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
       <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 border border-zinc-200">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-zinc-900 text-white rounded-2xl mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-accent text-accent-foreground rounded-2xl mb-4 shadow-lg shadow-accent/20">
             <ShieldCheck size={32} />
           </div>
           <h1 className="text-3xl font-bold text-zinc-900 mb-2">AutoGestão SaaS</h1>
@@ -210,7 +250,7 @@ export const LoginScreen: React.FC = () => {
                 type="text" 
                 required
                 placeholder="Seu nome completo"
-                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -223,7 +263,7 @@ export const LoginScreen: React.FC = () => {
               type="email" 
               required
               placeholder="seu@email.com"
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -235,7 +275,7 @@ export const LoginScreen: React.FC = () => {
               type="password" 
               required
               placeholder="••••••••"
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
@@ -244,7 +284,7 @@ export const LoginScreen: React.FC = () => {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full flex items-center justify-center gap-3 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-400 text-white font-semibold py-4 px-6 rounded-2xl transition-all duration-200 shadow-lg shadow-zinc-200 mt-4"
+            className="w-full flex items-center justify-center gap-3 bg-accent hover:opacity-90 disabled:bg-zinc-400 text-accent-foreground font-semibold py-4 px-6 rounded-2xl transition-all duration-200 shadow-lg shadow-accent/20 mt-4"
           >
             {isSubmitting ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

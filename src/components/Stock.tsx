@@ -11,7 +11,7 @@ import {
   History,
   Filter
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, serverTimestamp, increment, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { StockMovement, InventoryItem, Supplier, UserProfile, OperationType } from '../types';
 import { usePermissions } from '../hooks/usePermissions';
@@ -23,9 +23,10 @@ import { toast } from 'sonner';
 interface StockProps {
   initialItemId?: string;
   initialSupplierId?: string;
+  setActiveTab?: (tab: string) => void;
 }
 
-const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
+const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActiveTab }) => {
   const { profile } = useAuth();
   const handleFirestoreError = (error: any, operation: OperationType, path: string) => {
     const errInfo = {
@@ -65,21 +66,24 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
   const { canView, canCreate } = usePermissions('stock');
 
   const [formData, setFormData] = useState({
-    itemId: '',
-    type: 'in' as 'in' | 'out',
-    quantity: 0,
+    itemInventarioId: '',
+    tipo: 'entrada' as 'entrada' | 'saida',
+    quantidade: 0,
     reason: '',
-    supplierId: '',
+    fornecedorId: '',
     cost: 0,
     createTransaction: false,
     dueDate: format(new Date(), 'yyyy-MM-dd')
   });
-
   useEffect(() => {
-    if (!profile || !canView) return;
+    if (!profile?.empresaId || !canView) return;
 
     const unsubscribeMovements = onSnapshot(
-      query(collection(db, 'stockMovements'), orderBy('date', 'desc')), 
+      query(
+        collection(db, 'movimentacoes_estoque'), 
+        where('empresaId', '==', profile.empresaId),
+        orderBy('timestamp', 'desc')
+      ), 
       (snapshot) => {
         const list: StockMovement[] = [];
         snapshot.forEach((doc) => {
@@ -89,39 +93,39 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
         setLoading(false);
       },
       (error) => {
-        handleFirestoreError(error, OperationType.GET, 'stockMovements');
+        handleFirestoreError(error, OperationType.GET, 'movimentacoes_estoque');
         setLoading(false);
       }
     );
 
     const unsubscribeInventory = onSnapshot(
-      collection(db, 'inventory'), 
+      query(collection(db, 'inventario'), where('empresaId', '==', profile.empresaId)), 
       (snapshot) => {
         const list: InventoryItem[] = [];
         snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as InventoryItem));
         setInventory(list);
       },
-      (error) => handleFirestoreError(error, OperationType.GET, 'inventory')
+      (error) => handleFirestoreError(error, OperationType.GET, 'inventario')
     );
 
     const unsubscribeSuppliers = onSnapshot(
-      collection(db, 'suppliers'), 
+      query(collection(db, 'fornecedores'), where('empresaId', '==', profile.empresaId)), 
       (snapshot) => {
         const list: Supplier[] = [];
         snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
         setSuppliers(list);
       },
-      (error) => handleFirestoreError(error, OperationType.GET, 'suppliers')
+      (error) => handleFirestoreError(error, OperationType.GET, 'fornecedores')
     );
 
     const unsubscribeUsers = onSnapshot(
-      collection(db, 'users'), 
+      query(collection(db, 'usuarios'), where('empresaId', '==', profile.empresaId)), 
       (snapshot) => {
         const list: UserProfile[] = [];
         snapshot.forEach((doc) => list.push({ uid: doc.id, ...doc.data() } as UserProfile));
         setUsers(list);
       },
-      (error) => handleFirestoreError(error, OperationType.GET, 'users')
+      (error) => handleFirestoreError(error, OperationType.GET, 'usuarios')
     );
 
     return () => {
@@ -130,12 +134,12 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
       unsubscribeSuppliers();
       unsubscribeUsers();
     };
-  }, [profile, canView]);
+  }, [profile, canView]);;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.itemId || formData.quantity <= 0 || !formData.reason) {
+    if (!formData.itemInventarioId || formData.quantidade <= 0 || !formData.reason) {
       toast.error('Item, quantidade e motivo são obrigatórios.');
       return;
     }
@@ -143,60 +147,71 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
     if (!profile) return;
 
     try {
-      const item = inventory.find(i => i.id === formData.itemId);
+      const item = inventory.find(i => i.id === formData.itemInventarioId);
       if (!item) throw new Error('Item não encontrado');
 
       // If output, check if enough stock
-      if (formData.type === 'out' && item.quantity < formData.quantity) {
+      if (formData.tipo === 'saida' && item.quantidadeAtual < formData.quantidade) {
         toast.error('Estoque insuficiente para esta saída.');
         return;
       }
 
       // 1. Create movement record
-      await addDoc(collection(db, 'stockMovements'), {
-        ...formData,
-        userId: profile.uid,
-        date: new Date().toISOString()
+      await addDoc(collection(db, 'movimentacoes_estoque'), {
+        empresaId: profile.empresaId,
+        itemInventarioId: formData.itemInventarioId,
+        tipo: formData.tipo,
+        quantidade: formData.quantidade,
+        reason: formData.reason,
+        fornecedorId: formData.fornecedorId || null,
+        usuarioId: profile.uid,
+        timestamp: new Date().toISOString(),
+        origem: 'estoque'
       });
 
       // 2. Update inventory quantity
-      const itemRef = doc(db, 'inventory', formData.itemId);
+      const itemRef = doc(db, 'inventario', formData.itemInventarioId);
       await updateDoc(itemRef, {
-        quantity: increment(formData.type === 'in' ? formData.quantity : -formData.quantity),
+        quantidadeAtual: increment(formData.tipo === 'entrada' ? formData.quantidade : -formData.quantidade),
         // Update cost if it's an entry
-        ...(formData.type === 'in' && formData.cost > 0 ? { cost: formData.cost } : {})
+        ...(formData.tipo === 'entrada' && formData.cost > 0 ? { custoMedio: formData.cost } : {})
       });
 
       // 3. If it's an entry with cost and createTransaction is true, create a financial transaction (Accounts Payable)
-      if (formData.type === 'in' && formData.cost > 0 && formData.createTransaction) {
-        const supplier = suppliers.find(s => s.id === formData.supplierId);
-        await addDoc(collection(db, 'transactions'), {
+      if (formData.tipo === 'entrada' && formData.cost > 0 && formData.createTransaction) {
+        const supplier = suppliers.find(s => s.id === formData.fornecedorId);
+        await addDoc(collection(db, 'transacoes_financeiras'), {
+          empresaId: profile.empresaId,
           type: 'out',
-          value: formData.cost * formData.quantity,
+          value: formData.cost * formData.quantidade,
           category: 'Estoque',
-          description: `Entrada de Estoque: ${item.name} (${formData.quantity} un)${supplier ? ` - Fornecedor: ${supplier.name}` : ''}`,
+          description: `Entrada de Estoque: ${item.name} (${formData.quantidade} un)${supplier ? ` - Fornecedor: ${supplier.name}` : ''}`,
           date: new Date(formData.dueDate).toISOString(),
           status: 'pending', // Accounts Payable
           paymentMethod: 'Boleto',
-          supplierId: formData.supplierId || undefined
+          fornecedorId: formData.fornecedorId || undefined
         });
+
+        if (setActiveTab) {
+          setActiveTab('finance');
+        }
       }
 
       toast.success('Movimentação registrada com sucesso!');
       closeModal();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'stockMovements');
+      handleFirestoreError(error, OperationType.CREATE, 'movimentacoes_estoque');
     }
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setFormData({
-      itemId: '',
-      type: 'in',
-      quantity: 0,
+      itemInventarioId: '',
+      tipo: 'entrada',
+      quantidade: 0,
       reason: '',
-      supplierId: '',
+      fornecedorId: '',
       cost: 0,
       createTransaction: false,
       dueDate: format(new Date(), 'yyyy-MM-dd')
@@ -208,14 +223,14 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
   const getUserName = (id: string) => users.find(u => u.uid === id)?.name || 'Sistema';
 
   const filteredMovements = movements.filter(m => {
-    const matchesSearch = getItemName(m.itemId).toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = getItemName(m.itemInventarioId).toLowerCase().includes(searchTerm.toLowerCase()) ||
       m.reason.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'all' || m.type === filterType;
-    const matchesUser = filterUser === 'all' || m.userId === filterUser;
-    const matchesItem = filterItem === 'all' || m.itemId === filterItem;
-    const matchesSupplier = filterSupplier === 'all' || m.supplierId === filterSupplier;
+    const matchesType = filterType === 'all' || (filterType === 'in' ? m.tipo === 'entrada' : m.tipo === 'saida');
+    const matchesUser = filterUser === 'all' || m.usuarioId === filterUser;
+    const matchesItem = filterItem === 'all' || m.itemInventarioId === filterItem;
+    const matchesSupplier = filterSupplier === 'all' || m.fornecedorId === filterSupplier;
     
-    const movementDate = new Date(m.date);
+    const movementDate = new Date(m.timestamp);
     const matchesStart = !dateRange.start || movementDate >= new Date(dateRange.start);
     const matchesEnd = !dateRange.end || movementDate <= new Date(dateRange.end + 'T23:59:59');
     
@@ -276,7 +291,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
             <input 
               type="text" 
               placeholder={viewMode === 'movements' ? "Buscar por item ou motivo..." : "Buscar por item ou categoria..."}
-              className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
+              className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -285,7 +300,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
           {canCreate && (
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
+              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
             >
               <Plus size={20} />
               Nova Movimentação
@@ -315,7 +330,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
 
           <div className="flex flex-wrap gap-2">
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterItem}
               onChange={(e) => setFilterItem(e.target.value)}
             >
@@ -326,7 +341,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
             >
@@ -337,7 +352,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
             >
@@ -347,7 +362,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
             >
@@ -393,7 +408,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="px-8 py-20 text-center">
-                      <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                       <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Carregando movimentações...</p>
                     </td>
                   </tr>
@@ -401,37 +416,37 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                   <tr key={m.id} className="hover:bg-zinc-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex flex-col">
-                        <span className="text-sm font-black text-zinc-900">{format(new Date(m.date), 'dd/MM/yyyy')}</span>
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{format(new Date(m.date), 'HH:mm')}</span>
+                        <span className="text-sm font-black text-zinc-900">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
+                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{format(new Date(m.timestamp), 'HH:mm')}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">
                       <span className={cn(
                         "inline-flex items-center gap-2 px-4 py-1.5 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-sm border",
-                        m.type === 'in' ? "bg-green-50 text-green-600 border-green-100" : "bg-red-50 text-red-600 border-red-100"
+                        m.tipo === 'entrada' ? "bg-green-50 text-green-600 border-green-100" : "bg-red-50 text-red-600 border-red-100"
                       )}>
-                        {m.type === 'in' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
-                        {m.type === 'in' ? 'Entrada' : 'Saída'}
+                        {m.tipo === 'entrada' ? <ArrowUpCircle size={14} /> : <ArrowDownCircle size={14} />}
+                        {m.tipo === 'entrada' ? 'Entrada' : 'Saída'}
                       </span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-black text-zinc-900">{getItemName(m.itemId)}</span>
+                      <span className="text-sm font-black text-zinc-900">{getItemName(m.itemInventarioId)}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-black text-zinc-900">{m.quantity} un</span>
+                      <span className="text-sm font-black text-zinc-900">{m.quantidade} un</span>
                     </td>
                     <td className="px-8 py-5">
                       <span className="text-sm font-bold text-zinc-500">{m.reason}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-500">{getSupplierName(m.supplierId || '')}</span>
+                      <span className="text-sm font-bold text-zinc-500">{getSupplierName(m.fornecedorId || '')}</span>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center text-[10px] font-black text-zinc-500 border border-zinc-200 group-hover:scale-110 transition-transform">
-                          {getUserName(m.userId).charAt(0)}
+                          {getUserName(m.usuarioId).charAt(0)}
                         </div>
-                        <span className="text-sm font-bold text-zinc-500">{getUserName(m.userId)}</span>
+                        <span className="text-sm font-bold text-zinc-500">{getUserName(m.usuarioId)}</span>
                       </div>
                     </td>
                   </tr>
@@ -464,7 +479,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                 {loading ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
-                      <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                       <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Carregando itens...</p>
                     </td>
                   </tr>
@@ -479,18 +494,18 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                     <td className="px-8 py-5">
                       <span className={cn(
                         "text-sm font-black px-3 py-1 rounded-xl",
-                        item.quantity <= item.minQuantity ? "bg-red-50 text-red-600 border border-red-100" : "bg-zinc-50 text-zinc-900 border border-zinc-100"
+                        item.quantidadeAtual <= item.estoqueMinimo ? "bg-red-50 text-red-600 border border-red-100" : "bg-zinc-50 text-zinc-900 border border-zinc-100"
                       )}>
-                        {item.quantity} un
+                        {item.quantidadeAtual} un
                       </span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-400">{item.minQuantity} un</span>
+                      <span className="text-sm font-bold text-zinc-400">{item.estoqueMinimo} un</span>
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button
                         onClick={() => openHistory(item)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-sm group-hover:scale-105"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-all shadow-sm group-hover:scale-105"
                       >
                         <History size={14} />
                         Histórico
@@ -541,29 +556,29 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-50">
-                  {movements.filter(m => m.itemId === selectedItem.id).length > 0 ? (
-                    movements.filter(m => m.itemId === selectedItem.id).map((m) => (
+                  {movements.filter(m => m.itemInventarioId === selectedItem.id).length > 0 ? (
+                    movements.filter(m => m.itemInventarioId === selectedItem.id).map((m) => (
                       <tr key={m.id} className="hover:bg-zinc-50/30 transition-colors">
                         <td className="px-8 py-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-bold text-zinc-900">{format(new Date(m.date), 'dd/MM/yyyy')}</span>
-                            <span className="text-[10px] text-zinc-400">{format(new Date(m.date), 'HH:mm')}</span>
+                            <span className="text-sm font-bold text-zinc-900">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
+                            <span className="text-[10px] text-zinc-400">{format(new Date(m.timestamp), 'HH:mm')}</span>
                           </div>
                         </td>
                         <td className="px-8 py-4">
                           <span className={cn(
                             "inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                            m.type === 'in' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
+                            m.tipo === 'entrada' ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"
                           )}>
-                            {m.type === 'in' ? 'Entrada' : 'Saída'}
+                            {m.tipo === 'entrada' ? 'Entrada' : 'Saída'}
                           </span>
                         </td>
                         <td className="px-8 py-4 text-right">
                           <span className={cn(
                             "text-sm font-bold",
-                            m.type === 'in' ? "text-green-600" : "text-red-600"
+                            m.tipo === 'entrada' ? "text-green-600" : "text-red-600"
                           )}>
-                            {m.type === 'in' ? '+' : '-'}{m.quantity} un
+                            {m.tipo === 'entrada' ? '+' : '-'}{m.quantidade} un
                           </span>
                         </td>
                         <td className="px-8 py-4">
@@ -572,9 +587,9 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
-                              {getUserName(m.userId).charAt(0)}
+                              {getUserName(m.usuarioId).charAt(0)}
                             </div>
-                            <span className="text-xs text-zinc-500">{getUserName(m.userId)}</span>
+                            <span className="text-xs text-zinc-500">{getUserName(m.usuarioId)}</span>
                           </div>
                         </td>
                       </tr>
@@ -591,7 +606,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
             <div className="p-8 bg-zinc-50/50 border-t border-zinc-100 flex justify-end">
               <button 
                 onClick={closeHistoryModal}
-                className="px-8 py-3 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                className="px-8 py-3 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
               >
                 Fechar
               </button>
@@ -600,7 +615,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
         </div>
       )}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900">Nova Movimentação de Estoque</h3>
@@ -616,10 +631,10 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, type: 'in' })}
+                      onClick={() => setFormData({ ...formData, tipo: 'entrada' })}
                       className={cn(
                         "flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs transition-all border",
-                        formData.type === 'in' 
+                        formData.tipo === 'entrada' 
                           ? "bg-green-50 text-green-600 border-green-200" 
                           : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
                       )}
@@ -629,10 +644,10 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, type: 'out' })}
+                      onClick={() => setFormData({ ...formData, tipo: 'saida' })}
                       className={cn(
                         "flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-xs transition-all border",
-                        formData.type === 'out' 
+                        formData.tipo === 'saida' 
                           ? "bg-red-50 text-red-600 border-red-200" 
                           : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
                       )}
@@ -646,13 +661,13 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Item do Estoque</label>
                   <select 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.itemId}
-                    onChange={(e) => setFormData({ ...formData, itemId: e.target.value })}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    value={formData.itemInventarioId}
+                    onChange={(e) => setFormData({ ...formData, itemInventarioId: e.target.value })}
                   >
                     <option value="">Selecione um item...</option>
                     {inventory.map(i => (
-                      <option key={i.id} value={i.id}>{i.name} (Saldo: {i.quantity})</option>
+                      <option key={i.id} value={i.id}>{i.name} (Saldo: {i.quantidadeAtual})</option>
                     ))}
                   </select>
                 </div>
@@ -665,18 +680,18 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                     type="number" 
                     required
                     min="1"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    value={formData.quantidade}
+                    onChange={(e) => setFormData({ ...formData, quantidade: parseInt(e.target.value) })}
                   />
                 </div>
-                {formData.type === 'in' && (
+                {formData.tipo === 'entrada' && (
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Custo Unitário (R$)</label>
                     <input 
                       type="number" 
                       step="0.01"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={formData.cost}
                       onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) })}
                     />
@@ -684,13 +699,13 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                 )}
               </div>
 
-              {formData.type === 'in' && (
+              {formData.tipo === 'entrada' && (
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
-                    value={formData.supplierId}
-                    onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    value={formData.fornecedorId}
+                    onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
                   >
                     <option value="">Selecione um fornecedor (opcional)...</option>
                     {suppliers.map(s => (
@@ -705,20 +720,20 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                 <textarea 
                   required
                   rows={3}
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all resize-none"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all resize-none"
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                  placeholder={formData.type === 'in' ? "Ex: Compra de mercadoria, Devolução..." : "Ex: Uso em serviço, Ajuste de inventário..."}
+                  placeholder={formData.tipo === 'entrada' ? "Ex: Compra de mercadoria, Devolução..." : "Ex: Uso em serviço, Ajuste de inventário..."}
                 />
               </div>
 
-              {formData.type === 'in' && (
+              {formData.tipo === 'entrada' && (
                 <div className="space-y-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
                   <div className="flex items-center gap-3">
                     <input 
                       type="checkbox" 
                       id="createTransaction"
-                      className="w-4 h-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                      className="w-4 h-4 rounded border-zinc-300 text-accent focus:ring-accent"
                       checked={formData.createTransaction}
                       onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
                     />
@@ -731,7 +746,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                       <input 
                         type="date" 
                         required
-                        className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                        className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                         value={formData.dueDate}
                         onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                       />
@@ -750,7 +765,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId }) => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                 >
                   Confirmar Movimentação
                 </button>

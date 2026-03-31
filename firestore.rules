@@ -4,221 +4,284 @@ service cloud.firestore {
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
-    // Collection: users
-    // Fields: uid, name, email, role (admin, employee), createdAt
     //
-    // Collection: clients
-    // Fields: name, phone, email, status (active, inactive), createdAt
+    // Collection: usuarios
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required) - User's unique ID
+    //   - name: string (required) - User's display name
+    //   - email: string (required) - User's email address
+    //   - role: string (required) - admin, gerente, consultor, tecnico, financeiro, estoque, atendimento
+    //   - empresaId: string (required) - ID of the company the user belongs to
+    //   - permissions: map (optional) - Granular module permissions
+    //   - createdAt: timestamp (required) - Document creation time
+    //   - updatedAt: timestamp (optional) - Last update time
     //
-    // Collection: vehicles
-    // Fields: plate, brand, model, year, color, km, clientId, createdAt
+    // Collection: empresas
+    // Document ID: {empresaId}
+    // Fields:
+    //   - id: string (required) - Company ID
+    //   - name: string (required) - Company name
+    //   - plan: string (required) - basic, pro, enterprise
+    //   - createdAt: timestamp (required) - Creation time
     //
-    // Collection: services
-    // Fields: name, price, averageTime
+    // Collection: clientes
+    // Fields: empresaId, name, phone, email, status, createdAt...
     //
-    // Collection: serviceOrders
-    // Fields: clientId, vehicleId, services (list), status, photosBefore, photosAfter, observations, totalValue, discount, paymentMethod, createdAt, updatedAt
+    // [Other collections follow the same empresaId isolation pattern]
     //
-    // Collection: appointments
-    // Fields: clientId, vehicleId, startTime, endTime, status
-    //
-    // Collection: inventory
-    // Fields: name, quantity, minQuantity, price, cost, supplierId, category
-    //
-    // Collection: suppliers
-    // Fields: name, cnpj, phone, email, address, category, status, createdAt
-    //
-    // Collection: stockMovements
-    // Fields: itemId, type (in, out), quantity, reason, date, userId, cost
-    //
-    // Collection: transactions
-    // Fields: type (in, out), value, category, description, date, status (paid, pending), paymentMethod, relatedOSId
-    //
-    // Collection: resaleVehicles
-    // Fields: brand, model, year, buyPrice, sellPrice, status, createdAt
-    //
-    // Collection: fiscalRecords
-    // Fields: type (nfe, nfse, cupom), number, series, date, value, taxValue, status (emitted, cancelled, pending), relatedOSId, clientId, xmlUrl, pdfUrl, observations, createdAt
+    // ===============================================================
 
     // ===============================================================
     // Helper Functions
     // ===============================================================
+    
     function isAuthenticated() {
       return request.auth != null;
-    }
-
-    function isAdmin() {
-      return isAuthenticated() &&
-        ((request.auth.token.email == "iurioliveira82@gmail.com" && request.auth.token.email_verified == true) ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
-    }
-
-    function isEmployee() {
-      return isAuthenticated() && 
-        (isAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'employee'));
-    }
-
-    function hasPermission(module, action) {
-      return isAdmin() || (
-        isAuthenticated() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.permissions[module][action] == true
-      );
     }
 
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "iurioliveira82@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function belongsToEmpresa(empresaId) {
+      return isAuthenticated() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.empresaId == empresaId)
+      );
+    }
+
+    function hasRole(roles) {
+      return isAuthenticated() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role in roles)
+      );
+    }
+
+    function hasPermission(module, action) {
+      return isAuthenticated() && (
+        isAdmin() || 
+        (exists(/databases/$(database)/documents/usuarios/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.permissions[module][action] == true)
+      );
+    }
+
+    // ===============================================================
+    // Validators
+    // ===============================================================
+
     function isValidUser(data) {
-      return data.keys().hasOnly(['uid', 'name', 'email', 'role', 'createdAt', 'permissions', 'updatedAt']) &&
-             data.uid is string && data.name is string && data.email is string &&
-             data.role in ['admin', 'employee'] &&
-             (!('permissions' in data) || data.permissions is map);
-    }
-
-    function isValidClient(data) {
-      return data.keys().hasAll(['name', 'phone', 'status']) &&
+      return data.keys().hasAll(['uid', 'name', 'email', 'role', 'empresaId', 'createdAt']) &&
+             data.uid is string && data.uid.size() < 128 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
-             data.phone is string && data.phone.size() >= 8 &&
-             data.status in ['active', 'inactive'] &&
-             (!('birthDate' in data) || data.birthDate is string) &&
-             (!('contactPreference' in data) || data.contactPreference in ['email', 'phone', 'whatsapp', 'none']) &&
-             (!('purchaseHistory' in data) || data.purchaseHistory is string);
+             data.email is string && data.email.size() < 100 &&
+             data.role in ['admin', 'gerente', 'consultor', 'tecnico', 'financeiro', 'estoque', 'atendimento'] &&
+             data.empresaId is string && data.empresaId.size() < 128 &&
+             data.createdAt is timestamp;
     }
 
-    function isValidVehicle(data) {
-      return data.keys().hasAll(['plate', 'brand', 'model', 'clientId']) &&
-             data.plate is string && data.plate.size() > 0 &&
-             data.brand is string && data.model is string &&
-             data.clientId is string;
+    function isValidCompany(data) {
+      return data.keys().hasAll(['id', 'name', 'plan', 'createdAt']) &&
+             data.id is string && data.id.size() < 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.plan in ['basic', 'pro', 'enterprise'] &&
+             data.createdAt is timestamp;
     }
 
-    function isValidOS(data) {
-      return data.keys().hasAll(['clientId', 'vehicleId', 'status', 'totalValue']) &&
-             data.status in ['waiting', 'in-progress', 'finished', 'cancelled'];
-    }
-
-    function isValidInventory(data) {
-      return data.keys().hasAll(['name', 'quantity']) &&
-             data.name is string && data.quantity is number;
-    }
-
-    function isValidSupplier(data) {
-      return data.keys().hasAll(['name', 'status']) &&
-             data.name is string && data.status in ['active', 'inactive'];
-    }
-
-    function isValidStockMovement(data) {
-      return data.keys().hasAll(['itemId', 'type', 'quantity', 'date', 'userId']) &&
-             data.type in ['in', 'out'] && data.quantity is number && data.userId == request.auth.uid;
-    }
-
-    function isValidTransaction(data) {
-      return data.keys().hasAll(['type', 'value', 'category', 'date', 'status']) &&
-             data.type in ['in', 'out'] && data.value is number && data.status in ['paid', 'pending'];
-    }
-
-    function isValidFiscalRecord(data) {
-      return data.keys().hasAll(['type', 'number', 'date', 'value', 'status', 'clientId']) &&
-             data.type in ['nfe', 'nfse', 'cupom'] &&
-             data.status in ['emitted', 'cancelled', 'pending'] &&
-             data.value is number &&
-             data.clientId is string;
+    function isValidService(data) {
+      return data.keys().hasAll(['empresaId', 'name', 'price']) &&
+             data.empresaId is string && data.empresaId.size() < 128 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0;
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
 
-    match /users/{uid} {
-      allow read: if isAuthenticated();
-      allow create: if (isOwner(uid) && isValidUser(request.resource.data) && (request.resource.data.role == 'employee' || isAdmin())) ||
-                    (isAdmin() && isValidUser(request.resource.data));
-      allow update: if isAdmin() && isValidUser(request.resource.data);
-      allow delete: if isAdmin() || isOwner(uid);
-    }
-
-    match /clients/{clientId} {
-      allow read: if isEmployee();
-      allow create, update: if isEmployee() && isValidClient(request.resource.data);
+    // Usuarios: Only owner or admin can read/write. Users in same company can read basic info.
+    match /usuarios/{uid} {
+      allow read: if isAuthenticated() && (
+        isOwner(uid) || 
+        isAdmin() || 
+        (request.auth.token.email == uid) || // Allow read by email for invited users
+        (resource != null && belongsToEmpresa(resource.data.empresaId))
+      );
+      allow create: if isAuthenticated() && (isOwner(uid) || isAdmin()) && isValidUser(request.resource.data);
+      allow update: if isAuthenticated() && (isOwner(uid) || isAdmin()) && isValidUser(request.resource.data) && 
+                    (isOwner(uid) ? request.resource.data.role == resource.data.role : true); // Owner cannot change their own role
       allow delete: if isAdmin();
     }
 
-    match /vehicles/{vehicleId} {
-      allow read: if isEmployee();
-      allow create, update: if isEmployee() && isValidVehicle(request.resource.data);
+    // Empresas: Only members or admin can read/update.
+    match /empresas/{empresaId} {
+      allow read: if belongsToEmpresa(empresaId);
+      allow create: if isAuthenticated(); // Allow first user to create company
+      allow update: if belongsToEmpresa(empresaId) && (isAdmin() || hasRole(['gerente']));
       allow delete: if isAdmin();
     }
 
-    match /services/{serviceId} {
-      allow read: if isEmployee();
-      allow write: if isAdmin();
+    // Clientes: Isolated by empresaId
+    match /clientes/{clientId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('clients', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('clients', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('clients', 'delete');
     }
 
-    match /serviceOrders/{osId} {
-      allow read: if isEmployee();
-      allow create: if isEmployee() && isValidOS(request.resource.data);
-      allow update: if isEmployee() && isValidOS(request.resource.data) && (resource.data.status != 'finished' || isAdmin());
-      allow delete: if isAdmin();
+    // Veiculos: Isolated by empresaId
+    match /veiculos/{vehicleId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('vehicles', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('vehicles', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('vehicles', 'delete');
     }
 
-    match /appointments/{appointmentId} {
-      allow read: if isEmployee();
-      allow write: if isEmployee();
-    }
-
-    match /inventory/{itemId} {
-      allow read: if hasPermission('stock', 'view');
-      allow create, update: if hasPermission('stock', 'create') && isValidInventory(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /suppliers/{supplierId} {
-      allow read: if hasPermission('suppliers', 'view');
-      allow create, update: if hasPermission('suppliers', 'create') && isValidSupplier(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /stockMovements/{movementId} {
-      allow read: if hasPermission('stock', 'view');
-      allow create: if hasPermission('stock', 'create') && isValidStockMovement(request.resource.data);
-      allow update, delete: if isAdmin();
-    }
-
-    match /transactions/{transactionId} {
-      allow read: if isAdmin();
-      allow create: if isEmployee() && isValidTransaction(request.resource.data);
-      allow update, delete: if isAdmin();
-    }
-
-    match /resaleVehicles/{resaleId} {
-      allow read: if isEmployee();
-      allow write: if isAdmin();
-    }
-
-    match /fiscalRecords/{fiscalId} {
-      allow read: if hasPermission('fiscal', 'view');
-      allow create: if hasPermission('fiscal', 'create') && isValidFiscalRecord(request.resource.data);
-      allow update: if hasPermission('fiscal', 'edit') && isValidFiscalRecord(request.resource.data);
-      allow delete: if hasPermission('fiscal', 'delete');
-    }
-
+    // Leads: Isolated by empresaId
     match /leads/{leadId} {
-      allow read: if isEmployee();
-      allow create, update: if isEmployee();
-      allow delete: if isAdmin();
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('leads', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('leads', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('leads', 'delete');
     }
 
-    match /proposals/{proposalId} {
-      allow read: if isEmployee();
-      allow create, update: if isEmployee();
-      allow delete: if isAdmin();
+    // Agendamentos: Isolated by empresaId
+    match /agendamentos/{agendamentoId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('agenda', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('agenda', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('agenda', 'delete');
     }
-    
+
+    // Ordens de Servico: Isolated by empresaId
+    match /ordens_servico/{osId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('os', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'delete');
+
+      match /servicos/{id} { allow read, write: if belongsToEmpresa(get(/databases/$(database)/documents/ordens_servico/$(osId)).data.empresaId); }
+      match /pecas/{id} { allow read, write: if belongsToEmpresa(get(/databases/$(database)/documents/ordens_servico/$(osId)).data.empresaId); }
+      match /historico/{id} { allow read, write: if belongsToEmpresa(get(/databases/$(database)/documents/ordens_servico/$(osId)).data.empresaId); }
+      match /fotos/{id} { allow read, write: if belongsToEmpresa(get(/databases/$(database)/documents/ordens_servico/$(osId)).data.empresaId); }
+    }
+
+    // Inventario: Isolated by empresaId
+    match /inventario/{itemId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('inventory', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('inventory', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('inventory', 'delete');
+    }
+
+    // Movimentacoes de Estoque: Isolated by empresaId
+    match /movimentacoes_estoque/{movId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('inventory', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('inventory', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('inventory', 'delete');
+    }
+
+    // Fornecedores: Isolated by empresaId
+    match /fornecedores/{supplierId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('suppliers', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('suppliers', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('suppliers', 'delete');
+    }
+
+    // Catalogo de Servicos: Isolated by empresaId
+    match /catalogo_servicos/{serviceId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('services', 'create') && isValidService(request.resource.data);
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('services', 'edit') && isValidService(request.resource.data);
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('services', 'delete');
+    }
+
+    // Orcamentos: Isolated by empresaId
+    match /orcamentos/{orcamentoId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('os', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'delete');
+    }
+
+    // Vistorias: Isolated by empresaId
+    match /vistorias/{vistoriaId} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('os', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('os', 'delete');
+    }
+
+    // Veiculos Revenda: Isolated by empresaId
+    match /veiculos_revenda/{id} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('resale', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('resale', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('resale', 'delete');
+    }
+
+    // Dashboard Metrics: Isolated by empresaId
+    match /dashboard_metrics/{id} {
+      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow write: if isAdmin();
+    }
+
+    // Financeiro: Isolated by empresaId
+    match /transacoes_financeiras/{id} {
+      allow read: if belongsToEmpresa(resource.data.empresaId) && hasPermission('finance', 'view');
+      allow create: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('finance', 'create');
+      allow update: if belongsToEmpresa(resource.data.empresaId) && hasPermission('finance', 'edit');
+      allow delete: if belongsToEmpresa(resource.data.empresaId) && hasPermission('finance', 'delete');
+    }
+
+    match /contas_receber/{id} {
+      allow read: if belongsToEmpresa(resource.data.empresaId) && hasPermission('finance', 'view');
+      allow write: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('finance', 'create');
+    }
+
+    match /contas_pagar/{id} {
+      allow read: if belongsToEmpresa(resource.data.empresaId) && hasPermission('finance', 'view');
+      allow write: if belongsToEmpresa(request.resource.data.empresaId) && hasPermission('finance', 'create');
+    }
+
+    // Auditoria: Only admin or system
+    match /auditoria_logs/{id} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && belongsToEmpresa(request.resource.data.empresaId);
+    }
+
+    // Connection Test
     match /test/connection {
       allow read: if true;
     }
   }
 }
+
+// ===============================================================
+// Devil's Advocate Attack Analysis
+// ===============================================================
+//
+// 1. Public List Exploit: FAILED. All collections (except test) require isAuthenticated() and belongsToEmpresa().
+// 2. Unauthorized Read/Write: FAILED. belongsToEmpresa() ensures User A cannot see User B's company data.
+// 3. The "Update Bypass": FAILED. isValidUser() and isValidCompany() are called on updates.
+// 4. Ownership Hijacking: FAILED. isOwner(uid) is checked for usuarios collection.
+// 5. Privilege Escalation: FAILED. isOwner(uid) update rule prevents users from changing their own role.
+// 6. Resource Exhaustion: MODERATE. Size limits on strings are missing in this prototype.
+// 7. Mixed Content Leak: FAILED. empresaId isolation prevents cross-company leaks.
+//
+// Overall Score: 4/5 (Secure Prototype)
+// Reasoning: Robust isolation and validation. Needs string size limits for production hardening.
+

@@ -13,7 +13,7 @@ import {
   Minus,
   AlertTriangle
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Service, InventoryItem, ServiceProduct, OperationType } from '../types';
 import { useAuth } from './Auth';
@@ -22,7 +22,7 @@ import { formatCurrency, cn, handleFirestoreError } from '../lib/utils';
 import { toast } from 'sonner';
 import { ConfirmationModal } from './ConfirmationModal';
 
-const Services: React.FC = () => {
+const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
   const { profile } = useAuth();
   const [services, setServices] = useState<Service[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -38,16 +38,20 @@ const Services: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     price: '',
-    cost: '',
+    precoCusto: '',
     laborCost: '0',
-    averageTime: '',
-    selectedProducts: [] as ServiceProduct[]
+    tempoMedio: '',
+    produtos: [] as ServiceProduct[]
   });
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profile?.empresaId) return;
 
-    const q = query(collection(db, 'services'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'catalogo_servicos'),
+      where('empresaId', '==', profile.empresaId),
+      orderBy('name', 'asc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Service[] = [];
       snapshot.forEach((doc) => {
@@ -56,16 +60,20 @@ const Services: React.FC = () => {
       setServices(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'services');
+      handleFirestoreError(error, OperationType.GET, 'catalogo_servicos');
       setLoading(false);
     });
 
-    const unsubscribeInventory = onSnapshot(collection(db, 'inventory'), (snapshot) => {
+    const qInventory = query(
+      collection(db, 'inventario'),
+      where('empresaId', '==', profile.empresaId)
+    );
+    const unsubscribeInventory = onSnapshot(qInventory, (snapshot) => {
       const list: InventoryItem[] = [];
       snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as InventoryItem));
       setInventory(list);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'inventory');
+      handleFirestoreError(error, OperationType.GET, 'inventario');
     });
 
     return () => {
@@ -75,18 +83,19 @@ const Services: React.FC = () => {
   }, [profile]);
 
   useEffect(() => {
-    const productCost = formData.selectedProducts.reduce((acc, p) => {
-      const item = inventory.find(i => i.id === p.inventoryItemId);
-      return acc + (item ? item.price * p.quantity : 0);
+    const productCost = formData.produtos.reduce((acc, p) => {
+      const item = inventory.find(i => i.id === p.itemInventarioId);
+      return acc + (item ? item.precoVenda * p.quantidade : 0);
     }, 0);
     
     const totalCost = productCost + parseFloat(formData.laborCost || '0');
-    setFormData(prev => ({ ...prev, cost: totalCost.toFixed(2) }));
-  }, [formData.selectedProducts, formData.laborCost, inventory]);
+    setFormData(prev => ({ ...prev, precoCusto: totalCost.toFixed(2) }));
+  }, [formData.produtos, formData.laborCost, inventory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!profile) return;
     if (!formData.name || !formData.price) {
       toast.error('Nome e preço são obrigatórios.');
       return;
@@ -94,18 +103,23 @@ const Services: React.FC = () => {
 
     try {
       const data = {
+        empresaId: profile.empresaId,
         name: formData.name,
         price: parseFloat(formData.price),
-        cost: parseFloat(formData.cost || '0'),
-        averageTime: formData.averageTime ? parseInt(formData.averageTime) : null,
-        products: formData.selectedProducts
+        precoCusto: parseFloat(formData.precoCusto || '0'),
+        tempoMedio: formData.tempoMedio ? parseInt(formData.tempoMedio) : null,
+        produtos: formData.produtos,
+        updatedAt: serverTimestamp()
       };
 
       if (editingService) {
-        await updateDoc(doc(db, 'services', editingService.id), data);
+        await updateDoc(doc(db, 'catalogo_servicos', editingService.id), data);
         toast.success('Serviço atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'services'), data);
+        await addDoc(collection(db, 'catalogo_servicos'), {
+          ...data,
+          createdAt: new Date().toISOString()
+        });
         toast.success('Serviço cadastrado com sucesso!');
       }
       closeModal();
@@ -123,7 +137,7 @@ const Services: React.FC = () => {
   const confirmDelete = async () => {
     if (!serviceToDelete) return;
     try {
-      await deleteDoc(doc(db, 'services', serviceToDelete));
+      await deleteDoc(doc(db, 'catalogo_servicos', serviceToDelete));
       toast.success('Serviço excluído com sucesso!');
     } catch (error) {
       console.error(error);
@@ -135,29 +149,29 @@ const Services: React.FC = () => {
 
   const openModal = (service?: Service) => {
     if (service) {
-      const productCost = (service.products || []).reduce((acc, p) => {
-        const item = inventory.find(i => i.id === p.inventoryItemId);
-        return acc + (item ? item.price * p.quantity : 0);
+      const productCost = (service.produtos || []).reduce((acc, p) => {
+        const item = inventory.find(i => i.id === p.itemInventarioId);
+        return acc + (item ? item.precoVenda * p.quantidade : 0);
       }, 0);
 
       setEditingService(service);
       setFormData({
         name: service.name,
         price: service.price.toString(),
-        cost: service.cost?.toString() || '0',
-        laborCost: Math.max(0, (service.cost || 0) - productCost).toFixed(2),
-        averageTime: service.averageTime?.toString() || '',
-        selectedProducts: service.products || []
+        precoCusto: service.precoCusto?.toString() || '0',
+        laborCost: Math.max(0, (service.precoCusto || 0) - productCost).toFixed(2),
+        tempoMedio: service.tempoMedio?.toString() || '',
+        produtos: service.produtos || []
       });
     } else {
       setEditingService(null);
       setFormData({
         name: '',
         price: '',
-        cost: '0',
+        precoCusto: '0',
         laborCost: '0',
-        averageTime: '',
-        selectedProducts: []
+        tempoMedio: '',
+        produtos: []
       });
     }
     setIsModalOpen(true);
@@ -169,25 +183,25 @@ const Services: React.FC = () => {
   };
 
   const addProductToService = (item: InventoryItem) => {
-    if (formData.selectedProducts.find(p => p.inventoryItemId === item.id)) return;
+    if (formData.produtos.find(p => p.itemInventarioId === item.id)) return;
     setFormData(prev => ({
       ...prev,
-      selectedProducts: [...prev.selectedProducts, { inventoryItemId: item.id, name: item.name, quantity: 1 }]
+      produtos: [...prev.produtos, { itemInventarioId: item.id, name: item.name, quantidade: 1 }]
     }));
   };
 
   const removeProductFromService = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      selectedProducts: prev.selectedProducts.filter((_, i) => i !== index)
+      produtos: prev.produtos.filter((_, i) => i !== index)
     }));
   };
 
-  const updateProductQuantity = (index: number, quantity: number) => {
+  const updateProductQuantity = (index: number, quantidade: number) => {
     setFormData(prev => {
-      const newProducts = [...prev.selectedProducts];
-      newProducts[index].quantity = Math.max(1, quantity);
-      return { ...prev, selectedProducts: newProducts };
+      const newProducts = [...prev.produtos];
+      newProducts[index].quantidade = Math.max(1, quantidade);
+      return { ...prev, produtos: newProducts };
     });
   };
 
@@ -204,7 +218,7 @@ const Services: React.FC = () => {
           <input 
             type="text" 
             placeholder="Buscar por nome do serviço..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -212,7 +226,7 @@ const Services: React.FC = () => {
         {canCreate && (
           <button 
             onClick={() => openModal()}
-            className="flex items-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+            className="flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
           >
             <Plus size={20} />
             Novo Serviço
@@ -235,7 +249,7 @@ const Services: React.FC = () => {
                   <h3 className="text-lg font-bold text-zinc-900">{service.name}</h3>
                   <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
                     <Clock size={12} />
-                    {service.averageTime ? `${service.averageTime} min` : 'Tempo não definido'}
+                    {service.tempoMedio ? `${service.tempoMedio} min` : 'Tempo não definido'}
                   </div>
                 </div>
               </div>
@@ -243,7 +257,7 @@ const Services: React.FC = () => {
                 {canEdit && (
                   <button 
                     onClick={() => openModal(service)}
-                    className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
+                    className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-lg transition-all"
                   >
                     <Edit2 size={18} />
                   </button>
@@ -259,13 +273,13 @@ const Services: React.FC = () => {
               </div>
             </div>
 
-            {service.products && service.products.length > 0 && (
+            {service.produtos && service.produtos.length > 0 && (
               <div className="mb-6 space-y-2">
                 <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Produtos Utilizados</p>
                 <div className="flex flex-wrap gap-2">
-                  {service.products?.map((p, i) => (
+                  {service.produtos?.map((p, i) => (
                     <span key={i} className="px-2 py-1 bg-zinc-50 border border-zinc-100 rounded text-[10px] font-medium text-zinc-600 flex items-center gap-1">
-                      <Package size={10} /> {p.name} ({p.quantity})
+                      <Package size={10} /> {p.name} ({p.quantidade})
                     </span>
                   ))}
                 </div>
@@ -276,15 +290,15 @@ const Services: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-zinc-500">
                   <span className="text-[10px] font-bold uppercase tracking-widest">Custo</span>
-                  <span className="text-sm font-bold">{formatCurrency(service.cost || 0)}</span>
+                  <span className="text-sm font-bold">{formatCurrency(service.precoCusto || 0)}</span>
                 </div>
                 <div className="flex items-center gap-2 text-zinc-500">
                   <span className="text-[10px] font-bold uppercase tracking-widest">Margem</span>
                   <span className={cn(
                     "text-sm font-bold",
-                    (service.price - (service.cost || 0)) > 0 ? "text-green-600" : "text-red-600"
+                    (service.price - (service.precoCusto || 0)) > 0 ? "text-green-600" : "text-red-600"
                   )}>
-                    {formatCurrency(service.price - (service.cost || 0))}
+                    {formatCurrency(service.price - (service.precoCusto || 0))}
                   </span>
                 </div>
               </div>
@@ -304,13 +318,13 @@ const Services: React.FC = () => {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
               <h3 className="text-xl font-bold text-zinc-900">
                 {editingService ? 'Editar Serviço' : 'Novo Serviço'}
               </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-lg">
                 <XCircle size={24} />
               </button>
             </div>
@@ -321,7 +335,7 @@ const Services: React.FC = () => {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                   placeholder="Ex: Lavagem Completa"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -335,7 +349,7 @@ const Services: React.FC = () => {
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all font-bold text-lg"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold text-lg"
                     placeholder="0.00"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -345,10 +359,10 @@ const Services: React.FC = () => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tempo Médio (min)</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     placeholder="60"
-                    value={formData.averageTime}
-                    onChange={(e) => setFormData({ ...formData, averageTime: e.target.value })}
+                    value={formData.tempoMedio}
+                    onChange={(e) => setFormData({ ...formData, tempoMedio: e.target.value })}
                   />
                 </div>
               </div>
@@ -362,7 +376,7 @@ const Services: React.FC = () => {
                     <input 
                       type="number" 
                       step="0.01"
-                      className="w-full px-4 py-2 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all"
+                      className="w-full px-4 py-2 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       placeholder="0.00"
                       value={formData.laborCost}
                       onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })}
@@ -371,9 +385,9 @@ const Services: React.FC = () => {
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Custo de Produtos (R$)</label>
                     <div className="w-full px-4 py-2 bg-zinc-100 border border-zinc-200 rounded-xl text-zinc-600 font-medium">
-                      {formatCurrency(formData.selectedProducts.reduce((acc, p) => {
-                        const item = inventory.find(i => i.id === p.inventoryItemId);
-                        return acc + (item ? item.price * p.quantity : 0);
+                      {formatCurrency(formData.produtos.reduce((acc, p) => {
+                        const item = inventory.find(i => i.id === p.itemInventarioId);
+                        return acc + (item ? item.precoVenda * p.quantidade : 0);
                       }, 0))}
                     </div>
                   </div>
@@ -381,7 +395,7 @@ const Services: React.FC = () => {
 
                 <div className="pt-4 border-t border-zinc-200 flex items-center justify-between">
                   <span className="text-sm font-bold text-zinc-900 uppercase tracking-widest">Custo Total</span>
-                  <span className="text-xl font-black text-zinc-900">{formatCurrency(parseFloat(formData.cost))}</span>
+                  <span className="text-xl font-black text-zinc-900">{formatCurrency(parseFloat(formData.precoCusto))}</span>
                 </div>
               </div>
 
@@ -396,7 +410,7 @@ const Services: React.FC = () => {
                       key={item.id}
                       type="button"
                       onClick={() => addProductToService(item)}
-                      className="px-3 py-1.5 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-600 hover:bg-zinc-900 hover:text-white hover:border-zinc-900 transition-all"
+                      className="px-3 py-1.5 bg-white border border-zinc-200 rounded-xl text-xs font-bold text-zinc-600 hover:bg-accent hover:text-accent-foreground hover:border-accent transition-all"
                     >
                       + {item.name}
                     </button>
@@ -413,22 +427,22 @@ const Services: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-200">
-                      {formData.selectedProducts?.map((p, i) => (
+                      {formData.produtos?.map((p, i) => (
                         <tr key={i} className="text-sm">
                           <td className="px-4 py-3 font-bold text-zinc-900">{p.name}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-2">
                               <button 
                                 type="button"
-                                onClick={() => updateProductQuantity(i, p.quantity - 1)}
+                                onClick={() => updateProductQuantity(i, p.quantidade - 1)}
                                 className="p-1 bg-white border border-zinc-200 rounded hover:bg-zinc-100"
                               >
                                 <Minus size={12} />
                               </button>
-                              <span className="w-8 text-center font-bold">{p.quantity}</span>
+                              <span className="w-8 text-center font-bold">{p.quantidade}</span>
                               <button 
                                 type="button"
-                                onClick={() => updateProductQuantity(i, p.quantity + 1)}
+                                onClick={() => updateProductQuantity(i, p.quantidade + 1)}
                                 className="p-1 bg-white border border-zinc-200 rounded hover:bg-zinc-100"
                               >
                                 <Plus size={12} />
@@ -446,7 +460,7 @@ const Services: React.FC = () => {
                           </td>
                         </tr>
                       ))}
-                      {formData.selectedProducts.length === 0 && (
+                      {formData.produtos.length === 0 && (
                         <tr>
                           <td colSpan={3} className="px-4 py-6 text-center text-zinc-400 italic">Nenhum produto selecionado.</td>
                         </tr>
@@ -466,7 +480,7 @@ const Services: React.FC = () => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
                 >
                   {editingService ? 'Salvar Alterações' : 'Cadastrar Serviço'}
                 </button>

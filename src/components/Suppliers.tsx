@@ -11,15 +11,17 @@ import {
   Trash2,
   Tag,
   History,
-  XCircle
+  XCircle,
+  ArrowUpCircle
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Supplier, OperationType } from '../types';
 import { useAuth } from './Auth';
 import { usePermissions } from '../hooks/usePermissions';
 import { handleFirestoreError } from '../lib/utils';
 import { ConfirmationModal } from './ConfirmationModal';
+import { toast } from 'sonner';
 
 interface SuppliersProps {
   setActiveTab?: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -82,9 +84,13 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
   };
 
   useEffect(() => {
-    if (!profile || !canView) return;
+    if (!profile?.empresaId || !canView) return;
 
-    const q = query(collection(db, 'suppliers'), orderBy('name', 'asc'));
+    const q = query(
+      collection(db, 'fornecedores'), 
+      where('empresaId', '==', profile.empresaId),
+      orderBy('name', 'asc')
+    );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list: Supplier[] = [];
       snapshot.forEach((doc) => {
@@ -93,7 +99,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
       setSuppliers(list);
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'suppliers');
+      handleFirestoreError(error, OperationType.GET, 'fornecedores');
       setLoading(false);
     });
 
@@ -108,6 +114,8 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
       return;
     }
 
+    if (!profile) return;
+
     if (formData.cnpj && !validateCNPJ(formData.cnpj)) {
       toast.error('CNPJ inválido. Por favor, verifique o número informado.');
       return;
@@ -115,21 +123,22 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
     try {
       if (editingSupplier) {
-        await updateDoc(doc(db, 'suppliers', editingSupplier.id), {
+        await updateDoc(doc(db, 'fornecedores', editingSupplier.id), {
           ...formData,
           updatedAt: serverTimestamp()
         });
         toast.success('Fornecedor atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'suppliers'), {
+        await addDoc(collection(db, 'fornecedores'), {
           ...formData,
+          empresaId: profile.empresaId,
           createdAt: new Date().toISOString()
         });
         toast.success('Fornecedor cadastrado com sucesso!');
       }
       closeModal();
     } catch (error) {
-      handleFirestoreError(error, editingSupplier ? OperationType.UPDATE : OperationType.CREATE, 'suppliers');
+      handleFirestoreError(error, editingSupplier ? OperationType.UPDATE : OperationType.CREATE, 'fornecedores');
     }
   };
 
@@ -141,10 +150,10 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
   const confirmDelete = async () => {
     if (!supplierToDelete) return;
     try {
-      await deleteDoc(doc(db, 'suppliers', supplierToDelete));
+      await deleteDoc(doc(db, 'fornecedores', supplierToDelete));
       toast.success('Fornecedor excluído com sucesso!');
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `suppliers/${supplierToDelete}`);
+      handleFirestoreError(error, OperationType.DELETE, `fornecedores/${supplierToDelete}`);
     } finally {
       setSupplierToDelete(null);
     }
@@ -203,7 +212,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
           <input 
             type="text" 
             placeholder="Buscar por nome, CNPJ ou categoria..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -212,7 +221,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         {canCreate && (
           <button 
             onClick={() => openModal()}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 rounded-2xl font-bold hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
+            className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
           >
             <Plus size={20} />
             Novo Fornecedor
@@ -224,7 +233,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         {loading ? (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
               <p className="text-zinc-400 text-sm italic">Carregando fornecedores...</p>
             </div>
           </div>
@@ -234,14 +243,23 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
             className="bg-white rounded-[2rem] border border-zinc-200 p-6 hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden"
           >
             <div className="flex items-start justify-between mb-6">
-              <div className="w-14 h-14 bg-zinc-900 text-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                 <Truck size={28} />
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {setActiveTab && (
+                  <button 
+                    onClick={() => setActiveTab('stock', undefined, supplier.id)}
+                    className="p-2 text-accent hover:bg-accent/10 rounded-xl transition-all"
+                    title="Lançar Estoque"
+                  >
+                    <ArrowUpCircle size={16} />
+                  </button>
+                )}
                 {canEdit && (
                   <button 
                     onClick={() => openModal(supplier)}
-                    className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
+                    className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
                   >
                     <Edit2 size={16} />
                   </button>
@@ -292,7 +310,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 
                 <button
                   onClick={() => setActiveTab?.('stock', undefined, supplier.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
                 >
                   <History size={12} />
                   Histórico
@@ -320,7 +338,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 </h3>
                 <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Dados Cadastrais</p>
               </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-xl hover:bg-zinc-100 transition-all">
+              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
                 <XCircle size={24} />
               </button>
             </div>
@@ -332,7 +350,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-bold"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
@@ -342,7 +360,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     placeholder="00.000.000/0000-00"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
                   />
@@ -355,7 +373,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
@@ -364,7 +382,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">E-mail</label>
                   <input 
                     type="email" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -375,7 +393,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Endereço</label>
                 <input 
                   type="text" 
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
@@ -386,7 +404,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 <input 
                   type="text" 
                   placeholder="Ex: Peças, Pneus, Óleos..."
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all text-sm font-medium"
+                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 />
@@ -402,7 +420,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-6 py-4 bg-zinc-900 text-white font-bold rounded-2xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200 text-sm"
+                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
                 >
                   {editingSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
                 </button>

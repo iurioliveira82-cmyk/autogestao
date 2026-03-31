@@ -1,14 +1,18 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
   --color-accent: var(--accent-color, #18181b);
   --color-accent-foreground: var(--accent-foreground, #ffffff);
   
   --color-app-bg: var(--app-bg, #fafafa);
+
+  --shadow-modern: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 4px 15px -5px rgba(0, 0, 0, 0.02);
+  --shadow-modern-lg: 0 20px 50px -15px rgba(0, 0, 0, 0.08), 0 10px 25px -10px rgba(0, 0, 0, 0.04);
 }
 
 @layer base {
@@ -32,19 +36,19 @@
   :root[data-bg="blue"] { --app-bg: #f0f9ff; }
   :root[data-bg="white"] { --app-bg: #ffffff; }
 
-  :root.dark {
-    --app-bg: #09090b;
+  body {
+    @apply antialiased text-zinc-900 bg-app-bg transition-colors duration-500 font-sans;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   }
 
-  body {
-    @apply antialiased text-zinc-900 bg-app-bg dark:bg-zinc-950 dark:text-zinc-100 transition-colors duration-300;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  h1, h2, h3, h4, .font-display {
+    @apply font-display tracking-tight;
   }
 
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   ::-webkit-scrollbar-track {
@@ -52,20 +56,43 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-zinc-200 rounded-full hover:bg-zinc-300 transition-colors dark:bg-zinc-800 dark:hover:bg-zinc-700;
+    @apply bg-zinc-200 rounded-full hover:bg-zinc-300 transition-colors;
   }
 }
 
 @layer components {
   .glass-card {
-    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-xl shadow-zinc-200/50 dark:bg-zinc-900/80 dark:border-zinc-800 dark:shadow-none;
+    @apply bg-white/70 backdrop-blur-xl border border-white/40 shadow-modern transition-all duration-300;
   }
   
-  .btn-primary {
-    @apply bg-accent text-accent-foreground hover:opacity-90 active:scale-95 transition-all duration-200 rounded-2xl font-bold shadow-lg shadow-zinc-200 dark:shadow-none;
+  .glass-card:hover {
+    @apply shadow-modern-lg border-white/60 -translate-y-0.5;
   }
 
-  .input-field {
-    @apply w-full px-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent/10 focus:border-accent transition-all duration-200 dark:bg-zinc-900 dark:border-zinc-800 dark:text-white;
+  .modern-card {
+    @apply bg-white rounded-[2rem] border border-zinc-100 shadow-modern p-8 transition-all duration-300 hover:shadow-modern-lg hover:-translate-y-1;
+  }
+  
+  .btn-modern {
+    @apply px-6 py-3 bg-accent text-accent-foreground font-bold rounded-2xl shadow-lg shadow-accent/10 hover:shadow-accent/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200;
+  }
+
+  .input-modern {
+    @apply w-full px-5 py-4 bg-zinc-50/50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/5 focus:border-accent/30 focus:bg-white transition-all duration-300 text-sm font-medium;
+  }
+
+  .animate-in {
+    animation: animateIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
