@@ -1,25 +1,10 @@
-import React, { useState } from 'react';
-import { AuthProvider, useAuth, LoginScreen } from './components/Auth';
+import React, { useState, useEffect } from 'react';
+import { AuthProvider, useAuth, LoginScreen } from './modules/auth/Auth';
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import Clients from './components/Clients';
-import Leads from './components/Leads';
-import Vehicles from './components/Vehicles';
-import ServiceOrders from './components/ServiceOrders';
-import Agenda from './components/Agenda';
-import Services from './components/Services';
-import Inventory from './components/Inventory';
-import Finance from './components/Finance';
-import Resale from './components/Resale';
-import Suppliers from './components/Suppliers';
-import Stock from './components/Stock';
-import Users from './components/Users';
-import Fiscal from './components/Fiscal';
-import Settings from './components/Settings';
+import { AppRoutes } from './routes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
 import { OSStatus } from './types';
-import { useEffect } from 'react';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
@@ -96,30 +81,15 @@ const AppContent: React.FC = () => {
     return <LoginScreen />;
   }
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'dashboard': return <Dashboard setActiveTab={handleSetActiveTab} />;
-      case 'clients': return <Clients setActiveTab={handleSetActiveTab} />;
-      case 'leads': return <Leads setActiveTab={handleSetActiveTab} />;
-      case 'vehicles': return <Vehicles setActiveTab={handleSetActiveTab} />;
-      case 'os': return <ServiceOrders setActiveTab={handleSetActiveTab} itemId={activeItemId} initialStatus={activeItemStatus} />;
-      case 'agenda': return <Agenda setActiveTab={handleSetActiveTab} />;
-      case 'services': return <Services setActiveTab={handleSetActiveTab} />;
-      case 'inventory': return <Inventory setActiveTab={handleSetActiveTab} />;
-      case 'suppliers': return <Suppliers setActiveTab={handleSetActiveTab} />;
-      case 'stock': return <Stock setActiveTab={handleSetActiveTab} initialItemId={activeItemId} initialSupplierId={stockSupplierId} />;
-      case 'finance': return <Finance setActiveTab={handleSetActiveTab} />;
-      case 'fiscal': return <Fiscal setActiveTab={handleSetActiveTab} />;
-      case 'resale': return <Resale setActiveTab={handleSetActiveTab} />;
-      case 'users': return <Users setActiveTab={handleSetActiveTab} />;
-      case 'settings': return <Settings setActiveTab={handleSetActiveTab} />;
-      default: return <Dashboard setActiveTab={handleSetActiveTab} />;
-    }
-  };
-
   return (
     <Layout activeTab={activeTab} setActiveTab={handleSetActiveTab}>
-      {renderContent()}
+      <AppRoutes 
+        activeTab={activeTab} 
+        setActiveTab={handleSetActiveTab}
+        activeItemId={activeItemId}
+        activeItemStatus={activeItemStatus}
+        stockSupplierId={stockSupplierId}
+      />
     </Layout>
   );
 };

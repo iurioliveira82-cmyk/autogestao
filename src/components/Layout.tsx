@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { 
   LayoutDashboard, 
+  BarChart3,
   Users, 
   Car, 
   ClipboardList, 
@@ -19,11 +20,17 @@ import {
   UserCircle,
   FileText,
   Sparkles,
-  UserPlus
+  UserPlus,
+  Search,
+  Moon,
+  Sun,
+  Bell,
+  Zap
 } from 'lucide-react';
-import { useAuth } from './Auth';
-import { cn } from '../lib/utils';
-import AIAssistant from './AIAssistant';
+import { useAuth } from '../modules/auth/Auth';
+import { cn } from '../utils';
+import AIAssistant from '../modules/dashboard/AIAssistant';
+import { GlobalSearch } from './GlobalSearch';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -35,6 +42,27 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
   const { profile, logout, isAdmin } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    if (saved !== null) {
+      const isDark = saved === 'true';
+      if (isDark) document.documentElement.classList.add('dark');
+      return isDark;
+    }
+    return false;
+  });
+
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    localStorage.setItem('darkMode', String(newMode));
+    if (newMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  };
 
   const [isGestaoOpen, setIsGestaoOpen] = useState(() => {
     const saved = localStorage.getItem('isGestaoOpen');
@@ -44,6 +72,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'analytics', label: 'Relatórios & BI', icon: BarChart3 },
     { id: 'clients', label: 'Clientes', icon: Users },
     { id: 'leads', label: 'CRM / Leads', icon: UserPlus },
     { id: 'vehicles', label: 'Veículos', icon: Car },
@@ -64,6 +93,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       ]
     },
     { id: 'resale', label: 'Revenda de Veículos', icon: ShoppingBag },
+    { id: 'automations', label: 'Automações & APIs', icon: Zap },
     { id: 'users', label: 'Equipe / Usuários', icon: Users },
     { id: 'settings', label: 'Configurações', icon: SettingsIcon },
   ];
@@ -106,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 w-80 bg-white border-r border-zinc-100 z-50 transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:translate-x-0 shadow-modern",
+        "fixed lg:static inset-y-0 left-0 w-80 bg-white dark:bg-zinc-950 border-r border-zinc-100 dark:border-zinc-800 z-50 transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:translate-x-0 shadow-modern",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="h-full flex flex-col p-8 overflow-y-auto custom-scrollbar relative">
@@ -127,7 +157,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               )}
             </div>
             <div className="flex flex-col">
-              <span className="text-2xl font-black text-zinc-900 tracking-tighter leading-none font-display group-hover:text-accent transition-colors duration-500">AutoGestão</span>
+              <span className="text-2xl font-black text-zinc-900 dark:text-white tracking-tighter leading-none font-display group-hover:text-accent transition-colors duration-500">AutoGestão</span>
               <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-2">Sistema Pro</span>
             </div>
           </div>
@@ -148,7 +178,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                       onClick={handleToggleGestao}
                       className={cn(
                         "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
-                        isAnySubActive ? "bg-zinc-50 text-zinc-900 shadow-sm" : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900"
+                        isAnySubActive ? "bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
                       )}
                     >
                       <item.icon size={22} className={cn(
@@ -175,7 +205,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                                 "w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden",
                                 isActive 
                                   ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
-                                  : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:translate-x-1"
+                                  : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white hover:translate-x-1"
                               )}
                             >
                               {isActive && (
@@ -210,7 +240,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                     "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
                     isActive 
                       ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
-                      : "text-zinc-500 hover:bg-zinc-50 hover:text-zinc-900 hover:translate-x-1"
+                      : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white hover:translate-x-1"
                   )}
                 >
                   {isActive && (
@@ -229,20 +259,20 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             })}
           </nav>
 
-          <div className="mt-auto pt-8 border-t border-zinc-100 relative z-10">
-            <div className="bg-zinc-50 p-6 rounded-[2.5rem] mb-4 border border-zinc-100 shadow-sm group/profile hover:bg-white hover:shadow-xl hover:shadow-zinc-100 transition-all duration-500">
+          <div className="mt-auto pt-8 border-t border-zinc-100 dark:border-zinc-800 relative z-10">
+            <div className="bg-zinc-50 dark:bg-zinc-900 p-6 rounded-[2.5rem] mb-4 border border-zinc-100 dark:border-zinc-800 shadow-sm group/profile hover:bg-white dark:hover:bg-zinc-800 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-black/20 transition-all duration-500">
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm group-hover/profile:scale-110 group-hover/profile:rotate-3 transition-all duration-500">
+                <div className="w-14 h-14 bg-white dark:bg-zinc-950 rounded-2xl flex items-center justify-center text-zinc-400 border border-zinc-100 dark:border-zinc-800 shadow-sm group-hover/profile:scale-110 group-hover/profile:rotate-3 transition-all duration-500">
                   <UserCircle size={32} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-zinc-900 truncate tracking-tight">{profile?.name}</p>
+                  <p className="text-sm font-black text-zinc-900 dark:text-white truncate tracking-tight">{profile?.name}</p>
                   <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-1">{profile?.role}</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white border border-zinc-200 text-zinc-600 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
               >
                 <LogOut size={14} />
                 Sair do Sistema
@@ -255,35 +285,58 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-app-bg transition-colors duration-500">
         {/* Header */}
-        <header className="h-24 bg-white/70 backdrop-blur-2xl border-b border-zinc-100 flex items-center justify-between px-10 sticky top-0 z-30 shadow-sm">
-          <button 
-            className="lg:hidden text-zinc-500 p-4 -ml-4 hover:bg-zinc-50 rounded-2xl transition-all active:scale-90"
-            onClick={() => setIsSidebarOpen(true)}
-          >
-            <Menu size={24} />
-          </button>
-          
-          <div className="flex-1 px-8">
-            <h2 className="text-3xl font-black text-zinc-900 tracking-tighter font-display">
-              {getActiveLabel()}
-            </h2>
+        <header className="h-24 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-2xl border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-6 sm:px-10 sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center gap-4">
+            <button 
+              className="lg:hidden text-zinc-500 dark:text-zinc-400 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-2xl transition-all active:scale-90"
+              onClick={() => setIsSidebarOpen(true)}
+            >
+              <Menu size={24} />
+            </button>
+            
+            <GlobalSearch 
+              onSelect={(type, id) => {
+                if (type === 'client') setActiveTab('clients', id);
+                else if (type === 'os') setActiveTab('os', id);
+                else if (type === 'vehicle') setActiveTab('vehicles', id);
+              }} 
+            />
           </div>
 
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 p-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+              <button
+                onClick={toggleDarkMode}
+                className={cn(
+                  "p-2 rounded-xl transition-all duration-300",
+                  !isDarkMode ? "bg-white dark:bg-zinc-800 shadow-sm text-amber-500" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                )}
+              >
+                <Sun size={18} />
+              </button>
+              <button
+                onClick={toggleDarkMode}
+                className={cn(
+                  "p-2 rounded-xl transition-all duration-300",
+                  isDarkMode ? "bg-white dark:bg-zinc-800 shadow-sm text-indigo-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                )}
+              >
+                <Moon size={18} />
+              </button>
+            </div>
+
+            <button className="relative p-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors group">
+              <Bell size={22} />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-950" />
+            </button>
+
             <button
               onClick={() => setIsAIOpen(true)}
-              className="btn-modern !px-6 !py-3 flex items-center gap-3 group/ai"
+              className="btn-modern !px-4 sm:!px-6 !py-2.5 flex items-center gap-3 group/ai"
             >
               <Sparkles size={18} className="text-amber-400 group-hover:rotate-12 transition-transform" />
-              <span className="text-sm font-black uppercase tracking-widest">Assistente IA</span>
+              <span className="hidden sm:inline text-sm font-black uppercase tracking-widest">Assistente IA</span>
             </button>
-            <div className="hidden sm:flex flex-col items-end">
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-1">Status do Servidor</span>
-              <span className="text-[10px] font-black text-green-500 flex items-center gap-2 uppercase tracking-widest bg-green-50 px-3 py-1 rounded-full border border-green-100">
-                <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
-                Online
-              </span>
-            </div>
           </div>
         </header>
 

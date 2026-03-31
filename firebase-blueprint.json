@@ -5,12 +5,29 @@
       "description": "Tenant information",
       "type": "object",
       "properties": {
+        "id": { "type": "string" },
         "name": { "type": "string" },
         "cnpj": { "type": "string" },
         "plan": { "type": "string", "enum": ["basic", "pro", "enterprise"] },
+        "config": { "type": "object" },
+        "lastAutomationCheck": { "type": "string", "format": "date-time" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["name"]
+      "required": ["id", "name"]
+    },
+    "Filial": {
+      "title": "Filial",
+      "description": "Branch information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "empresaId": { "type": "string" },
+        "name": { "type": "string" },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "empresaId", "name"]
     },
     "User": {
       "title": "User",
@@ -22,7 +39,9 @@
         "email": { "type": "string" },
         "role": { "type": "string", "enum": ["admin", "gerente", "consultor", "tecnico", "financeiro", "estoque", "atendimento"] },
         "empresaId": { "type": "string" },
+        "filialId": { "type": "string" },
         "permissions": { "type": "object" },
+        "status": { "type": "string", "enum": ["active", "inactive", "pending"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "name", "email", "role", "empresaId"]
@@ -38,6 +57,9 @@
         "phone": { "type": "string" },
         "document": { "type": "string" },
         "address": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "lastServiceDate": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["empresaId", "name", "phone"]
@@ -141,7 +163,90 @@
       },
       "required": ["empresaId", "itemId", "tipo", "quantidade"]
     },
-    "AccountReceivable": {
+    "CostCenter": {
+      "title": "CostCenter",
+      "description": "Financial cost center",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "name", "active"]
+    },
+    "MonthlyGoal": {
+      "title": "MonthlyGoal",
+      "description": "Financial and operational goals",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "faturamento": { "type": "number" },
+        "osCount": { "type": "integer" },
+        "ticketMedio": { "type": "number" },
+        "lucroLiquido": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "faturamento"]
+    },
+    "DailyClosing": {
+      "title": "DailyClosing",
+      "description": "Daily financial summary",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "faturamentoBruto": { "type": "number" },
+        "totalEntradas": { "type": "number" },
+        "totalSaidas": { "type": "number" },
+        "saldoFinal": { "type": "number" },
+        "osFinalizadas": { "type": "integer" },
+        "ticketMedio": { "type": "number" },
+        "usuarioId": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "closed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "date", "status"]
+    },
+    "RecurringTransaction": {
+      "title": "RecurringTransaction",
+      "description": "Template for recurring income/expenses",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "type": { "type": "string", "enum": ["in", "out"] },
+        "value": { "type": "number" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["daily", "weekly", "monthly", "yearly"] },
+        "dayOfMonth": { "type": "integer" },
+        "nextOccurrence": { "type": "string", "format": "date" },
+        "active": { "type": "boolean" },
+        "costCenterId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "type", "value", "frequency", "active"]
+    },
+    "Commission": {
+      "title": "Commission",
+      "description": "Technician commissions",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "osId": { "type": "string" },
+        "osNumero": { "type": "integer" },
+        "tecnicoId": { "type": "string" },
+        "servicoNome": { "type": "string" },
+        "valorServico": { "type": "number" },
+        "percentualComissao": { "type": "number" },
+        "valorComissao": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid"] },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "osId", "tecnicoId", "valorComissao", "status"]
+    },
       "title": "AccountReceivable",
       "description": "Income to receive",
       "type": "object",
@@ -229,10 +334,65 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["empresaId", "name", "status"]
+    },
+    "AutomationRule": {
+      "title": "AutomationRule",
+      "description": "Rule for automatic notifications",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["revision", "post-sales", "billing", "birthday", "account-expiration", "quote-followup", "inactive-client"] },
+        "triggerDays": { "type": "integer" },
+        "messageTemplate": { "type": "string" },
+        "channel": { "type": "string", "enum": ["whatsapp", "email", "sms"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "name", "type", "triggerDays", "messageTemplate", "channel", "active"]
+    },
+    "AutomationLog": {
+      "title": "AutomationLog",
+      "description": "History of sent automations",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "ruleId": { "type": "string" },
+        "clienteId": { "type": "string" },
+        "relatedId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "sent", "failed"] },
+        "sentAt": { "type": "string", "format": "date-time" },
+        "error": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "ruleId", "clienteId", "status", "timestamp"]
+    },
+    "IntegrationConfig": {
+      "title": "IntegrationConfig",
+      "description": "Third-party API configuration",
+      "type": "object",
+      "properties": {
+        "empresaId": { "type": "string" },
+        "provider": { "type": "string", "enum": ["whatsapp", "nfse", "pix", "mercadopago", "stripe"] },
+        "config": { "type": "object" },
+        "active": { "type": "boolean" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["empresaId", "provider", "active"]
     }
   },
   "firestore": {
+    "/automacao_regras/{id}": { "schema": "AutomationRule", "description": "Automation Rules" },
+    "/automacao_logs/{id}": { "schema": "AutomationLog", "description": "Automation Logs" },
+    "/integracoes/{id}": { "schema": "IntegrationConfig", "description": "Integrations" },
+    "/centros_custo/{id}": { "schema": "CostCenter", "description": "Cost Centers" },
+    "/metas_mensais/{id}": { "schema": "MonthlyGoal", "description": "Monthly Goals" },
+    "/fechamentos_diarios/{id}": { "schema": "DailyClosing", "description": "Daily Closings" },
+    "/transacoes_recorrentes/{id}": { "schema": "RecurringTransaction", "description": "Recurring Transactions" },
+    "/comissoes/{id}": { "schema": "Commission", "description": "Commissions" },
     "/empresas/{empresaId}": { "schema": "Company", "description": "Tenants" },
+    "/empresas/{empresaId}/filiais/{filialId}": { "schema": "Filial", "description": "Branches" },
     "/usuarios/{uid}": { "schema": "User", "description": "Users" },
     "/clientes/{clienteId}": { "schema": "Client", "description": "Customers" },
     "/veiculos/{veiculoId}": { "schema": "Vehicle", "description": "Vehicles" },

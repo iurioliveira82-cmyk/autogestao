@@ -1,4 +1,4 @@
-import { useAuth } from '../components/Auth';
+import { useAuth } from '../contexts/AuthContext';
 import { UserPermissions } from '../types';
 
 export const usePermissions = (module: keyof UserPermissions) => {

@@ -14,7 +14,9 @@ import {
   QueryConstraint,
   getDoc
 } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../firebase';
+import { db } from '../firebase';
+import { handleFirestoreError } from '../utils';
+import { OperationType } from '../types';
 
 export class FirestoreService {
   static async getByEmpresa<T>(collectionName: string, empresaId: string, constraints: QueryConstraint[] = []) {
