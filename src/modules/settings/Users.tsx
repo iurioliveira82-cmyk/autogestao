@@ -282,7 +282,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
           <input 
             type="text" 
             placeholder="Buscar usuários..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
+            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm text-zinc-900 dark:text-zinc-100 dark:bg-zinc-900/50"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -569,7 +569,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                 <input 
                   type="text" 
                   required
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                  className="input-modern"
                   value={newUserFormData.name}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
                 />
@@ -580,7 +580,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                 <input 
                   type="email" 
                   required
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                  className="input-modern"
                   value={newUserFormData.email}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
                 />
@@ -589,7 +589,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
               <div className="space-y-2">
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cargo / Função</label>
                 <select 
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                  className="select-modern"
                   value={newUserFormData.role}
                   onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as any })}
                 >

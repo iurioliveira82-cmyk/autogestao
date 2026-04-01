@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, User, ClipboardList, Car, X, Loader2 } from 'lucide-react';
-import { collection, query, where, getDocs, limit, or } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '../firebase';
-import { cn, formatCurrency } from '../utils';
+import { cn } from '../utils';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SearchResult {
@@ -124,7 +124,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
   return (
     <div className="relative w-full max-w-xl" ref={searchRef}>
       <div className={cn(
-        "flex items-center gap-3 bg-zinc-100 dark:bg-zinc-900 px-4 py-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-800 group focus-within:ring-4 focus-within:ring-accent/5 focus-within:border-accent/30 transition-all duration-300",
+        "flex items-center gap-3 bg-zinc-100 dark:bg-zinc-900 px-4 py-2.5 rounded-2xl border border-border group focus-within:ring-4 focus-within:ring-accent/5 focus-within:border-accent/30 transition-all duration-300",
         isOpen && results.length > 0 && "rounded-b-none border-b-transparent"
       )}>
         <Search size={18} className="text-zinc-400 group-focus-within:text-accent transition-colors" />
@@ -141,7 +141,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
         />
         {loading && <Loader2 size={16} className="text-accent animate-spin" />}
         {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-zinc-600">
+          <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-zinc-600 transition-colors">
             <X size={16} />
           </button>
         )}
@@ -153,7 +153,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 right-0 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 border-t-0 rounded-b-[1.5rem] shadow-2xl z-[100] overflow-hidden"
+            className="absolute top-full left-0 right-0 bg-white dark:bg-zinc-900 border border-border border-t-0 rounded-b-[1.5rem] shadow-2xl z-[100] overflow-hidden"
           >
             <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
               {results.map((result) => (
@@ -164,7 +164,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className="w-full flex items-center gap-4 px-6 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left group border-b border-zinc-50 dark:border-zinc-800 last:border-none"
+                  className="w-full flex items-center gap-4 px-6 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left group border-b border-border last:border-none"
                 >
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
@@ -177,7 +177,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
                      <Car size={20} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white truncate group-hover:text-accent transition-colors">{result.title}</p>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white truncate group-hover:text-accent transition-colors font-display">{result.title}</p>
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-0.5">{result.subtitle}</p>
                   </div>
                 </button>
@@ -189,3 +189,4 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
     </div>
   );
 };
+

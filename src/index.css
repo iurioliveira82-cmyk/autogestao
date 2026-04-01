@@ -1,37 +1,58 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-accent: var(--accent-color, #18181b);
+  --color-accent: var(--accent-color, #6366f1);
   --color-accent-foreground: var(--accent-foreground, #ffffff);
   
-  --color-app-bg: var(--app-bg, #fafafa);
+  --color-app-bg: var(--app-bg, #f8fafc);
   --color-card-bg: var(--card-bg, #ffffff);
-  --color-border: var(--border-color, #f1f1f1);
+  --color-border: var(--border-color, #e2e8f0);
+
+  --color-success: #10b981;
+  --color-success-foreground: #ffffff;
+  --color-warning: #f59e0b;
+  --color-warning-foreground: #ffffff;
+  --color-danger: #ef4444;
+  --color-danger-foreground: #ffffff;
+  --color-info: #3b82f6;
+  --color-info-foreground: #ffffff;
 
   --shadow-modern: 0 10px 30px -10px rgba(0, 0, 0, 0.05), 0 4px 15px -5px rgba(0, 0, 0, 0.02);
   --shadow-modern-lg: 0 20px 50px -15px rgba(0, 0, 0, 0.08), 0 10px 25px -10px rgba(0, 0, 0, 0.04);
+  --shadow-premium: 0 0 50px -12px rgba(0, 0, 0, 0.12);
+  --animate-in: animateIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @layer base {
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   :root {
-    --accent-color: #18181b;
+    --accent-color: #6366f1;
     --accent-foreground: #ffffff;
-    --app-bg: #fafafa;
+    --app-bg: #f8fafc;
     --card-bg: #ffffff;
-    --border-color: #f1f1f1;
+    --border-color: #e2e8f0;
   }
 
   .dark {
-    --accent-color: #ffffff;
-    --accent-foreground: #000000;
-    --app-bg: #09090b;
-    --card-bg: #18181b;
-    --border-color: #27272a;
+    --accent-color: #818cf8;
+    --accent-foreground: #0f172a;
+    --app-bg: #0f172a;
+    --card-bg: #1e293b;
+    --border-color: #334155;
   }
 
   :root[data-theme="blue"] { --accent-color: #2563eb; }
@@ -47,7 +68,7 @@
   }
 
   h1, h2, h3, h4, .font-display {
-    @apply font-display tracking-tight;
+    @apply font-display tracking-tight font-bold;
   }
 
   /* Custom Scrollbar */
@@ -75,19 +96,75 @@
   }
 
   .modern-card {
-    @apply bg-card-bg rounded-[2rem] border border-border shadow-modern p-8 transition-all duration-300 hover:shadow-modern-lg hover:-translate-y-1;
+    @apply bg-card-bg rounded-[2.5rem] border border-border shadow-modern p-8 transition-all duration-300 hover:shadow-modern-lg;
   }
   
   .btn-modern {
-    @apply px-6 py-3 bg-accent text-accent-foreground font-bold rounded-2xl shadow-lg shadow-accent/10 hover:shadow-accent/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply px-6 py-3 bg-accent text-accent-foreground font-bold rounded-2xl shadow-lg shadow-accent/10 hover:shadow-accent/20 hover:-translate-y-0.5 active:scale-95 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm uppercase tracking-widest;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 bg-zinc-100 text-zinc-900 font-bold rounded-2xl hover:bg-zinc-200 active:scale-95 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 text-sm uppercase tracking-widest dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700;
+  }
+
+  .btn-outline {
+    @apply px-6 py-3 bg-transparent border border-border text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 active:scale-95 transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2 text-sm uppercase tracking-widest dark:text-zinc-400 dark:hover:bg-zinc-900;
   }
 
   .input-modern {
-    @apply w-full px-5 py-4 bg-zinc-50/50 border border-border rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/5 focus:border-accent/30 focus:bg-white transition-all duration-300 text-sm font-medium dark:bg-zinc-900/50 dark:focus:bg-zinc-900;
+    @apply w-full px-6 py-4 bg-zinc-50/50 border border-border rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/5 focus:border-accent/30 focus:bg-white transition-all duration-300 text-sm font-medium text-zinc-900 placeholder:text-zinc-500;
+  }
+
+  .select-modern {
+    @apply w-full px-6 py-4 bg-zinc-50/50 border border-border rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/5 focus:border-accent/30 focus:bg-white transition-all duration-300 text-sm font-medium text-zinc-900 cursor-pointer appearance-none;
+  }
+
+  .textarea-modern {
+    @apply w-full px-6 py-4 bg-zinc-50/50 border border-border rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/5 focus:border-accent/30 focus:bg-white transition-all duration-300 text-sm font-medium text-zinc-900 min-h-[120px] resize-none placeholder:text-zinc-500;
   }
 
   .badge-modern {
-    @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border;
+    @apply px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all;
+  }
+
+  .table-modern {
+    @apply w-full border-separate border-spacing-y-2;
+  }
+
+  .table-modern thead th {
+    @apply px-6 py-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest;
+  }
+
+  .table-modern tbody tr {
+    @apply bg-white dark:bg-zinc-900/50 border border-border rounded-2xl transition-all hover:shadow-modern hover:-translate-y-0.5;
+  }
+
+  .table-modern tbody td {
+    @apply px-6 py-4 text-sm font-medium text-zinc-600 dark:text-zinc-400 first:rounded-l-2xl last:rounded-r-2xl border-y border-border first:border-l last:border-r;
+  }
+
+  .modal-overlay {
+    @apply fixed inset-0 bg-zinc-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 animate-in duration-300;
+  }
+
+  .modal-content {
+    @apply bg-white text-zinc-900 w-full max-w-2xl rounded-[3rem] shadow-premium overflow-hidden animate-in scale-95 duration-300 border border-border;
+  }
+
+  .modal-header {
+    @apply p-8 border-b border-border flex items-center justify-between bg-zinc-50/50;
+  }
+
+  .modal-body {
+    @apply p-8 max-h-[70vh] overflow-y-auto custom-scrollbar text-zinc-900;
+  }
+
+  .modal-footer {
+    @apply p-8 border-t border-border flex gap-4 bg-zinc-50/50;
+  }
+
+  .label-modern {
+    @apply text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1 mb-2 block;
   }
 
   .animate-in {
@@ -115,5 +192,17 @@
 
   .text-balance {
     text-wrap: balance;
+  }
+}
+
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    @apply bg-zinc-200 dark:bg-zinc-800 rounded-full;
   }
 }

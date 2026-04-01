@@ -231,7 +231,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
           <input
             type="text"
             placeholder="Buscar leads por nome, email ou telefone..."
-            className="w-full pl-12 pr-4 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+            className="input-modern pl-12"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -252,7 +252,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
         <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
           <Filter size={16} className="text-zinc-400" />
           <select
-            className="bg-transparent text-xs font-bold focus:outline-none"
+            className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >
@@ -267,7 +267,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
         <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
           <Flame size={16} className="text-zinc-400" />
           <select
-            className="bg-transparent text-xs font-bold focus:outline-none"
+            className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
             value={filterTemperature}
             onChange={(e) => setFilterTemperature(e.target.value)}
           >
@@ -386,7 +386,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Nome Completo</label>
                   <input
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                    className="input-modern"
                     placeholder="Ex: João Silva"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -398,7 +398,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Telefone</label>
                     <input
                       required
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                      className="input-modern"
                       placeholder="(00) 00000-0000"
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
@@ -408,7 +408,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Email</label>
                     <input
                       type="email"
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                      className="input-modern"
                       placeholder="email@exemplo.com"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -420,7 +420,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Status</label>
                     <select
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                      className="select-modern"
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value as Lead['status'] })}
                     >
@@ -434,7 +434,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                   <div className="space-y-2">
                     <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Temperatura</label>
                     <select
-                      className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                      className="select-modern"
                       value={formData.temperature}
                       onChange={(e) => setFormData({ ...formData, temperature: e.target.value as Lead['temperature'] })}
                     >
@@ -448,7 +448,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Origem</label>
                   <input
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                    className="input-modern"
                     placeholder="Ex: Instagram, Indicação, Site"
                     value={formData.source}
                     onChange={(e) => setFormData({ ...formData, source: e.target.value })}
@@ -458,7 +458,7 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
                 <div className="space-y-2">
                   <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Observações</label>
                   <textarea
-                    className="w-full px-5 py-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium min-h-[100px]"
+                    className="textarea-modern min-h-[100px]"
                     placeholder="Detalhes sobre o lead..."
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}

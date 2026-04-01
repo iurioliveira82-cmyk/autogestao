@@ -315,7 +315,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
           <input 
             type="text" 
             placeholder="Buscar por número ou cliente..." 
-            className="w-full pl-16 pr-6 py-4 bg-white border border-zinc-100 rounded-[2rem] focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all shadow-sm text-sm font-medium"
+            className="input-modern pl-16"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -491,7 +491,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Tipo de Nota</label>
                   <select 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700 appearance-none"
+                    className="select-modern"
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
                   >
@@ -508,7 +508,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700"
+                    className="input-modern"
                     value={formData.number}
                     onChange={(e) => setFormData({ ...formData, number: e.target.value })}
                   />
@@ -517,7 +517,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Série</label>
                   <input 
                     type="text" 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700"
+                    className="input-modern"
                     value={formData.serie}
                     onChange={(e) => setFormData({ ...formData, serie: e.target.value })}
                   />
@@ -532,7 +532,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   {formData.direction === 'out' ? (
                     <select 
                       required
-                      className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700 appearance-none"
+                      className="select-modern"
                       value={formData.clienteId}
                       onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
                     >
@@ -544,7 +544,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   ) : (
                     <select 
                       required
-                      className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700 appearance-none"
+                      className="select-modern"
                       value={formData.fornecedorId}
                       onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
                     >
@@ -558,7 +558,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">OS Relacionada (Opcional)</label>
                   <select 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700 appearance-none"
+                    className="select-modern"
                     value={formData.relatedId}
                     onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
                   >
@@ -576,7 +576,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   <input 
                     type="date" 
                     required
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700"
+                    className="input-modern"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
@@ -584,7 +584,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 <div className="space-y-3">
                   <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Status</label>
                   <select 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700 appearance-none"
+                    className="select-modern"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -604,7 +604,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                       type="number" 
                       step="0.01"
                       required
-                      className="w-full pl-14 pr-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-black text-zinc-900"
+                      className="input-modern pl-14"
                       value={formData.value}
                       onChange={(e) => setFormData({ ...formData, value: e.target.value })}
                     />
@@ -617,7 +617,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                     <input 
                       type="number" 
                       step="0.01"
-                      className="w-full pl-14 pr-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-black text-zinc-900"
+                      className="input-modern pl-14"
                       value={formData.valorImposto}
                       onChange={(e) => setFormData({ ...formData, valorImposto: e.target.value })}
                     />
@@ -645,7 +645,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                     <input 
                       type="date" 
                       required
-                      className="w-full px-6 py-4 bg-white border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all text-sm font-bold text-zinc-700"
+                      className="input-modern"
                       value={formData.dueDate}
                       onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                     />
@@ -656,7 +656,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
               <div className="space-y-3">
                 <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Observações</label>
                 <textarea 
-                  className="w-full px-6 py-4 bg-zinc-50 border border-zinc-100 rounded-2xl focus:outline-none focus:ring-4 focus:ring-accent/10 transition-all resize-none text-sm font-medium text-zinc-700"
+                  className="textarea-modern"
                   rows={4}
                   value={formData.observacoes}
                   onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}

@@ -26,7 +26,11 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../auth/Auth';
 import { formatCurrency, cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { generateAIResponse } from '../../services/gemini';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -273,127 +277,140 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
-      {/* AI Suggestion Result */}
-      <AnimatePresence>
-        {aiSuggestion && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-accent text-accent-foreground p-6 sm:p-8 rounded-3xl border border-accent/20 shadow-2xl relative overflow-hidden group"
-          >
-            <div className="flex items-start justify-between mb-4 relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/10 rounded-xl">
-                  <Sparkles size={20} className="text-amber-400" />
-                </div>
-                <h3 className="text-lg font-bold">Sugestões de Reposição (IA)</h3>
-              </div>
-              <button 
-                onClick={() => setAiSuggestion(null)}
-                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              >
-                <XCircle size={20} className="text-zinc-500" />
-              </button>
-            </div>
-            <div className="text-sm sm:text-base text-zinc-300 leading-relaxed relative z-10 whitespace-pre-line">
-              {aiSuggestion}
-            </div>
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-white/5 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
-          </motion.div>
+    <div className="space-y-8 sm:space-y-12 animate-in">
+      <PageHeader 
+        title="Inventário" 
+        description="Controle seu estoque de peças e suprimentos."
+        action={canCreate && (
+          <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+            Novo Produto
+          </Button>
         )}
-      </AnimatePresence>
+      />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Total de Itens</p>
-          <h3 className="text-2xl font-black text-zinc-900">{filteredItems.length}</h3>
-        </div>
-        <div className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Itens com Estoque Baixo</p>
-          <h3 className="text-2xl font-black text-red-600">{filteredItems.filter(i => i.quantidadeAtual <= i.estoqueMinimo).length}</h3>
-        </div>
-        <div className="bg-accent p-6 rounded-3xl shadow-lg shadow-accent/20 text-accent-foreground">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Valor Total em Estoque (Custo)</p>
-          <h3 className="text-2xl font-black">{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalInventoryValue)}</h3>
+      <div className="flex flex-col sm:flex-row items-center gap-4">
+        <SearchBar 
+          placeholder="Buscar por nome, SKU ou categoria..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+        />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" icon={<Filter size={18} />} className="flex-1 sm:flex-none">Filtros</Button>
+          {lowStockItems.length > 0 && (
+            <Button 
+              variant="outline" 
+              icon={isGeneratingAI ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} className="text-amber-400" />}
+              onClick={handleGenerateAISuggestion}
+              disabled={isGeneratingAI}
+              className="flex-1 sm:flex-none"
+            >
+              IA: Reposição
+            </Button>
+          )}
         </div>
       </div>
 
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
-        <div className="relative flex-1 w-full sm:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome do produto..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+      {aiSuggestion && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-accent/5 border border-accent/20 rounded-3xl p-6 relative overflow-hidden group"
+        >
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Sparkles size={120} className="text-accent" />
+          </div>
+          <div className="relative z-10">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2 text-accent">
+                <Sparkles size={20} />
+                <span className="text-xs font-black uppercase tracking-widest">Sugestões da Inteligência Artificial</span>
+              </div>
+              <button 
+                onClick={() => setAiSuggestion(null)}
+                className="text-zinc-400 hover:text-zinc-600 transition-colors"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-zinc-600 leading-relaxed font-medium italic">
+              "{aiSuggestion}"
+            </p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Stats Section */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="modern-card p-6 flex items-center gap-4">
+          <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
+            <Package size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Itens</p>
+            <h4 className="text-xl font-black text-zinc-900">{items.length}</h4>
+          </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          {lowStockItems.length > 0 && (
-            <button
-              onClick={handleGenerateAISuggestion}
-              disabled={isGeneratingAI}
-              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-4 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm w-full sm:w-auto disabled:opacity-50"
-            >
-              {isGeneratingAI ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <Sparkles size={18} className="text-amber-400" />
-              )}
-              IA: Reposição
-            </button>
-          )}
-          <button 
-            onClick={calculateABCCurve}
-            className="flex items-center justify-center gap-2 bg-white border border-zinc-200 text-zinc-500 px-4 py-3 rounded-2xl font-bold hover:bg-zinc-50 transition-all shadow-sm text-sm w-full sm:w-auto"
-          >
-            <Layers size={20} />
-            Curva ABC
-          </button>
-          <button 
-            onClick={() => setActiveTab?.('stock')}
-            className="flex items-center justify-center gap-2 bg-white border border-zinc-200 text-zinc-500 px-4 py-3 rounded-2xl font-bold hover:bg-zinc-50 transition-all shadow-sm text-sm w-full sm:w-auto"
-          >
-            <History size={20} />
-            Histórico
-          </button>
-          {canCreate && (
-            <button 
-              onClick={() => openModal()}
-              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm w-full sm:w-auto"
-            >
-              <Plus size={20} />
-              Novo Produto
-            </button>
-          )}
+        <div className="modern-card p-6 flex items-center gap-4">
+          <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
+            <DollarSign size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Valor em Estoque</p>
+            <h4 className="text-xl font-black text-zinc-900">
+              {formatCurrency(items.reduce((acc, item) => acc + (item.quantidadeAtual * (item.custoMedio || 0)), 0))}
+            </h4>
+          </div>
+        </div>
+        <div className="modern-card p-6 flex items-center gap-4">
+          <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+            <AlertTriangle size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Estoque Baixo</p>
+            <h4 className="text-xl font-black text-amber-600">
+              {items.filter(i => i.quantidadeAtual <= (i.estoqueMinimo || 0)).length}
+            </h4>
+          </div>
+        </div>
+        <div className="modern-card p-6 flex items-center gap-4">
+          <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+            <Layers size={24} />
+          </div>
+          <div>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Categorias</p>
+            <h4 className="text-xl font-black text-zinc-900">
+              {new Set(items.map(i => i.category)).size}
+            </h4>
+          </div>
         </div>
       </div>
 
       {/* Inventory Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-zinc-400 text-sm italic">Carregando estoque...</p>
+              <p className="text-zinc-400 text-sm italic">Carregando inventário...</p>
             </div>
           </div>
         ) : filteredItems.length > 0 ? filteredItems.map((item) => {
-          const isLow = item.quantidadeAtual <= item.estoqueMinimo;
+          const isLow = item.quantidadeAtual <= (item.estoqueMinimo || 0);
+          
           return (
-            <div key={item.id} className={cn(
-              "bg-white p-6 rounded-[2rem] border shadow-sm hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden",
-              isLow ? "border-red-200 bg-red-50/30" : "border-zinc-200"
-            )}>
-              <div className="flex items-start justify-between mb-6">
+            <div 
+              key={item.id} 
+              className={cn(
+                "modern-card group relative overflow-hidden",
+                isLow && "border-red-200 bg-red-50/30"
+              )}
+            >
+              <div className="flex justify-between items-start mb-6">
                 <div className="flex items-center gap-4">
                   <div className={cn(
-                    "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm border transition-transform group-hover:scale-105",
-                    isLow ? "bg-red-100 text-red-600 border-red-200" : "bg-accent text-accent-foreground border-accent/20"
+                    "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform",
+                    isLow ? "bg-red-100 text-red-600" : "bg-accent text-accent-foreground"
                   )}>
                     <Package size={28} />
                   </div>
@@ -500,184 +517,161 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-              <div>
-                <h3 className="text-xl font-black text-zinc-900">
-                  {editingItem ? 'Editar Produto' : 'Novo Produto'}
-                </h3>
-                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Informações do Item</p>
-              </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
-                <XCircle size={24} />
-              </button>
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingItem ? 'Editar Produto' : 'Novo Produto'}>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome do Produto</label>
+              <input 
+                type="text" 
+                required
+                className="input-modern"
+                placeholder="Ex: Óleo 5W30"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome do Produto</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: Óleo 5W30"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">SKU / Código</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: OLE-5W30-001"
-                    value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Código de Barras</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="EAN-13"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Unidade</label>
-                  <select 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
-                    value={formData.unit}
-                    onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                  >
-                    <option value="un">Unidade (un)</option>
-                    <option value="lt">Litro (lt)</option>
-                    <option value="kg">Quilo (kg)</option>
-                    <option value="mt">Metro (mt)</option>
-                    <option value="cj">Conjunto (cj)</option>
-                    <option value="pc">Peça (pc)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Quantidade Atual</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="0"
-                    value={formData.quantity}
-                    onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Estoque Mínimo</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="0"
-                    value={formData.minQuantity}
-                    onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Preço Venda (R$)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="0.00"
-                    value={formData.precoVenda}
-                    onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Custo (R$)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="0.00"
-                    value={formData.custoMedio}
-                    onChange={(e) => setFormData({ ...formData, custoMedio: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: Peças, Fluidos..."
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Localização</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: Prateleira A1"
-                    value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Fornecedor</label>
-                  <select 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
-                    value={formData.fornecedorId}
-                    onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
-                  >
-                    <option value="">Selecione...</option>
-                    {suppliers.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-                >
-                  {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
-                </button>
-              </div>
-            </form>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">SKU / Código</label>
+              <input 
+                type="text" 
+                className="input-modern"
+                placeholder="Ex: OLE-5W30-001"
+                value={formData.sku}
+                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+              />
+            </div>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Código de Barras</label>
+              <input 
+                type="text" 
+                className="input-modern"
+                placeholder="EAN-13"
+                value={formData.barcode}
+                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Unidade</label>
+              <select 
+                className="select-modern"
+                value={formData.unit}
+                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+              >
+                <option value="un">Unidade (un)</option>
+                <option value="lt">Litro (lt)</option>
+                <option value="kg">Quilo (kg)</option>
+                <option value="mt">Metro (mt)</option>
+                <option value="cj">Conjunto (cj)</option>
+                <option value="pc">Peça (pc)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Quantidade Atual</label>
+              <input 
+                type="number" 
+                required
+                step="0.01"
+                className="input-modern"
+                placeholder="0"
+                value={formData.quantity}
+                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Estoque Mínimo</label>
+              <input 
+                type="number" 
+                step="0.01"
+                className="input-modern"
+                placeholder="0"
+                value={formData.minQuantity}
+                onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Preço Venda (R$)</label>
+              <input 
+                type="number" 
+                required
+                step="0.01"
+                className="input-modern"
+                placeholder="0.00"
+                value={formData.precoVenda}
+                onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Custo (R$)</label>
+              <input 
+                type="number" 
+                step="0.01"
+                className="input-modern"
+                placeholder="0.00"
+                value={formData.custoMedio}
+                onChange={(e) => setFormData({ ...formData, custoMedio: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria</label>
+              <input 
+                type="text" 
+                className="input-modern"
+                placeholder="Ex: Peças, Fluidos..."
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Localização</label>
+              <input 
+                type="text" 
+                className="input-modern"
+                placeholder="Ex: Prateleira A1"
+                value={formData.location}
+                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Fornecedor</label>
+            <select 
+              className="select-modern"
+              value={formData.fornecedorId}
+              onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
+            >
+              <option value="">Selecione...</option>
+              {suppliers.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <Button type="button" onClick={closeModal} variant="outline" className="flex-1">
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1">
+              {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}

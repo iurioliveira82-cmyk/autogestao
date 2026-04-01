@@ -1036,7 +1036,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Status</label>
                               <select 
-                                className="input-modern"
+                                className="select-modern"
                                 value={formData.status}
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as OSStatus })}
                               >
@@ -1049,7 +1049,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tipo de Pagamento</label>
                               <select 
-                                className="input-modern"
+                                className="select-modern"
                                 value={formData.paymentType}
                                 onChange={(e) => setFormData({ ...formData, paymentType: e.target.value as any })}
                               >
@@ -1061,7 +1061,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
                               <select 
-                                className="input-modern"
+                                className="select-modern"
                                 value={formData.paymentMethod}
                                 onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
                               >
@@ -1315,7 +1315,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </button>
                           </div>
                           <textarea 
-                            className="input-modern min-h-[120px] resize-none"
+                            className="textarea-modern"
                             placeholder="Detalhes técnicos, recomendações ou observações gerais..."
                             value={formData.observations}
                             onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
@@ -1323,7 +1323,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                           <div className="space-y-2">
                             <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Observações Internas (Não visível ao cliente)</label>
                             <textarea
-                              className="input-modern min-h-[100px] py-3 resize-none bg-zinc-50/50"
+                              className="textarea-modern !min-h-[100px] !py-3"
                               placeholder="Notas para a equipe técnica, histórico interno..."
                               value={formData.internalObservations}
                               onChange={(e) => setFormData({ ...formData, internalObservations: e.target.value })}

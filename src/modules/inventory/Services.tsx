@@ -218,7 +218,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
           <input 
             type="text" 
             placeholder="Buscar por nome do serviço..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+            className="input-modern pl-12"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -335,7 +335,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                  className="input-modern"
                   placeholder="Ex: Lavagem Completa"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -349,7 +349,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold text-lg"
+                    className="input-modern font-bold text-lg"
                     placeholder="0.00"
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
@@ -359,7 +359,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tempo Médio (min)</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     placeholder="60"
                     value={formData.tempoMedio}
                     onChange={(e) => setFormData({ ...formData, tempoMedio: e.target.value })}
@@ -376,7 +376,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                     <input 
                       type="number" 
                       step="0.01"
-                      className="w-full px-4 py-2 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern !bg-white"
                       placeholder="0.00"
                       value={formData.laborCost}
                       onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })}

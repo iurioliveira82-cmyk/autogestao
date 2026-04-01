@@ -226,7 +226,7 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 <input
                   type="text"
                   placeholder="https://exemplo.com/logo.png"
-                  className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
+                  className="input-modern pl-12"
                   value={companyLogo}
                   onChange={(e) => setCompanyLogo(e.target.value)}
                 />

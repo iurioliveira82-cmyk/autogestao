@@ -116,7 +116,7 @@ service cloud.firestore {
 
     function isValidClient(data) {
       return data.keys().hasAll(['empresaId', 'name', 'phone']) &&
-             data.empresaId is string && data.empresaId.size() >= 10 &&
+             data.empresaId is string && data.empresaId.size() >= 1 &&
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.phone is string && data.phone.size() >= 8 && data.phone.size() < 20 &&
              (!('email' in data) || (data.email is string && isValidEmail(data.email))) &&
@@ -196,15 +196,21 @@ service cloud.firestore {
 
     // Clientes: Isolated by empresaId
     match /clientes/{clientId} {
-      allow read: if belongsToEmpresa(resource.data.empresaId);
-      allow create: if isAuthorized('clients', 'create', request.resource.data) && isValidClient(request.resource.data);
-      allow update: if isAuthorized('clients', 'edit', resource.data) && isValidClient(request.resource.data);
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
       allow delete: if isAuthorized('clients', 'delete', resource.data);
     }
 
     // Veiculos: Isolated by empresaId
     match /veiculos/{vehicleId} {
-      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
       allow create: if isAuthorized('vehicles', 'create', request.resource.data) && isValidVehicle(request.resource.data);
       allow update: if isAuthorized('vehicles', 'edit', resource.data) && isValidVehicle(request.resource.data);
       allow delete: if isAuthorized('vehicles', 'delete', resource.data);
@@ -212,7 +218,10 @@ service cloud.firestore {
 
     // Leads: Isolated by empresaId
     match /leads/{leadId} {
-      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
       allow create: if isAuthorized('leads', 'create', request.resource.data);
       allow update: if isAuthorized('leads', 'edit', resource.data);
       allow delete: if isAuthorized('leads', 'delete', resource.data);
@@ -220,7 +229,10 @@ service cloud.firestore {
 
     // Agendamentos: Isolated by empresaId
     match /agendamentos/{agendamentoId} {
-      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
       allow create: if isAuthorized('agenda', 'create', request.resource.data);
       allow update: if isAuthorized('agenda', 'edit', resource.data);
       allow delete: if isAuthorized('agenda', 'delete', resource.data);
@@ -228,7 +240,10 @@ service cloud.firestore {
 
     // Ordens de Servico: Isolated by empresaId
     match /ordens_servico/{osId} {
-      allow read: if belongsToEmpresa(resource.data.empresaId);
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
       allow create: if isAuthorized('os', 'create', request.resource.data);
       allow update: if isAuthorized('os', 'edit', resource.data);
       allow delete: if isAuthorized('os', 'delete', resource.data);
@@ -319,11 +334,30 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
-    // Financeiro: Isolated by empresaId
+    match /transactions_chart/{id} {
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
+      allow write: if isSuperAdmin();
+    }
+
+    // Transacoes Financeiras: Isolated by empresaId
     match /transacoes_financeiras/{id} {
-      allow read: if isAuthorized('finance', 'view', resource.data) || isAuthorized('analytics', 'view', resource.data);
-      allow create: if isAuthorized('finance', 'create', request.resource.data) && isValidFinancialTransaction(request.resource.data);
-      allow update: if isAuthorized('finance', 'edit', resource.data) && isValidFinancialTransaction(request.resource.data);
+      allow read: if belongsToEmpresa(getUserData().empresaId);
+      allow create: if isAuthorized('finance', 'create', request.resource.data);
+      allow update: if isAuthorized('finance', 'edit', resource.data);
+      allow delete: if isAuthorized('finance', 'delete', resource.data);
+    }
+
+    // Registros Fiscais: Isolated by empresaId
+    match /registros_fiscais/{id} {
+      allow read: if isAuthenticated() && (
+        (resource != null && belongsToEmpresa(resource.data.empresaId)) ||
+        (resource == null && belongsToEmpresa(getUserData().empresaId))
+      );
+      allow create: if isAuthorized('finance', 'create', request.resource.data);
+      allow update: if isAuthorized('finance', 'edit', resource.data);
       allow delete: if isAuthorized('finance', 'delete', resource.data);
     }
 

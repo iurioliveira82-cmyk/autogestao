@@ -25,7 +25,14 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { formatPhone, cn, formatCurrency, isValidEmail, handleFirestoreError } from '../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { FiltersBar } from '../../components/ui/FiltersBar';
+import { DataTable } from '../../components/ui/DataTable';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface ClientsProps {
   setActiveTab?: (tab: string, itemId?: string) => void;
@@ -245,37 +252,29 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 sm:p-6 rounded-2xl sm:rounded-3xl">
-        <div className="relative flex-1 w-full sm:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome, telefone ou email..." 
-            className="w-full pl-11 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-xl sm:rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button className="flex-1 sm:flex-none flex items-center justify-center p-3 bg-white border border-zinc-200 rounded-xl sm:rounded-2xl text-zinc-500 hover:bg-zinc-50 transition-colors shadow-sm">
-            <Filter size={18} />
-          </button>
-          {canCreate && (
-            <button 
-              onClick={() => openModal()}
-              className="flex-3 sm:flex-none flex items-center justify-center gap-2 bg-accent text-accent-foreground px-4 sm:px-6 py-3 rounded-xl sm:rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-            >
-              <UserPlus size={18} />
-              <span className="whitespace-nowrap">Novo Cliente</span>
-            </button>
-          )}
-        </div>
+    <div className="space-y-8 sm:space-y-12 animate-in">
+      <PageHeader 
+        title="Clientes" 
+        description="Gerencie seus clientes e histórico de atendimentos."
+        action={canCreate && (
+          <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
+            Novo Cliente
+          </Button>
+        )}
+      />
+      
+      <div className="flex items-center gap-4">
+        <SearchBar 
+          placeholder="Buscar por nome, telefone ou email..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+        />
+        <Button variant="outline" icon={<Filter size={18} />}>Filtros</Button>
       </div>
 
       {/* Clients Grid/List */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
+      <div className="modern-card p-0 overflow-hidden">
         {/* Mobile View: List of Cards */}
         <div className="block sm:hidden divide-y divide-zinc-100">
           {loading ? (
@@ -346,7 +345,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                 </div>
                 <div className="flex flex-col text-right">
                   <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest">Cadastro</span>
-                  <span className="text-xs font-bold text-zinc-600">{client.createdAt ? format(new Date(client.createdAt), 'dd/MM/yyyy') : 'Recent'}</span>
+                  <span className="text-xs font-bold text-zinc-600">{client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recent' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recent'}</span>
                 </div>
               </div>
             </div>
@@ -410,7 +409,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                     </span>
                   </td>
                   <td className="px-8 py-6 text-sm text-zinc-500 font-medium">
-                    {client.createdAt ? format(new Date(client.createdAt), 'dd/MM/yyyy') : 'Recent'}
+                    {client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recent' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recent'}
                   </td>
                   <td className="px-8 py-6 text-right">
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -477,191 +476,181 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-              <div>
-                <h3 className="text-xl font-black text-zinc-900">
-                  {editingClient ? 'Editar Cliente' : 'Novo Cliente'}
-                </h3>
-                <div className="flex items-center gap-4 mt-4">
-                  <button 
-                    type="button"
-                    onClick={() => setActiveModalTab('general')}
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-                      activeModalTab === 'general' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                    )}
+      <Modal 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+        title={editingClient ? 'Editar Cliente' : 'Novo Cliente'} 
+        maxWidth="max-w-lg"
+      >
+        <div className="flex items-center gap-4 mb-8">
+          <button 
+            type="button"
+            onClick={() => setActiveModalTab('general')}
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
+              activeModalTab === 'general' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+            )}
+          >
+            Geral
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveModalTab('financial')}
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
+              activeModalTab === 'financial' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+            )}
+          >
+            Financeiro
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveModalTab('additional')}
+            className={cn(
+              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
+              activeModalTab === 'additional' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+            )}
+          >
+            Adicional
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {activeModalTab === 'general' ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                <input 
+                  type="text" 
+                  required
+                  className="input-modern"
+                  placeholder="Ex: João Silva"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Telefone</label>
+                  <input 
+                    type="tel" 
+                    required
+                    className="input-modern"
+                    placeholder="(00) 00000-0000"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Status</label>
+                  <select 
+                    className="select-modern"
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
                   >
-                    Geral
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setActiveModalTab('financial')}
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-                      activeModalTab === 'financial' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                    )}
-                  >
-                    Financeiro
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => setActiveModalTab('additional')}
-                    className={cn(
-                      "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-                      activeModalTab === 'additional' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
-                    )}
-                  >
-                    Adicional
-                  </button>
+                    <option value="active">Ativo</option>
+                    <option value="inactive">Inativo</option>
+                  </select>
                 </div>
               </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
-                <XCircle size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              {activeModalTab === 'general' ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                    <input 
-                      type="text" 
-                      required
-                      className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                      placeholder="Ex: João Silva"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    />
-                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Telefone</label>
-                      <input 
-                        type="tel" 
-                        required
-                        className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                        placeholder="(00) 00000-0000"
-                        value={formData.phone}
-                        onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Status</label>
-                      <select 
-                        className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                      >
-                        <option value="active">Ativo</option>
-                        <option value="inactive">Inativo</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email (Opcional)</label>
-                    <input 
-                      type="email" 
-                      className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                      placeholder="exemplo@email.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-                </>
-              ) : activeModalTab === 'financial' ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Limite de Crédito Mensal (R$)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                      placeholder="Ex: 1000.00"
-                      value={formData.creditLimit}
-                      onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Taxa de Juros por Atraso (% ao mês)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                      placeholder="Ex: 2.00"
-                      value={formData.interestRate}
-                      onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Data de Aniversário</label>
-                      <input 
-                        type="date" 
-                        className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                        value={formData.birthDate}
-                        onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Pref. de Contato</label>
-                      <select 
-                        className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
-                        value={formData.contactPreference}
-                        onChange={(e) => setFormData({ ...formData, contactPreference: e.target.value as any })}
-                      >
-                        <option value="none">Nenhuma</option>
-                        <option value="email">E-mail</option>
-                        <option value="phone">Telefone</option>
-                        <option value="whatsapp">WhatsApp</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Histórico de Compras / Notas</label>
-                    <textarea 
-                      rows={4}
-                      className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium resize-none"
-                      placeholder="Detalhes sobre compras anteriores, preferências específicas..."
-                      value={formData.purchaseHistory}
-                      onChange={(e) => setFormData({ ...formData, purchaseHistory: e.target.value })}
-                    />
-                  </div>
-                </>
-              )}
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-                >
-                  {editingClient ? 'Salvar Alterações' : 'Cadastrar Cliente'}
-                </button>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email (Opcional)</label>
+                <input 
+                  type="email" 
+                  className="input-modern"
+                  placeholder="exemplo@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
               </div>
-            </form>
+            </>
+          ) : activeModalTab === 'financial' ? (
+            <>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Limite de Crédito Mensal (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="input-modern"
+                  placeholder="Ex: 1000.00"
+                  value={formData.creditLimit}
+                  onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Taxa de Juros por Atraso (% ao mês)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="input-modern"
+                  placeholder="Ex: 2.00"
+                  value={formData.interestRate}
+                  onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Data de Aniversário</label>
+                  <input 
+                    type="date" 
+                    className="input-modern"
+                    value={formData.birthDate}
+                    onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Pref. de Contato</label>
+                  <select 
+                    className="select-modern"
+                    value={formData.contactPreference}
+                    onChange={(e) => setFormData({ ...formData, contactPreference: e.target.value as any })}
+                  >
+                    <option value="none">Nenhuma</option>
+                    <option value="email">E-mail</option>
+                    <option value="phone">Telefone</option>
+                    <option value="whatsapp">WhatsApp</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Histórico de Compras / Notas</label>
+                <textarea 
+                  rows={4}
+                  className="textarea-modern"
+                  placeholder="Detalhes sobre compras anteriores, preferências específicas..."
+                  value={formData.purchaseHistory}
+                  onChange={(e) => setFormData({ ...formData, purchaseHistory: e.target.value })}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="pt-4 flex items-center gap-4">
+            <button 
+              type="button"
+              onClick={closeModal}
+              className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
+            >
+              Cancelar
+            </button>
+            <button 
+              type="submit"
+              className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
+            >
+              {editingClient ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+            </button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* History Modal */}
-      <ConfirmationModal
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
@@ -670,8 +659,8 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
       />
 
       {isHistoryModalOpen && selectedClient && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+        <Modal isOpen={isHistoryModalOpen} onClose={closeHistory} maxWidth="max-w-4xl" showHeader={false}>
+          <div className="flex flex-col max-h-[90vh]">
             <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black">
@@ -726,7 +715,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                   <div>
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Aniversário</p>
                     <span className="text-sm font-bold text-zinc-900">
-                      {selectedClient.birthDate ? format(new Date(selectedClient.birthDate + 'T00:00:00'), 'dd/MM/yyyy') : 'Não informado'}
+                      {selectedClient.birthDate ? (isNaN(new Date(selectedClient.birthDate + 'T00:00:00').getTime()) ? 'Não informado' : format(new Date(selectedClient.birthDate + 'T00:00:00'), 'dd/MM/yyyy')) : 'Não informado'}
                     </span>
                   </div>
                 </div>
@@ -802,7 +791,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                         const vehicle = clientVehicles.find(v => v.id === order.veiculoId);
                         return (
                           <tr key={order.id} className="hover:bg-zinc-50 transition-colors">
-                            <td className="px-6 py-4 text-zinc-500">{format(new Date(order.createdAt), 'dd/MM/yy')}</td>
+                            <td className="px-6 py-4 text-zinc-500">{order.createdAt ? (isNaN(new Date(order.createdAt).getTime()) ? 'N/A' : format(new Date(order.createdAt), 'dd/MM/yy')) : 'N/A'}</td>
                             <td className="px-6 py-4">
                               <div className="font-bold text-zinc-900">{vehicle?.model || 'Desconhecido'}</div>
                               <div className="text-[10px] text-zinc-400 uppercase">{vehicle?.plate}</div>
@@ -854,7 +843,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               </button>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

@@ -21,7 +21,11 @@ import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { formatPlate, cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface VehiclesProps {
   setActiveTab?: (tab: string, itemId?: string) => void;
@@ -206,34 +210,25 @@ const Vehicles: React.FC<VehiclesProps> = ({ setActiveTab }) => {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
-        <div className="relative flex-1 w-full sm:max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por placa, modelo, marca ou proprietário..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
-          <button className="flex items-center justify-center p-3 bg-white border border-zinc-200 rounded-2xl text-zinc-500 hover:bg-zinc-50 transition-colors shadow-sm w-full sm:w-auto">
-            <Filter size={20} />
-            <span className="sm:hidden ml-2 font-bold text-sm">Filtros</span>
-          </button>
-          {canCreate && (
-            <button 
-              onClick={() => openModal()}
-              className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm w-full sm:w-auto"
-            >
-              <Plus size={20} />
-              Novo Veículo
-            </button>
-          )}
-        </div>
+    <div className="space-y-8 sm:space-y-12 animate-in">
+      <PageHeader 
+        title="Veículos" 
+        description="Gerencie sua frota de veículos."
+        action={canCreate && (
+          <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+            Novo Veículo
+          </Button>
+        )}
+      />
+      
+      <div className="flex items-center gap-4">
+        <SearchBar 
+          placeholder="Buscar por placa, modelo, marca ou proprietário..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+        />
+        <Button variant="outline" icon={<Filter size={18} />}>Filtros</Button>
       </div>
 
       {/* Vehicles Grid */}
@@ -248,7 +243,7 @@ const Vehicles: React.FC<VehiclesProps> = ({ setActiveTab }) => {
         ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => (
           <div 
             key={vehicle.id} 
-            className="bg-white rounded-[2rem] border border-zinc-200 p-6 hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden"
+            className="modern-card group relative overflow-hidden"
           >
             <div className="flex justify-between items-start mb-6">
               <div className="flex items-center gap-4">
@@ -323,130 +318,107 @@ const Vehicles: React.FC<VehiclesProps> = ({ setActiveTab }) => {
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-              <div>
-                <h3 className="text-xl font-black text-zinc-900">
-                  {editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}
-                </h3>
-                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Informações Técnicas</p>
-              </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
-                <XCircle size={24} />
-              </button>
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingVehicle ? 'Editar Veículo' : 'Novo Veículo'}>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Placa</label>
+              <input 
+                type="text" 
+                required
+                maxLength={7}
+                className="input-modern font-mono font-black uppercase tracking-widest"
+                placeholder="ABC1D23"
+                value={formData.plate}
+                onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
+              />
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Placa</label>
-                  <input 
-                    type="text" 
-                    required
-                    maxLength={7}
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-mono font-black uppercase tracking-widest text-sm"
-                    placeholder="ABC1D23"
-                    value={formData.plate}
-                    onChange={(e) => setFormData({ ...formData, plate: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cliente Proprietário</label>
-                  <select 
-                    required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
-                    value={formData.clienteId}
-                    onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
-                  >
-                    <option value="">Selecione um cliente...</option>
-                    {clients.map(client => (
-                      <option key={client.id} value={client.id}>{client.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Marca</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: Volkswagen"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Modelo</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Ex: Golf"
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Ano</label>
-                  <input 
-                    type="number" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="2024"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cor</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="Branco"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">KM Atual</label>
-                  <input 
-                    type="number" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
-                    placeholder="0"
-                    value={formData.km}
-                    onChange={(e) => setFormData({ ...formData, km: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-                >
-                  {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
-                </button>
-              </div>
-            </form>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cliente Proprietário</label>
+              <select 
+                required
+                className="select-modern"
+                value={formData.clienteId}
+                onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
+              >
+                <option value="">Selecione um cliente...</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Marca</label>
+              <input 
+                type="text" 
+                required
+                className="input-modern"
+                placeholder="Ex: Volkswagen"
+                value={formData.brand}
+                onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Modelo</label>
+              <input 
+                type="text" 
+                required
+                className="input-modern"
+                placeholder="Ex: Golf"
+                value={formData.model}
+                onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Ano</label>
+              <input 
+                type="number" 
+                className="input-modern"
+                placeholder="2024"
+                value={formData.year}
+                onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cor</label>
+              <input 
+                type="text" 
+                className="input-modern"
+                placeholder="Branco"
+                value={formData.color}
+                onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">KM Atual</label>
+              <input 
+                type="number" 
+                className="input-modern"
+                placeholder="0"
+                value={formData.km}
+                onChange={(e) => setFormData({ ...formData, km: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <Button type="button" onClick={closeModal} variant="outline" className="flex-1">
+              Cancelar
+            </Button>
+            <Button type="submit" variant="primary" className="flex-1">
+              {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}

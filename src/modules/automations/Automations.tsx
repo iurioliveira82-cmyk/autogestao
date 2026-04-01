@@ -528,7 +528,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                     type="text" 
                     required
                     placeholder="Ex: Lembrete de Revisão 6 Meses"
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                    className="input-modern"
                     value={ruleFormData.name}
                     onChange={(e) => setRuleFormData({ ...ruleFormData, name: e.target.value })}
                   />
@@ -537,7 +537,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Tipo de Evento</label>
                   <select 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                    className="select-modern"
                     value={ruleFormData.type}
                     onChange={(e) => setRuleFormData({ ...ruleFormData, type: e.target.value as any })}
                   >
@@ -557,7 +557,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                     <input 
                       type="number" 
                       required
-                      className="w-full px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                      className="input-modern"
                       value={ruleFormData.triggerDays}
                       onChange={(e) => setRuleFormData({ ...ruleFormData, triggerDays: parseInt(e.target.value) })}
                     />
@@ -569,7 +569,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 <div className="space-y-2">
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Canal de Envio</label>
                   <select 
-                    className="w-full px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                    className="select-modern"
                     value={ruleFormData.channel}
                     onChange={(e) => setRuleFormData({ ...ruleFormData, channel: e.target.value as any })}
                   >
@@ -599,7 +599,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 <textarea 
                   required
                   rows={4}
-                  className="w-full px-6 py-4 bg-zinc-50 border border-zinc-200 rounded-3xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium resize-none"
+                  className="textarea-modern"
                   placeholder="Escreva a mensagem que será enviada..."
                   value={ruleFormData.messageTemplate}
                   onChange={(e) => setRuleFormData({ ...ruleFormData, messageTemplate: e.target.value })}

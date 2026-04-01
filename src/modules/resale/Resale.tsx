@@ -211,7 +211,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
           <input 
             type="text" 
             placeholder="Buscar por marca ou modelo..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+            className="input-modern pl-12"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -326,7 +326,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     placeholder="Ex: Toyota"
                     value={formData.brand}
                     onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
@@ -337,7 +337,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     placeholder="Ex: Corolla"
                     value={formData.model}
                     onChange={(e) => setFormData({ ...formData, model: e.target.value })}
@@ -350,7 +350,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Ano</label>
                   <input 
                     type="number" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     placeholder="2024"
                     value={formData.year}
                     onChange={(e) => setFormData({ ...formData, year: e.target.value })}
@@ -359,7 +359,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -377,7 +377,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     placeholder="0.00"
                     value={formData.precoCompra}
                     onChange={(e) => setFormData({ ...formData, precoCompra: e.target.value })}
@@ -388,7 +388,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold text-zinc-900"
+                    className="input-modern font-bold"
                     placeholder="0.00"
                     value={formData.precoVenda}
                     onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}

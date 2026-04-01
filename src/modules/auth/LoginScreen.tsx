@@ -43,7 +43,7 @@ export const LoginScreen: React.FC = () => {
                 type="text" 
                 required
                 placeholder="Seu nome completo"
-                className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                className="input-modern"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
@@ -56,7 +56,7 @@ export const LoginScreen: React.FC = () => {
               type="email" 
               required
               placeholder="seu@email.com"
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="input-modern"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
@@ -68,7 +68,7 @@ export const LoginScreen: React.FC = () => {
               type="password" 
               required
               placeholder="••••••••"
-              className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="input-modern"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />

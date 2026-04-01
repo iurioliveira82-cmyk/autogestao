@@ -1,6 +1,7 @@
 import React from 'react';
 import { Users, Car, TrendingUp, Sparkles } from 'lucide-react';
 import { formatCurrency } from '../../../utils';
+import { Card } from '../../../components/ui/Card';
 
 interface QuickStatsProps {
   totalClients: number;
@@ -10,7 +11,7 @@ interface QuickStatsProps {
 
 export const QuickStats: React.FC<QuickStatsProps> = ({ totalClients, totalVehicles, salesLast7Days }) => {
   return (
-    <div className="modern-card !p-10 bg-zinc-900 text-white border-none shadow-2xl shadow-zinc-900/20 relative overflow-hidden group flex flex-col min-h-[450px]">
+    <Card className="!p-10 bg-zinc-900 text-white border-none shadow-2xl shadow-zinc-900/20 relative overflow-hidden group flex flex-col min-h-[450px]">
       <div className="relative z-10 flex-1">
         <div className="flex items-center justify-between mb-10">
           <h3 className="text-2xl font-black tracking-tight font-display">Visão Geral</h3>
@@ -51,6 +52,7 @@ export const QuickStats: React.FC<QuickStatsProps> = ({ totalClients, totalVehic
       
       {/* Decorative background elements */}
       <div className="absolute -top-20 -left-20 w-96 h-96 bg-accent/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-1000" />
-    </div>
+    </Card>
   );
 };
+

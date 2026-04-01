@@ -212,7 +212,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
           <input 
             type="text" 
             placeholder="Buscar por nome, CNPJ ou categoria..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
+            className="input-modern pl-12"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -350,7 +350,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-bold"
+                    className="input-modern"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   />
@@ -360,7 +360,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     placeholder="00.000.000/0000-00"
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                    className="input-modern"
                     value={formData.cnpj}
                     onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
                   />
@@ -373,7 +373,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                    className="input-modern"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                   />
@@ -382,7 +382,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">E-mail</label>
                   <input 
                     type="email" 
-                    className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                    className="input-modern"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   />
@@ -393,7 +393,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Endereço</label>
                 <input 
                   type="text" 
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                  className="input-modern"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 />
@@ -404,7 +404,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 <input 
                   type="text" 
                   placeholder="Ex: Peças, Pneus, Óleos..."
-                  className="w-full px-5 py-4 bg-zinc-50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm font-medium"
+                  className="input-modern"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 />

@@ -657,7 +657,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     <input 
                       type="text" 
                       placeholder="Buscar por descrição ou categoria..."
-                      className="w-full pl-12 pr-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern pl-12"
                       value={filters.searchTerm}
                       onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                     />
@@ -746,7 +746,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </div>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={filters.type}
                     onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
                   >
@@ -756,7 +756,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </select>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={filters.clientId}
                     onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
                   >
@@ -767,7 +767,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </select>
 
                   <select 
-                    className="px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={filters.relatedId}
                     onChange={(e) => setFilters({ ...filters, relatedId: e.target.value })}
                   >
@@ -788,7 +788,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern"
                       value={filters.startDate}
                       onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                     />
@@ -797,7 +797,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern"
                       value={filters.endDate}
                       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                     />
@@ -806,7 +806,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern"
                       value={filters.startDueDate}
                       onChange={(e) => setFilters({ ...filters, startDueDate: e.target.value })}
                     />
@@ -815,7 +815,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
                     <input 
                       type="date"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern"
                       value={filters.endDueDate}
                       onChange={(e) => setFilters({ ...filters, endDueDate: e.target.value })}
                     />
@@ -1268,7 +1268,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   <input 
                     type="date" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
@@ -1279,7 +1279,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     type="date" 
                     required={formData.status === 'pending'}
                     disabled={formData.status === 'paid'}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all disabled:opacity-50"
+                    className="input-modern disabled:opacity-50"
                     value={formData.dueDate}
                     onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                   />
@@ -1293,7 +1293,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     type="number" 
                     required
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all font-bold"
+                    className="input-modern font-bold"
                     placeholder="0.00"
                     value={formData.value}
                     onChange={(e) => setFormData({ ...formData, value: e.target.value })}
@@ -1302,7 +1302,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
                   >
@@ -1315,7 +1315,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Pagamento</label>
                 <select 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                  className="select-modern"
                   value={formData.paymentMethod}
                   onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
                 >
@@ -1332,7 +1332,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
                     <select 
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="select-modern"
                       value={formData.supplierId}
                       onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                     >
@@ -1345,7 +1345,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   <div className="space-y-2">
                     <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">OS Relacionada</label>
                     <select 
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="select-modern"
                       value={formData.relatedId}
                       onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
                     >
@@ -1371,7 +1371,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 <input 
                   type="text" 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                  className="input-modern"
                   placeholder="Ex: Peças, Aluguel, Salários..."
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
@@ -1381,7 +1381,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               <div className="space-y-2">
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Descrição</label>
                 <textarea 
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all min-h-[80px]"
+                  className="textarea-modern min-h-[80px]"
                   placeholder="Detalhes da transação..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}

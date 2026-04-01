@@ -391,7 +391,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cliente</label>
                 <select 
                   required
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                  className="select-modern"
                   value={formData.clienteId}
                   onChange={(e) => setFormData({ ...formData, clienteId: e.target.value, veiculoId: '' })}
                 >
@@ -406,7 +406,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <select 
                     required
                     disabled={!formData.clienteId}
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="select-modern"
                     value={formData.veiculoId}
                     onChange={(e) => setFormData({ ...formData, veiculoId: e.target.value })}
                   >
@@ -426,7 +426,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                     <input 
                       type="text" 
                       placeholder="Buscar serviço..." 
-                      className="w-full pl-9 pr-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="input-modern pl-9 pr-4 py-2 text-xs"
                       value={serviceSearchTerm}
                       onChange={(e) => setServiceSearchTerm(e.target.value)}
                     />
@@ -472,7 +472,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <input 
                     type="datetime-local" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     value={formData.startTime}
                     onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
                   />
@@ -482,7 +482,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                   <input 
                     type="datetime-local" 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="input-modern"
                     value={formData.endTime}
                     onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
                   />
