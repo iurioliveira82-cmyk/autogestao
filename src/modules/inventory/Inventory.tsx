@@ -45,7 +45,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<{ itemName: string; itemId: string; suggestedQuantity: number; reasoning: string }[]>([]);
   const { canCreate, canEdit, canDelete } = usePermissions('inventory');
 
   // Form state
@@ -222,18 +222,44 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
     setIsGeneratingAI(true);
     try {
-      const itemsList = lowStockItems.map(item => `- ${item.name}: Atual ${item.quantidadeAtual}, Mínimo ${item.estoqueMinimo}`).join('\n');
+      const itemsList = lowStockItems.map(item => ({
+        id: item.id,
+        name: item.name,
+        current: item.quantidadeAtual,
+        min: item.estoqueMinimo,
+        abc: item.abcCategory || 'N/A',
+        unit: item.unit || 'un'
+      }));
+
       const prompt = `
-        Abaixo está uma lista de itens com estoque baixo em uma oficina mecânica:
-        ${itemsList}
+        Analise os seguintes itens com estoque baixo em uma oficina mecânica e sugira quantidades de reposição ideais.
+        Considere que itens de Categoria A (alto giro/valor) devem ter uma margem de segurança maior (ex: 100% acima do mínimo).
+        Itens B (médio giro) devem ter 50% acima do mínimo.
+        Itens C (baixo giro) devem ter apenas o suficiente para atingir o mínimo + 20%.
         
-        Sugira quantidades de reposição para cada item, considerando que o objetivo é manter um estoque de segurança de pelo menos 50% acima do mínimo.
-        Forneça uma lista curta e direta.
+        Itens para análise:
+        ${JSON.stringify(itemsList, null, 2)}
+        
+        Retorne APENAS um array JSON com a seguinte estrutura, sem blocos de código ou explicações extras:
+        [
+          { "itemId": "id_do_item", "itemName": "Nome do Item", "suggestedQuantity": 10, "reasoning": "Breve explicação do porquê desta quantidade" }
+        ]
       `;
 
       const response = await generateAIResponse(prompt, 'Estoque');
-      setAiSuggestion(response || null);
-      toast.success('Sugestões de reposição geradas!');
+      
+      // Try to parse JSON from the response
+      try {
+        const cleanResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+        const parsedSuggestions = JSON.parse(cleanResponse);
+        setAiSuggestions(parsedSuggestions);
+        toast.success('Sugestões de reposição geradas com sucesso!');
+      } catch (parseError) {
+        console.error('Error parsing AI response:', parseError);
+        // Fallback to old behavior if parsing fails
+        setAiSuggestions([]);
+        toast.error('Ocorreu um erro ao processar as sugestões da IA.');
+      }
     } catch (error) {
       toast.error('Erro ao gerar sugestões de IA.');
     } finally {
@@ -311,7 +337,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         </div>
       </div>
 
-      {aiSuggestion && (
+      {aiSuggestions.length > 0 && (
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,21 +347,62 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <Sparkles size={120} className="text-accent" />
           </div>
           <div className="relative z-10">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2 text-accent">
                 <Sparkles size={20} />
-                <span className="text-xs font-black uppercase tracking-widest">Sugestões da Inteligência Artificial</span>
+                <span className="text-xs font-black uppercase tracking-widest">Sugestões Inteligentes de Reposição</span>
               </div>
               <button 
-                onClick={() => setAiSuggestion(null)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                onClick={() => setAiSuggestions([])}
+                className="text-slate-400 hover:text-slate-600 transition-colors bg-white p-1.5 rounded-full border border-slate-100 shadow-sm"
               >
                 <XCircle size={20} />
               </button>
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
-              "{aiSuggestion}"
-            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {aiSuggestions.map((suggestion, idx) => (
+                <div key={idx} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-start justify-between mb-2">
+                    <h5 className="text-xs font-black text-slate-900 uppercase tracking-tight line-clamp-1">{suggestion.itemName}</h5>
+                    <span className="bg-accent/10 text-accent text-[10px] font-black px-2 py-0.5 rounded-lg">
+                      +{suggestion.suggestedQuantity}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-500 leading-relaxed italic mb-3">
+                    {suggestion.reasoning}
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full text-[9px] h-8"
+                    onClick={() => {
+                      const item = items.find(i => i.id === suggestion.itemId);
+                      if (item) openModal(item);
+                    }}
+                  >
+                    Ver Produto
+                  </Button>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-6 pt-4 border-t border-accent/10 flex items-center justify-between">
+              <p className="text-[10px] text-slate-400 font-medium italic">
+                * As sugestões são baseadas na curva ABC e níveis de estoque atuais.
+              </p>
+              <Button 
+                variant="primary" 
+                size="sm" 
+                className="text-[10px] h-8"
+                onClick={() => {
+                  // In a real app, this could open a Purchase Order modal pre-filled with these items
+                  toast.info('Funcionalidade de Pedido de Compra Automático em desenvolvimento.');
+                }}
+              >
+                Gerar Pedido de Compra
+              </Button>
+            </div>
           </div>
         </motion.div>
       )}
