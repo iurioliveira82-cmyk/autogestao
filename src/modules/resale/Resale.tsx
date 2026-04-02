@@ -199,7 +199,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
   const statusMap = {
     available: { label: 'Disponível', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
     reserved: { label: 'Reservado', color: 'bg-yellow-50 text-yellow-600', icon: Clock },
-    sold: { label: 'Vendido', color: 'bg-zinc-100 text-zinc-600', icon: ShoppingBag },
+    sold: { label: 'Vendido', color: 'bg-slate-100 text-slate-600', icon: ShoppingBag },
   };
 
   return (
@@ -207,7 +207,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
             placeholder="Buscar por marca ou modelo..." 
@@ -230,21 +230,21 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
       {/* Resale Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {loading ? (
-          <div className="col-span-full py-20 text-center text-zinc-400 italic">Carregando veículos...</div>
+          <div className="col-span-full py-20 text-center text-slate-400 italic">Carregando veículos...</div>
         ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => {
           const status = statusMap[vehicle.status];
           const profit = vehicle.precoVenda ? vehicle.precoVenda - vehicle.precoCompra : 0;
           
           return (
-            <div key={vehicle.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all group">
+            <div key={vehicle.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-start justify-between mb-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-900 shadow-sm border border-zinc-200">
+                  <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-200">
                     <Car size={24} />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-zinc-900">{vehicle.brand} {vehicle.model}</h3>
-                    <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-widest">
+                    <h3 className="text-lg font-bold text-slate-900">{vehicle.brand} {vehicle.model}</h3>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
                       <Tag size={12} />
                       {vehicle.year || 'N/A'}
                     </div>
@@ -254,7 +254,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   {canEdit && (
                     <button 
                       onClick={() => openModal(vehicle)}
-                      className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-lg transition-all"
+                      className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-lg transition-all"
                     >
                       <Edit2 size={18} />
                     </button>
@@ -262,7 +262,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   {canDelete && (
                     <button 
                       onClick={() => handleDelete(vehicle.id)}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
                     >
                       <Trash2 size={18} />
                     </button>
@@ -278,23 +278,23 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-3 bg-zinc-50 rounded-2xl border border-zinc-100">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Compra</p>
-                  <p className="text-sm font-bold text-zinc-700">{formatCurrency(vehicle.precoCompra)}</p>
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Compra</p>
+                  <p className="text-sm font-bold text-slate-700">{formatCurrency(vehicle.precoCompra)}</p>
                 </div>
                 <div className="p-3 bg-accent rounded-2xl text-accent-foreground">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Venda</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Venda</p>
                   <p className="text-sm font-bold">{vehicle.precoVenda ? formatCurrency(vehicle.precoVenda) : 'Sob consulta'}</p>
                 </div>
               </div>
 
               {vehicle.precoVenda && (
-                <div className="pt-4 border-t border-zinc-100 flex items-center justify-between">
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2 text-green-600">
                     <TrendingUp size={16} />
                     <span className="text-sm font-black">Lucro: {formatCurrency(profit)}</span>
                   </div>
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                     {Math.round((profit / vehicle.precoCompra) * 100)}% margem
                   </span>
                 </div>
@@ -302,19 +302,19 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
             </div>
           );
         }) : (
-          <div className="col-span-full py-20 text-center text-zinc-400 italic">Nenhum veículo encontrado.</div>
+          <div className="col-span-full py-20 text-center text-slate-400 italic">Nenhum veículo encontrado.</div>
         )}
       </div>
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-900">
                 {editingVehicle ? 'Editar Veículo' : 'Novo Veículo para Revenda'}
               </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-lg">
+              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-accent rounded-lg">
                 <XCircle size={24} />
               </button>
             </div>
@@ -322,7 +322,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
             <form onSubmit={handleSubmit} className="p-8 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Marca</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Marca</label>
                   <input 
                     type="text" 
                     required
@@ -333,7 +333,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Modelo</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Modelo</label>
                   <input 
                     type="text" 
                     required
@@ -347,7 +347,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Ano</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Ano</label>
                   <input 
                     type="number" 
                     className="input-modern"
@@ -357,7 +357,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Status</label>
                   <select 
                     className="select-modern"
                     value={formData.status}
@@ -372,7 +372,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Preço de Compra (R$)</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Preço de Compra (R$)</label>
                   <input 
                     type="number" 
                     required
@@ -384,7 +384,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Preço de Venda (R$)</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Preço de Venda (R$)</label>
                   <input 
                     type="number" 
                     step="0.01"
@@ -400,7 +400,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
                 >
                   Cancelar
                 </button>

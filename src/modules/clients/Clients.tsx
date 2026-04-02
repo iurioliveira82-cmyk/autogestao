@@ -15,7 +15,8 @@ import {
   Filter,
   Car,
   ClipboardList,
-  History
+  History,
+  User
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db, auth } from '../../firebase';
@@ -25,13 +26,20 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { formatPhone, cn, formatCurrency, isValidEmail, handleFirestoreError } from '../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { FiltersBar } from '../../components/ui/FiltersBar';
-import { DataTable } from '../../components/ui/DataTable';
-import { EmptyState } from '../../components/ui/EmptyState';
+
+// Layout Components
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
+import FiltersToolbar from '../../components/layout/FiltersToolbar';
+import StandardTable from '../../components/layout/StandardTable';
+import EmptyState from '../../components/layout/EmptyState';
+import LoadingSkeleton from '../../components/layout/LoadingSkeleton';
+import StandardDialog from '../../components/layout/StandardDialog';
+import StandardDrawer from '../../components/layout/StandardDrawer';
+
+// UI Components
 import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Card';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface ClientsProps {
@@ -252,231 +260,146 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
   });
 
   return (
-    <div className="space-y-8 sm:space-y-12 animate-in">
+    <PageContainer>
       <PageHeader 
         title="Clientes" 
-        description="Gerencie seus clientes e histórico de atendimentos."
-        action={canCreate && (
-          <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
-            Novo Cliente
-          </Button>
-        )}
+        subtitle="Gerencie seus clientes e histórico de atendimentos."
+        breadcrumbs={[{ label: 'Clientes' }]}
+        actions={
+          canCreate && (
+            <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
+              Novo Cliente
+            </Button>
+          )
+        }
       />
       
-      <div className="flex items-center gap-4">
-        <SearchBar 
-          placeholder="Buscar por nome, telefone ou email..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          onClear={() => setSearchTerm('')}
-        />
-        <Button variant="outline" icon={<Filter size={18} />}>Filtros</Button>
-      </div>
+      <FiltersToolbar 
+        searchQuery={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Buscar por nome, telefone ou email..."
+      />
 
       {/* Clients Grid/List */}
-      <div className="modern-card p-0 overflow-hidden">
-        {/* Mobile View: List of Cards */}
-        <div className="block sm:hidden divide-y divide-zinc-100">
-          {loading ? (
-            <div className="p-10 text-center">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-zinc-400 text-xs italic">Carregando clientes...</p>
-            </div>
-          ) : filteredClients.length > 0 ? filteredClients.map((client) => (
-            <div key={client.id} className="p-4 space-y-4 active:bg-zinc-50 transition-colors" onClick={() => openHistory(client)}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-accent text-accent-foreground rounded-xl flex items-center justify-center font-bold text-sm">
-                    {client.name.slice(0, 2).toUpperCase()}
+      <div className="mt-6">
+        {loading ? (
+          <LoadingSkeleton variant="table" count={5} />
+        ) : filteredClients.length > 0 ? (
+          <StandardTable
+            data={filteredClients}
+            columns={[
+              {
+                header: 'Cliente',
+                accessor: (client) => (
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center font-bold text-base shadow-sm">
+                      {client.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-slate-900 block">{client.name}</span>
+                      {client.email && <span className="text-xs text-slate-400 font-medium">{client.email}</span>}
+                    </div>
                   </div>
-                  <div>
-                    <span className="text-sm font-bold text-zinc-900 block">{client.name}</span>
-                    <span className={cn(
-                      "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider mt-1",
-                      client.status === 'active' ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
-                    )}>
-                      {client.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </span>
+                )
+              },
+              {
+                header: 'Contato',
+                accessor: (client) => (
+                  <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
+                    <Phone size={14} className="text-slate-400" />
+                    {formatPhone(client.phone)}
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
+                )
+              },
+              {
+                header: 'Status',
+                accessor: (client) => (
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                    client.status === 'active' ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
+                  )}>
+                    {client.status === 'active' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                    {client.status === 'active' ? 'Ativo' : 'Inativo'}
+                  </span>
+                )
+              },
+              {
+                header: 'Cadastro',
+                accessor: (client) => (
+                  <span className="text-sm text-slate-500 font-medium">
+                    {client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recente' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recente'}
+                  </span>
+                )
+              }
+            ]}
+            onRowClick={(client) => openHistory(client)}
+            actions={(client) => (
+              <div className="flex items-center justify-end gap-1">
+                {setActiveTab && (
                   <button 
                     onClick={(e) => {
                       e.stopPropagation();
-                      openHistory(client);
+                      setActiveTab('os', client.id);
                     }}
-                    className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg"
+                    className="p-2 text-accent hover:bg-accent/10 rounded-lg transition-all"
+                    title="Nova OS"
                   >
-                    <History size={16} />
+                    <ClipboardList size={18} />
                   </button>
-                  {canEdit && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openModal(client);
-                      }}
-                      className="p-2 text-zinc-400 hover:bg-zinc-100 rounded-lg"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                  )}
-                  {setActiveTab && (
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setActiveTab('os', client.id);
-                      }}
-                      className="p-2 text-accent hover:bg-accent/10 rounded-lg"
-                      title="Nova OS"
-                    >
-                      <ClipboardList size={16} />
-                    </button>
-                  )}
-                </div>
+                )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openHistory(client);
+                  }}
+                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                  title="Ver Histórico"
+                >
+                  <History size={18} />
+                </button>
+                {canEdit && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openModal(client);
+                    }}
+                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                    title="Editar"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                )}
+                {canDelete && (
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(client.id);
+                    }}
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    title="Excluir"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-zinc-50">
-                <div className="flex flex-col">
-                  <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest">Contato</span>
-                  <span className="text-xs font-bold text-zinc-600 flex items-center gap-1">
-                    <Phone size={10} />
-                    {formatPhone(client.phone)}
-                  </span>
-                </div>
-                <div className="flex flex-col text-right">
-                  <span className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest">Cadastro</span>
-                  <span className="text-xs font-bold text-zinc-600">{client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recent' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recent'}</span>
-                </div>
-              </div>
-            </div>
-          )) : (
-            <div className="p-10 text-center">
-              <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest">Nenhum cliente encontrado</p>
-            </div>
-          )}
-        </div>
-
-        {/* Desktop View: Table */}
-        <div className="hidden sm:block overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50/50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest border-b border-zinc-100">
-                <th className="px-8 py-5">Cliente</th>
-                <th className="px-8 py-5">Contato</th>
-                <th className="px-8 py-5">Status</th>
-                <th className="px-8 py-5">Cadastro</th>
-                <th className="px-8 py-5 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                      <p className="text-zinc-400 text-sm italic">Carregando clientes...</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredClients.length > 0 ? filteredClients.map((client) => (
-                <tr key={client.id} className="group hover:bg-zinc-50/50 transition-colors cursor-pointer" onClick={() => openHistory(client)}>
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center font-bold text-base shadow-sm group-hover:scale-105 transition-transform">
-                        {client.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-zinc-900 block group-hover:text-zinc-600 transition-colors">{client.name}</span>
-                        {client.email && <span className="text-xs text-zinc-400 font-medium">{client.email}</span>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2 text-sm text-zinc-600 font-medium">
-                        <Phone size={14} className="text-zinc-400" />
-                        {formatPhone(client.phone)}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-6">
-                    <span className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                      client.status === 'active' ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
-                    )}>
-                      {client.status === 'active' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                      {client.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </td>
-                  <td className="px-8 py-6 text-sm text-zinc-500 font-medium">
-                    {client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recent' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recent'}
-                  </td>
-                  <td className="px-8 py-6 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {setActiveTab && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveTab('os', client.id);
-                          }}
-                          className="p-2 text-accent hover:bg-accent/10 rounded-lg transition-all"
-                          title="Nova OS"
-                        >
-                          <ClipboardList size={18} />
-                        </button>
-                      )}
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openHistory(client);
-                        }}
-                        className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                        title="Ver Histórico"
-                      >
-                        <History size={18} />
-                      </button>
-                      {canEdit && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openModal(client);
-                          }}
-                          className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-100 rounded-lg transition-all"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(client.id);
-                          }}
-                          className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={5} className="px-8 py-20 text-center">
-                    <div className="flex flex-col items-center gap-2 opacity-40">
-                      <UserPlus size={48} className="text-zinc-300" />
-                      <p className="text-zinc-500 text-sm font-medium">Nenhum cliente encontrado.</p>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            )}
+          />
+        ) : (
+          <EmptyState
+            icon={User}
+            title="Nenhum cliente encontrado"
+            description={searchTerm ? "Tente ajustar sua busca para encontrar o que procura." : "Comece cadastrando seu primeiro cliente para gerenciar seus atendimentos."}
+            action={!searchTerm ? (
+              <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
+                Novo Cliente
+              </Button>
+            ) : undefined}
+          />
+        )}
       </div>
 
       {/* Modal Form */}
-      <Modal 
+      <StandardDialog 
         isOpen={isModalOpen} 
         onClose={closeModal} 
         title={editingClient ? 'Editar Cliente' : 'Novo Cliente'} 
@@ -488,7 +411,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             onClick={() => setActiveModalTab('general')}
             className={cn(
               "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'general' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+              activeModalTab === 'general' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
             Geral
@@ -498,7 +421,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             onClick={() => setActiveModalTab('financial')}
             className={cn(
               "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'financial' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+              activeModalTab === 'financial' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
             Financeiro
@@ -508,7 +431,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             onClick={() => setActiveModalTab('additional')}
             className={cn(
               "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'additional' ? "border-accent text-accent" : "border-transparent text-zinc-400 hover:text-zinc-600"
+              activeModalTab === 'additional' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
             )}
           >
             Adicional
@@ -518,7 +441,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
           {activeModalTab === 'general' ? (
             <>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
                 <input 
                   type="text" 
                   required
@@ -531,7 +454,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Telefone</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
                   <input 
                     type="tel" 
                     required
@@ -542,7 +465,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Status</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Status</label>
                   <select 
                     className="select-modern"
                     value={formData.status}
@@ -555,7 +478,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email (Opcional)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email (Opcional)</label>
                 <input 
                   type="email" 
                   className="input-modern"
@@ -568,7 +491,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
           ) : activeModalTab === 'financial' ? (
             <>
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Limite de Crédito Mensal (R$)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Limite de Crédito Mensal (R$)</label>
                 <input 
                   type="number" 
                   step="0.01"
@@ -580,7 +503,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Taxa de Juros por Atraso (% ao mês)</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Taxa de Juros por Atraso (% ao mês)</label>
                 <input 
                   type="number" 
                   step="0.01"
@@ -595,7 +518,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Data de Aniversário</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Data de Aniversário</label>
                   <input 
                     type="date" 
                     className="input-modern"
@@ -604,7 +527,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Pref. de Contato</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pref. de Contato</label>
                   <select 
                     className="select-modern"
                     value={formData.contactPreference}
@@ -619,7 +542,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Histórico de Compras / Notas</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Histórico de Compras / Notas</label>
                 <textarea 
                   rows={4}
                   className="textarea-modern"
@@ -635,7 +558,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             <button 
               type="button"
               onClick={closeModal}
-              className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
+              className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
             >
               Cancelar
             </button>
@@ -647,7 +570,7 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             </button>
           </div>
         </form>
-      </Modal>
+      </StandardDialog>
 
       {/* History Modal */}
       <ConfirmDialog
@@ -659,16 +582,16 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
       />
 
       {isHistoryModalOpen && selectedClient && (
-        <Modal isOpen={isHistoryModalOpen} onClose={closeHistory} maxWidth="max-w-4xl" showHeader={false}>
+        <StandardDialog isOpen={isHistoryModalOpen} onClose={closeHistory} maxWidth="max-w-4xl" showHeader={false}>
           <div className="flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black">
                   {selectedClient.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold">{selectedClient.name}</h3>
-                  <div className="flex items-center gap-4 text-zinc-400 text-sm mt-1">
+                  <div className="flex items-center gap-4 text-slate-400 text-sm mt-1">
                     <span className="flex items-center gap-1"><Phone size={14} /> {formatPhone(selectedClient.phone)}</span>
                     {selectedClient.email && <span className="flex items-center gap-1"><Mail size={14} /> {selectedClient.email}</span>}
                   </div>
@@ -682,50 +605,50 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             <div className="flex-1 overflow-y-auto p-8 space-y-8">
               {/* Contact Info Section */}
               <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
                     <Phone size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Telefone</p>
-                    <a href={`tel:${selectedClient.phone}`} className="text-sm font-bold text-zinc-900 hover:text-zinc-600 transition-colors">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Telefone</p>
+                    <a href={`tel:${selectedClient.phone}`} className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors">
                       {formatPhone(selectedClient.phone)}
                     </a>
                   </div>
                 </div>
-                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
                     <Mail size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">E-mail</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-mail</p>
                     {selectedClient.email ? (
-                      <a href={`mailto:${selectedClient.email}`} className="text-sm font-bold text-zinc-900 hover:text-zinc-600 transition-colors truncate block max-w-[150px]">
+                      <a href={`mailto:${selectedClient.email}`} className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors truncate block max-w-[150px]">
                         {selectedClient.email}
                       </a>
                     ) : (
-                      <span className="text-sm font-bold text-zinc-400 italic">Não informado</span>
+                      <span className="text-sm font-bold text-slate-400 italic">Não informado</span>
                     )}
                   </div>
                 </div>
-                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
                     <Calendar size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Aniversário</p>
-                    <span className="text-sm font-bold text-zinc-900">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aniversário</p>
+                    <span className="text-sm font-bold text-slate-900">
                       {selectedClient.birthDate ? (isNaN(new Date(selectedClient.birthDate + 'T00:00:00').getTime()) ? 'Não informado' : format(new Date(selectedClient.birthDate + 'T00:00:00'), 'dd/MM/yyyy')) : 'Não informado'}
                     </span>
                   </div>
                 </div>
-                <div className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-zinc-400 border border-zinc-100 shadow-sm">
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
                     <CheckCircle2 size={20} />
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Pref. Contato</p>
-                    <span className="text-sm font-bold text-zinc-900 capitalize">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pref. Contato</p>
+                    <span className="text-sm font-bold text-slate-900 capitalize">
                       {(!selectedClient.contactPreference || (selectedClient.contactPreference as any) === 'none') ? 'Não informado' : selectedClient.contactPreference}
                     </span>
                   </div>
@@ -735,11 +658,11 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               {/* Purchase History Section */}
               {selectedClient.purchaseHistory && (
                 <section className="space-y-4">
-                  <div className="flex items-center gap-2 text-zinc-900">
-                    <History size={20} className="text-zinc-400" />
+                  <div className="flex items-center gap-2 text-slate-900">
+                    <History size={20} className="text-slate-400" />
                     <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Histórico / Notas Adicionais</h4>
                   </div>
-                  <div className="p-6 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm text-zinc-600 whitespace-pre-wrap leading-relaxed">
+                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
                     {selectedClient.purchaseHistory}
                   </div>
                 </section>
@@ -747,22 +670,22 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
 
               {/* Vehicles Section */}
               <section className="space-y-4">
-                <div className="flex items-center gap-2 text-zinc-900">
-                  <Car size={20} className="text-zinc-400" />
+                <div className="flex items-center gap-2 text-slate-900">
+                  <Car size={20} className="text-slate-400" />
                   <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Veículos Associados</h4>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {clientVehicles.length > 0 ? clientVehicles.map(vehicle => (
-                    <div key={vehicle.id} className="p-4 bg-zinc-50 border border-zinc-200 rounded-2xl">
+                    <div key={vehicle.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{vehicle.brand}</span>
+                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{vehicle.brand}</span>
                         <span className="px-2 py-0.5 bg-accent text-accent-foreground text-[10px] font-bold rounded uppercase tracking-wider">{vehicle.plate}</span>
                       </div>
-                      <h5 className="font-bold text-zinc-900">{vehicle.model}</h5>
-                      <p className="text-xs text-zinc-500 mt-1">{vehicle.year} • {vehicle.color}</p>
+                      <h5 className="font-bold text-slate-900">{vehicle.model}</h5>
+                      <p className="text-xs text-slate-500 mt-1">{vehicle.year} • {vehicle.color}</p>
                     </div>
                   )) : (
-                    <div className="col-span-full py-8 text-center text-zinc-400 italic bg-zinc-50 rounded-2xl border border-dashed border-zinc-200">
+                    <div className="col-span-full py-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                       Nenhum veículo cadastrado para este cliente.
                     </div>
                   )}
@@ -771,14 +694,14 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
 
               {/* Service History Section */}
               <section className="space-y-4">
-                <div className="flex items-center gap-2 text-zinc-900">
-                  <ClipboardList size={20} className="text-zinc-400" />
+                <div className="flex items-center gap-2 text-slate-900">
+                  <ClipboardList size={20} className="text-slate-400" />
                   <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Histórico de Ordens de Serviço</h4>
                 </div>
-                <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden">
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                   <table className="w-full text-left text-sm">
                     <thead>
-                      <tr className="bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest border-b border-zinc-200">
+                      <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-200">
                         <th className="px-6 py-3">Data</th>
                         <th className="px-6 py-3">Veículo</th>
                         <th className="px-6 py-3">Serviços</th>
@@ -786,20 +709,20 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                         <th className="px-6 py-3 text-right">Valor Total</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
+                    <tbody className="divide-y divide-slate-100">
                       {clientOrders.length > 0 ? clientOrders.map(order => {
                         const vehicle = clientVehicles.find(v => v.id === order.veiculoId);
                         return (
-                          <tr key={order.id} className="hover:bg-zinc-50 transition-colors">
-                            <td className="px-6 py-4 text-zinc-500">{order.createdAt ? (isNaN(new Date(order.createdAt).getTime()) ? 'N/A' : format(new Date(order.createdAt), 'dd/MM/yy')) : 'N/A'}</td>
+                          <tr key={order.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="px-6 py-4 text-slate-500">{order.createdAt ? (isNaN(new Date(order.createdAt).getTime()) ? 'N/A' : format(new Date(order.createdAt), 'dd/MM/yy')) : 'N/A'}</td>
                             <td className="px-6 py-4">
-                              <div className="font-bold text-zinc-900">{vehicle?.model || 'Desconhecido'}</div>
-                              <div className="text-[10px] text-zinc-400 uppercase">{vehicle?.plate}</div>
+                              <div className="font-bold text-slate-900">{vehicle?.model || 'Desconhecido'}</div>
+                              <div className="text-[10px] text-slate-400 uppercase">{vehicle?.plate}</div>
                             </td>
                             <td className="px-6 py-4">
                               <div className="flex flex-wrap gap-1">
                                 {order.servicos?.map((s, i) => (
-                                  <span key={i} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[10px] rounded border border-zinc-200">
+                                  <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] rounded border border-slate-200">
                                     {s.name}
                                   </span>
                                 ))}
@@ -816,14 +739,14 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                                  order.status === 'cancelada' ? 'Cancelada' : 'Em Aberto'}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-right font-bold text-zinc-900">
+                            <td className="px-6 py-4 text-right font-bold text-slate-900">
                               {formatCurrency(order.valorTotal)}
                             </td>
                           </tr>
                         );
                       }) : (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-zinc-400 italic">
+                          <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
                             Nenhuma ordem de serviço encontrada.
                           </td>
                         </tr>
@@ -834,18 +757,18 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
               </section>
             </div>
 
-            <div className="p-6 border-t border-zinc-100 bg-zinc-50 flex justify-end">
+            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
               <button 
                 onClick={closeHistory}
-                className="px-8 py-3 bg-zinc-900 text-white font-bold rounded-xl hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
+                className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
               >
                 Fechar Histórico
               </button>
             </div>
           </div>
-        </Modal>
+        </StandardDialog>
       )}
-    </div>
+    </PageContainer>
   );
 };
 

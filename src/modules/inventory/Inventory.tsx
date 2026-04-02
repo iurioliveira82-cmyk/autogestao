@@ -328,12 +328,12 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               </div>
               <button 
                 onClick={() => setAiSuggestion(null)}
-                className="text-zinc-400 hover:text-zinc-600 transition-colors"
+                className="text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <XCircle size={20} />
               </button>
             </div>
-            <p className="text-sm text-zinc-600 leading-relaxed font-medium italic">
+            <p className="text-sm text-slate-600 leading-relaxed font-medium italic">
               "{aiSuggestion}"
             </p>
           </div>
@@ -347,8 +347,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <Package size={24} />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Total Itens</p>
-            <h4 className="text-xl font-black text-zinc-900">{items.length}</h4>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Itens</p>
+            <h4 className="text-xl font-black text-slate-900">{items.length}</h4>
           </div>
         </div>
         <div className="modern-card p-6 flex items-center gap-4">
@@ -356,8 +356,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <DollarSign size={24} />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Valor em Estoque</p>
-            <h4 className="text-xl font-black text-zinc-900">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Valor em Estoque</p>
+            <h4 className="text-xl font-black text-slate-900">
               {formatCurrency(items.reduce((acc, item) => acc + (item.quantidadeAtual * (item.custoMedio || 0)), 0))}
             </h4>
           </div>
@@ -367,7 +367,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <AlertTriangle size={24} />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Estoque Baixo</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estoque Baixo</p>
             <h4 className="text-xl font-black text-amber-600">
               {items.filter(i => i.quantidadeAtual <= (i.estoqueMinimo || 0)).length}
             </h4>
@@ -378,8 +378,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <Layers size={24} />
           </div>
           <div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Categorias</p>
-            <h4 className="text-xl font-black text-zinc-900">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Categorias</p>
+            <h4 className="text-xl font-black text-slate-900">
               {new Set(items.map(i => i.category)).size}
             </h4>
           </div>
@@ -392,7 +392,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-zinc-400 text-sm italic">Carregando inventário...</p>
+              <p className="text-slate-400 text-sm italic">Carregando inventário...</p>
             </div>
           </div>
         ) : filteredItems.length > 0 ? filteredItems.map((item) => {
@@ -415,15 +415,15 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     <Package size={28} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-zinc-900 line-clamp-1">{item.name}</h3>
+                    <h3 className="text-sm font-black text-slate-900 line-clamp-1">{item.name}</h3>
                     <div className="flex items-center gap-2">
-                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{item.category || 'Sem Categoria'}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category || 'Sem Categoria'}</p>
                       {item.abcCategory && (
                         <span className={cn(
                           "px-1.5 py-0.5 rounded text-[8px] font-black uppercase",
                           item.abcCategory === 'A' ? "bg-green-100 text-green-700" :
                           item.abcCategory === 'B' ? "bg-blue-100 text-blue-700" :
-                          "bg-zinc-100 text-zinc-700"
+                          "bg-slate-100 text-slate-700"
                         )}>
                           Curva {item.abcCategory}
                         </span>
@@ -444,7 +444,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   {canEdit && (
                     <button 
                       onClick={() => openModal(item)}
-                      className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
+                      className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
                     >
                       <Edit2 size={16} />
                     </button>
@@ -452,7 +452,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   {canDelete && (
                     <button 
                       onClick={() => handleDelete(item.id)}
-                      className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -461,18 +461,18 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="bg-zinc-50 rounded-2xl p-3 border border-zinc-100">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Preço Venda</p>
-                  <p className="text-sm font-black text-zinc-900">{formatCurrency(item.precoVenda)}</p>
+                <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Preço Venda</p>
+                  <p className="text-sm font-black text-slate-900">{formatCurrency(item.precoVenda)}</p>
                 </div>
                 <div className={cn(
                   "rounded-2xl p-3 border",
-                  isLow ? "bg-red-100/50 border-red-200" : "bg-zinc-50 border-zinc-100"
+                  isLow ? "bg-red-100/50 border-red-200" : "bg-slate-50 border-slate-100"
                 )}>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Estoque Disponível</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estoque Disponível</p>
                   <p className={cn(
                     "text-sm font-black",
-                    isLow ? "text-red-600" : "text-zinc-900"
+                    isLow ? "text-red-600" : "text-slate-900"
                   )}>
                     {item.quantidadeAtual} {item.unit || 'un'}
                   </p>
@@ -484,10 +484,10 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Custo Médio</span>
-                  <span className="text-xs font-bold text-zinc-600">{formatCurrency(item.custoMedio || 0)}</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Custo Médio</span>
+                  <span className="text-xs font-bold text-slate-600">{formatCurrency(item.custoMedio || 0)}</span>
                 </div>
                 {isLow && (
                   <span className="flex items-center gap-1 text-[10px] font-black text-red-500 uppercase tracking-widest animate-pulse">
@@ -499,7 +499,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
               <button
                 onClick={() => setActiveTab?.('stock', item.id)}
-                className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-zinc-50 text-zinc-600 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-100 transition-all border border-zinc-100"
+                className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-slate-50 text-slate-600 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-100 transition-all border border-slate-100"
               >
                 <History size={14} />
                 Histórico de Movimentações
@@ -509,8 +509,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         }) : (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-2 opacity-40">
-              <Package size={48} className="text-zinc-300" />
-              <p className="text-zinc-500 text-sm font-medium">Nenhum produto encontrado.</p>
+              <Package size={48} className="text-slate-300" />
+              <p className="text-slate-500 text-sm font-medium">Nenhum produto encontrado.</p>
             </div>
           </div>
         )}
@@ -521,7 +521,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome do Produto</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome do Produto</label>
               <input 
                 type="text" 
                 required
@@ -532,7 +532,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">SKU / Código</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SKU / Código</label>
               <input 
                 type="text" 
                 className="input-modern"
@@ -545,7 +545,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Código de Barras</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Código de Barras</label>
               <input 
                 type="text" 
                 className="input-modern"
@@ -555,7 +555,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Unidade</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unidade</label>
               <select 
                 className="select-modern"
                 value={formData.unit}
@@ -573,7 +573,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Quantidade Atual</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Quantidade Atual</label>
               <input 
                 type="number" 
                 required
@@ -585,7 +585,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Estoque Mínimo</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estoque Mínimo</label>
               <input 
                 type="number" 
                 step="0.01"
@@ -599,7 +599,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Preço Venda (R$)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Preço Venda (R$)</label>
               <input 
                 type="number" 
                 required
@@ -611,7 +611,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Custo (R$)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Custo (R$)</label>
               <input 
                 type="number" 
                 step="0.01"
@@ -625,7 +625,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
               <input 
                 type="text" 
                 className="input-modern"
@@ -635,7 +635,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               />
             </div>
             <div className="space-y-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Localização</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Localização</label>
               <input 
                 type="text" 
                 className="input-modern"
@@ -647,7 +647,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           </div>
 
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Fornecedor</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fornecedor</label>
             <select 
               className="select-modern"
               value={formData.fornecedorId}

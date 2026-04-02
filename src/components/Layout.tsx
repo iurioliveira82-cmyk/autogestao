@@ -136,7 +136,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
 
       {/* Sidebar */}
       <aside className={cn(
-        "fixed lg:static inset-y-0 left-0 w-80 bg-white dark:bg-zinc-950 border-r border-zinc-100 dark:border-zinc-800 z-50 transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:translate-x-0 shadow-modern",
+        "fixed lg:static inset-y-0 left-0 w-80 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 z-50 transform transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] lg:translate-x-0 shadow-modern",
         isSidebarOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="h-full flex flex-col p-8 overflow-y-auto custom-scrollbar relative">
@@ -157,8 +157,8 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
               )}
             </div>
             <div className="flex flex-col">
-              <span className="text-2xl font-black text-zinc-900 dark:text-white tracking-tighter leading-none font-display group-hover:text-accent transition-colors duration-500">AutoGestão</span>
-              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mt-2">Sistema Pro</span>
+              <span className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter leading-none font-display group-hover:text-accent transition-colors duration-500">AutoGestão</span>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-2">Sistema Pro</span>
             </div>
           </div>
 
@@ -178,12 +178,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                       onClick={handleToggleGestao}
                       className={cn(
                         "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
-                        isAnySubActive ? "bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white"
+                        isAnySubActive ? "bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                       )}
                     >
                       <item.icon size={22} className={cn(
                         "transition-all duration-500",
-                        isAnySubActive ? "text-accent scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
+                        isAnySubActive ? "text-accent scale-110" : "text-slate-400 group-hover:text-accent group-hover:scale-110"
                       )} />
                       <span className="font-bold flex-1 text-left text-sm tracking-tight">{item.label}</span>
                       <ChevronRight size={18} className={cn("transition-transform duration-500 ease-out", isGestaoOpen && "rotate-90")} />
@@ -205,7 +205,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                                 "w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition-all duration-500 group relative overflow-hidden",
                                 isActive 
                                   ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
-                                  : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white hover:translate-x-1"
+                                  : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1"
                               )}
                             >
                               {isActive && (
@@ -213,7 +213,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                               )}
                               <sub.icon size={20} className={cn(
                                 "transition-all duration-500",
-                                isActive ? "text-accent-foreground scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
+                                isActive ? "text-accent-foreground scale-110" : "text-slate-400 group-hover:text-accent group-hover:scale-110"
                               )} />
                               <span className="text-sm font-bold flex-1 text-left tracking-tight">{sub.label}</span>
                               {isActive && (
@@ -240,7 +240,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                     "w-full flex items-center gap-4 px-6 py-4.5 rounded-2xl transition-all duration-500 group relative overflow-hidden",
                     isActive 
                       ? "bg-accent text-accent-foreground shadow-2xl shadow-accent/30 translate-x-1" 
-                      : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-900 hover:text-zinc-900 dark:hover:text-white hover:translate-x-1"
+                      : "text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white hover:translate-x-1"
                   )}
                 >
                   {isActive && (
@@ -248,7 +248,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                   )}
                   <item.icon size={22} className={cn(
                     "transition-all duration-500",
-                    isActive ? "text-accent-foreground scale-110" : "text-zinc-400 group-hover:text-accent group-hover:scale-110"
+                    isActive ? "text-accent-foreground scale-110" : "text-slate-400 group-hover:text-accent group-hover:scale-110"
                   )} />
                   <span className="font-bold flex-1 text-left text-sm tracking-tight">{item.label}</span>
                   {isActive && (
@@ -259,20 +259,20 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
             })}
           </nav>
 
-          <div className="mt-auto pt-8 border-t border-zinc-100 dark:border-zinc-800 relative z-10">
-            <div className="bg-zinc-50 dark:bg-zinc-900 p-6 rounded-[2.5rem] mb-4 border border-zinc-100 dark:border-zinc-800 shadow-sm group/profile hover:bg-white dark:hover:bg-zinc-800 hover:shadow-xl hover:shadow-zinc-100 dark:hover:shadow-black/20 transition-all duration-500">
+          <div className="mt-auto pt-8 border-t border-slate-100 dark:border-slate-800 relative z-10">
+            <div className="bg-slate-50 dark:bg-slate-800 p-6 rounded-[2.5rem] mb-4 border border-slate-100 dark:border-slate-800 shadow-sm group/profile hover:bg-white dark:hover:bg-slate-800 hover:shadow-xl hover:shadow-slate-100 dark:hover:shadow-black/20 transition-all duration-500">
               <div className="flex items-center gap-4 mb-5">
-                <div className="w-14 h-14 bg-white dark:bg-zinc-950 rounded-2xl flex items-center justify-center text-zinc-400 border border-zinc-100 dark:border-zinc-800 shadow-sm group-hover/profile:scale-110 group-hover/profile:rotate-3 transition-all duration-500">
+                <div className="w-14 h-14 bg-white dark:bg-slate-900 rounded-2xl flex items-center justify-center text-slate-400 border border-slate-100 dark:border-slate-800 shadow-sm group-hover/profile:scale-110 group-hover/profile:rotate-3 transition-all duration-500">
                   <UserCircle size={32} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-zinc-900 dark:text-white truncate tracking-tight">{profile?.name}</p>
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mt-1">{profile?.role}</p>
+                  <p className="text-sm font-black text-slate-900 dark:text-white truncate tracking-tight">{profile?.name}</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">{profile?.role}</p>
                 </div>
               </div>
               <button
                 onClick={logout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-red-500 hover:text-white hover:border-red-500 rounded-xl transition-all duration-300 text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95"
               >
                 <LogOut size={14} />
                 Sair do Sistema
@@ -285,10 +285,10 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden bg-app-bg transition-colors duration-500">
         {/* Header */}
-        <header className="h-24 bg-white/70 dark:bg-zinc-950/70 backdrop-blur-2xl border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between px-6 sm:px-10 sticky top-0 z-30 shadow-sm">
+        <header className="h-24 bg-white/70 dark:bg-slate-900/70 backdrop-blur-2xl border-b border-slate-100 dark:border-slate-800 flex items-center justify-between px-6 sm:px-10 sticky top-0 z-30 shadow-sm">
           <div className="flex items-center gap-4">
             <button 
-              className="lg:hidden text-zinc-500 dark:text-zinc-400 p-3 hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-2xl transition-all active:scale-90"
+              className="lg:hidden text-slate-500 dark:text-slate-400 p-3 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-2xl transition-all active:scale-90"
               onClick={() => setIsSidebarOpen(true)}
             >
               <Menu size={24} />
@@ -304,12 +304,12 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
           </div>
 
           <div className="flex items-center gap-3 sm:gap-6">
-            <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 p-1.5 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 p-1.5 rounded-2xl border border-slate-100 dark:border-slate-800">
               <button
                 onClick={toggleDarkMode}
                 className={cn(
                   "p-2 rounded-xl transition-all duration-300",
-                  !isDarkMode ? "bg-white dark:bg-zinc-800 shadow-sm text-amber-500" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                  !isDarkMode ? "bg-white dark:bg-slate-700 shadow-sm text-amber-500" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 )}
               >
                 <Sun size={18} />
@@ -318,16 +318,16 @@ const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTab }) =>
                 onClick={toggleDarkMode}
                 className={cn(
                   "p-2 rounded-xl transition-all duration-300",
-                  isDarkMode ? "bg-white dark:bg-zinc-800 shadow-sm text-indigo-400" : "text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+                  isDarkMode ? "bg-white dark:bg-slate-700 shadow-sm text-indigo-400" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 )}
               >
                 <Moon size={18} />
               </button>
             </div>
 
-            <button className="relative p-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors group">
+            <button className="relative p-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors group">
               <Bell size={22} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-950" />
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-900" />
             </button>
 
             <button

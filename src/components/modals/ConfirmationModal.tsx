@@ -49,7 +49,7 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   const currentVariant = variants[variant];
 
   return (
-    <div className="fixed inset-0 bg-zinc-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+    <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
       <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
         <div className="p-8 text-center">
           <div className={cn(
@@ -59,14 +59,14 @@ export const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
           )}>
             {currentVariant.icon}
           </div>
-          <h3 className="text-2xl font-black text-zinc-900 mb-2">{title}</h3>
-          <p className="text-sm text-zinc-500 mb-8 leading-relaxed">
+          <h3 className="text-2xl font-black text-slate-900 mb-2">{title}</h3>
+          <p className="text-sm text-slate-500 mb-8 leading-relaxed">
             {message}
           </p>
           <div className="flex gap-4">
             <button 
               onClick={onClose}
-              className="flex-1 px-6 py-4 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all text-sm"
+              className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all text-sm"
             >
               {cancelLabel}
             </button>

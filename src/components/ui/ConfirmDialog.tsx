@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from './Card';
+import StandardDialog from '../layout/StandardDialog';
 import { Button } from './Button';
 
 interface ConfirmDialogProps {
@@ -22,12 +22,19 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   cancelLabel = 'Cancelar'
 }) => {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={title}>
-      <p className="text-zinc-600 dark:text-zinc-400 font-medium">{message}</p>
-      <div className="flex justify-end gap-4 mt-8">
-        <Button variant="outline" onClick={onClose}>{cancelLabel}</Button>
-        <Button variant="danger" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
-      </div>
-    </Modal>
+    <StandardDialog 
+      isOpen={isOpen} 
+      onClose={onClose} 
+      title={title}
+      maxWidth="max-w-md"
+      footer={
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={onClose}>{cancelLabel}</Button>
+          <Button variant="danger" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+        </div>
+      }
+    >
+      <p className="text-slate-600 dark:text-slate-400 font-medium">{message}</p>
+    </StandardDialog>
   );
 };

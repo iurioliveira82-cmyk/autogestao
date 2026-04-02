@@ -1,21 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
-  Search,
   Calendar as CalendarIcon, 
   Clock, 
-  User, 
   Car, 
   CheckCircle2, 
   XCircle, 
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Trash2
 } from 'lucide-react';
 import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { Appointment, Client, Vehicle, Service, OperationType } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -23,7 +20,11 @@ import { cn, handleFirestoreError } from '../../utils';
 import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { SearchBar } from '../../components/ui/SearchBar';
 
 interface AgendaProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -254,60 +255,60 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+      <PageHeader 
+        title="Agenda" 
+        description="Gerencie seus agendamentos e compromissos."
+        action={canCreate && (
+          <Button onClick={openModal} variant="primary" icon={<Plus size={18} />}>
+            Agendar Horário
+          </Button>
+        )}
+      />
+
       {/* Calendar Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-              className="p-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-400 hover:text-zinc-900"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
             >
               <ChevronLeft size={24} />
             </button>
             <div className="text-center min-w-[180px]">
-              <h3 className="text-xl font-bold text-zinc-900 capitalize">
+              <h3 className="text-xl font-bold text-slate-900 dark:text-white capitalize">
                 {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
               </h3>
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Agenda Diária</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Agenda Diária</p>
             </div>
             <button 
               onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-              className="p-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-400 hover:text-zinc-900"
+              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
             >
               <ChevronRight size={24} />
             </button>
           </div>
           <button 
             onClick={() => setSelectedDate(new Date())}
-            className="px-4 py-2 text-xs font-bold text-zinc-900 bg-zinc-100 hover:bg-zinc-200 rounded-xl transition-all"
+            className="px-4 py-2 text-xs font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
           >
             Hoje
           </button>
         </div>
-        
-        {canCreate && (
-          <button 
-            onClick={openModal}
-            className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-zinc-200"
-          >
-            <Plus size={20} />
-            Agendar Horário
-          </button>
-        )}
       </div>
 
       {/* Appointments List */}
       <div className="space-y-4">
         {loading ? (
-          <div className="py-20 text-center text-zinc-400 italic">Carregando agenda...</div>
+          <div className="py-20 text-center text-slate-400 italic">Carregando agenda...</div>
         ) : appointments.length > 0 ? appointments.map((app) => {
           const status = statusMap[app.status];
           return (
-            <div key={app.id} className="bg-white p-6 rounded-3xl border border-zinc-200 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center gap-6">
-              <div className="flex flex-col items-center justify-center sm:border-r border-zinc-100 sm:pr-8 min-w-[100px]">
-                <span className="text-2xl font-black text-zinc-900">{format(new Date(app.startTime), 'HH:mm')}</span>
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Início</span>
+            <div key={app.id} className="modern-card p-6 flex flex-col sm:flex-row sm:items-center gap-6 group">
+              <div className="flex flex-col items-center justify-center sm:border-r border-slate-100 dark:border-slate-800 sm:pr-8 min-w-[100px]">
+                <span className="text-2xl font-black text-slate-900 dark:text-white">{format(new Date(app.startTime), 'HH:mm')}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Início</span>
               </div>
 
               <div className="flex-1">
@@ -316,22 +317,22 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                     <status.icon size={12} />
                     {status.label}
                   </span>
-                  <span className="text-xs font-bold text-zinc-400 flex items-center gap-1">
+                  <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
                     <Clock size={12} />
                     Até {format(new Date(app.endTime), 'HH:mm')}
                   </span>
                 </div>
-                <h4 className="text-lg font-bold text-zinc-900 mb-1">{getClientName(app.clienteId)}</h4>
-                <div className="flex flex-wrap items-center gap-4 text-sm text-zinc-500">
+                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{getClientName(app.clienteId)}</h4>
+                <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
                   <span className="flex items-center gap-1.5"><Car size={14} /> {getVehicleInfo(app.veiculoId || '')}</span>
-                  <span className="flex items-center gap-1.5 font-bold text-zinc-900">
-                    <AlertCircle size={14} className="text-zinc-400" /> 
+                  <span className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-300">
+                    <AlertCircle size={14} className="text-slate-400" /> 
                     {getServiceNames(app.servicoIds)}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 sm:border-l border-zinc-100 sm:pl-8">
+              <div className="flex items-center gap-2 sm:border-l border-slate-100 dark:border-slate-800 sm:pl-8 opacity-0 group-hover:opacity-100 transition-opacity">
                 {app.status === 'scheduled' && canEdit && (
                   <>
                     <button 
@@ -353,7 +354,7 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 {app.status !== 'scheduled' && canDelete && (
                   <button 
                     onClick={() => handleDelete(app.id)}
-                    className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
                     <Trash2 size={20} />
                   </button>
@@ -362,9 +363,9 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
             </div>
           );
         }) : (
-          <div className="py-20 bg-white rounded-3xl border border-dashed border-zinc-200 text-center">
-            <CalendarIcon size={48} className="mx-auto text-zinc-200 mb-4" />
-            <p className="text-zinc-400 font-medium">Nenhum agendamento para este dia.</p>
+          <div className="py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
+            <CalendarIcon size={48} className="mx-auto text-slate-200 dark:text-slate-800 mb-4" />
+            <p className="text-slate-400 font-medium">Nenhum agendamento para este dia.</p>
             <button 
               onClick={openModal}
               className="mt-4 text-sm font-bold text-accent hover:underline"
@@ -375,141 +376,132 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
         )}
       </div>
 
-      {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">Novo Agendamento</h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
-                <XCircle size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Cliente</label>
-                <select 
-                  required
-                  className="select-modern"
-                  value={formData.clienteId}
-                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value, veiculoId: '' })}
-                >
-                  <option value="">Selecione um cliente...</option>
-                  {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Veículo</label>
-                  <select 
-                    required
-                    disabled={!formData.clienteId}
-                    className="select-modern"
-                    value={formData.veiculoId}
-                    onChange={(e) => setFormData({ ...formData, veiculoId: e.target.value })}
-                  >
-                    <option value="">Selecione um veículo...</option>
-                    {vehicles.filter(v => v.clienteId === formData.clienteId).map(v => (
-                      <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest flex items-center justify-between">
-                    <span>Serviços</span>
-                    <span className="text-[10px] text-zinc-400">{formData.servicoIds.length} selecionados</span>
-                  </label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
-                    <input 
-                      type="text" 
-                      placeholder="Buscar serviço..." 
-                      className="input-modern pl-9 pr-4 py-2 text-xs"
-                      value={serviceSearchTerm}
-                      onChange={(e) => setServiceSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-              </div>
- 
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-1 bg-zinc-50 rounded-xl border border-zinc-100">
-                  {services
-                    .filter(s => s.name.toLowerCase().includes(serviceSearchTerm.toLowerCase()))
-                    .map(s => {
-                      const isSelected = formData.servicoIds.includes(s.id);
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => {
-                            setFormData(prev => ({
-                              ...prev,
-                              servicoIds: isSelected 
-                                ? prev.servicoIds.filter(id => id !== s.id)
-                                : [...prev.servicoIds, s.id]
-                            }));
-                          }}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                            isSelected 
-                              ? "bg-accent text-accent-foreground border-accent" 
-                              : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400"
-                          )}
-                        >
-                          {isSelected ? '✓ ' : '+ '} {s.name}
-                        </button>
-                      );
-                    })}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Início</label>
-                  <input 
-                    type="datetime-local" 
-                    required
-                    className="input-modern"
-                    value={formData.startTime}
-                    onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fim</label>
-                  <input 
-                    type="datetime-local" 
-                    required
-                    className="input-modern"
-                    value={formData.endTime}
-                    onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200"
-                >
-                  Confirmar Agendamento
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title="Novo Agendamento"
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
+            <select 
+              required
+              className="select-modern"
+              value={formData.clienteId}
+              onChange={(e) => setFormData({ ...formData, clienteId: e.target.value, veiculoId: '' })}
+            >
+              <option value="">Selecione um cliente...</option>
+              {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Veículo</label>
+              <select 
+                required
+                disabled={!formData.clienteId}
+                className="select-modern"
+                value={formData.veiculoId}
+                onChange={(e) => setFormData({ ...formData, veiculoId: e.target.value })}
+              >
+                <option value="">Selecione um veículo...</option>
+                {vehicles.filter(v => v.clienteId === formData.clienteId).map(v => (
+                  <option key={v.id} value={v.id}>{v.brand} {v.model} ({v.plate})</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center justify-between">
+                <span>Serviços</span>
+                <span className="text-[10px] text-slate-400">{formData.servicoIds.length} selecionados</span>
+              </label>
+              <SearchBar 
+                placeholder="Buscar serviço..." 
+                className="py-2 text-xs"
+                value={serviceSearchTerm}
+                onChange={(e) => setServiceSearchTerm(e.target.value)}
+                onClear={() => setServiceSearchTerm('')}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+              {services
+                .filter(s => s.name.toLowerCase().includes(serviceSearchTerm.toLowerCase()))
+                .map(s => {
+                  const isSelected = formData.servicoIds.includes(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setFormData(prev => ({
+                          ...prev,
+                          servicoIds: isSelected 
+                            ? prev.servicoIds.filter(id => id !== s.id)
+                            : [...prev.servicoIds, s.id]
+                        }));
+                      }}
+                      className={cn(
+                        "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
+                        isSelected 
+                          ? "bg-accent text-accent-foreground border-accent" 
+                          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400"
+                      )}
+                    >
+                      {isSelected ? '✓ ' : '+ '} {s.name}
+                    </button>
+                  );
+                })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Início</label>
+              <input 
+                type="datetime-local" 
+                required
+                className="input-modern"
+                value={formData.startTime}
+                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fim</label>
+              <input 
+                type="datetime-local" 
+                required
+                className="input-modern"
+                value={formData.endTime}
+                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit"
+              variant="primary"
+              className="flex-1"
+            >
+              Confirmar Agendamento
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}

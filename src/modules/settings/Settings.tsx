@@ -25,10 +25,10 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
     return localStorage.getItem('darkMode') === 'true';
   });
   const [accentColor, setAccentColor] = useState(() => {
-    return localStorage.getItem('accentColor') || 'zinc';
+    return localStorage.getItem('accentColor') || 'slate';
   });
   const [bgColor, setBgColor] = useState(() => {
-    return localStorage.getItem('bgColor') || 'zinc';
+    return localStorage.getItem('bgColor') || 'slate';
   });
   const [companyLogo, setCompanyLogo] = useState(() => {
     return localStorage.getItem('companyLogo') || '';
@@ -45,7 +45,7 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
   }, [isDarkMode]);
 
   const colors = [
-    { id: 'zinc', label: 'Padrão', color: 'bg-zinc-900' },
+    { id: 'slate', label: 'Padrão', color: 'bg-slate-900' },
     { id: 'blue', label: 'Azul', color: 'bg-blue-600' },
     { id: 'indigo', label: 'Índigo', color: 'bg-indigo-600' },
     { id: 'purple', label: 'Roxo', color: 'bg-purple-600' },
@@ -56,7 +56,6 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
 
   const bgColors = [
     { id: 'white', label: 'Branco', color: 'bg-white' },
-    { id: 'zinc', label: 'Zinc', color: 'bg-zinc-50' },
     { id: 'slate', label: 'Slate', color: 'bg-slate-50' },
     { id: 'stone', label: 'Stone', color: 'bg-stone-50' },
     { id: 'neutral', label: 'Neutral', color: 'bg-neutral-50' },
@@ -118,13 +117,13 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
     <div className="max-w-4xl mx-auto space-y-8 pb-20">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-black text-zinc-900 tracking-tight">Configurações</h2>
-          <p className="text-zinc-500 font-medium">Personalize sua experiência no AutoGestão</p>
+          <h2 className="text-3xl font-black text-slate-900 tracking-tight">Configurações</h2>
+          <p className="text-slate-500 font-medium">Personalize sua experiência no AutoGestão</p>
         </div>
         <button
           onClick={handleSaveSettings}
           disabled={isSaving}
-          className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-zinc-200 disabled:opacity-50"
+          className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-slate-200 disabled:opacity-50"
         >
           {isSaving ? <RefreshCcw className="animate-spin" size={20} /> : <Save size={20} />}
           Salvar Alterações
@@ -134,28 +133,28 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Personalização */}
         <div className="space-y-6">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-zinc-200 shadow-sm space-y-6">
+          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-zinc-100 rounded-xl">
-                <Palette size={20} className="text-zinc-600" />
+              <div className="p-2 bg-slate-100 rounded-xl">
+                <Palette size={20} className="text-slate-600" />
               </div>
-              <h3 className="text-lg font-bold text-zinc-900">Personalização</h3>
+              <h3 className="text-lg font-bold text-slate-900">Personalização</h3>
             </div>
 
             {/* Modo Noturno */}
-            <div className="flex items-center justify-between p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
               <div className="flex items-center gap-3">
-                {isDarkMode ? <Moon size={20} className="text-zinc-600" /> : <Sun size={20} className="text-zinc-600" />}
+                {isDarkMode ? <Moon size={20} className="text-slate-600" /> : <Sun size={20} className="text-slate-600" />}
                 <div>
-                  <p className="text-sm font-bold text-zinc-900">Modo Noturno</p>
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Alternar tema</p>
+                  <p className="text-sm font-bold text-slate-900">Modo Noturno</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Alternar tema</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsDarkMode(!isDarkMode)}
                 className={cn(
                   "w-12 h-6 rounded-full transition-all relative",
-                  isDarkMode ? "bg-accent" : "bg-zinc-200"
+                  isDarkMode ? "bg-accent" : "bg-slate-200"
                 )}
               >
                 <div className={cn(
@@ -167,7 +166,7 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
 
             {/* Cor de Destaque */}
             <div className="space-y-3">
-              <p className="text-sm font-bold text-zinc-900">Cor de Destaque</p>
+              <p className="text-sm font-bold text-slate-900">Cor de Destaque</p>
               <div className="grid grid-cols-4 gap-3">
                 {colors.map((color) => (
                   <button
@@ -175,11 +174,11 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                     onClick={() => setAccentColor(color.id)}
                     className={cn(
                       "group relative flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all",
-                      accentColor === color.id ? "border-accent bg-zinc-50" : "border-transparent hover:bg-zinc-50"
+                      accentColor === color.id ? "border-accent bg-slate-50" : "border-transparent hover:bg-slate-50"
                     )}
                   >
                     <div className={cn("w-8 h-8 rounded-lg shadow-sm", color.color)} />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase">{color.label}</span>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">{color.label}</span>
                     {accentColor === color.id && (
                       <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground rounded-full p-0.5">
                         <CheckCircle2 size={10} />
@@ -192,7 +191,7 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
 
             {/* Cor de Fundo */}
             <div className="space-y-3">
-              <p className="text-sm font-bold text-zinc-900">Cor de Fundo</p>
+              <p className="text-sm font-bold text-slate-900">Cor de Fundo</p>
               <div className="grid grid-cols-5 gap-3">
                 {bgColors.map((color) => (
                   <button
@@ -200,11 +199,11 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                     onClick={() => setBgColor(color.id)}
                     className={cn(
                       "group relative flex flex-col items-center gap-2 p-2 rounded-xl border-2 transition-all",
-                      bgColor === color.id ? "border-accent bg-zinc-50" : "border-transparent hover:bg-zinc-50"
+                      bgColor === color.id ? "border-accent bg-slate-50" : "border-transparent hover:bg-slate-50"
                     )}
                   >
-                    <div className={cn("w-8 h-8 rounded-lg shadow-sm border border-zinc-200", color.color)} />
-                    <span className="text-[10px] font-bold text-zinc-500 uppercase">{color.label}</span>
+                    <div className={cn("w-8 h-8 rounded-lg shadow-sm border border-slate-200", color.color)} />
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">{color.label}</span>
                     {bgColor === color.id && (
                       <div className="absolute -top-1 -right-1 bg-accent text-accent-foreground rounded-full p-0.5">
                         <CheckCircle2 size={10} />
@@ -218,11 +217,11 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
             {/* Logo da Empresa */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-bold text-zinc-900">Logo da Empresa</p>
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">URL da Imagem</span>
+                <p className="text-sm font-bold text-slate-900">Logo da Empresa</p>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">URL da Imagem</span>
               </div>
               <div className="relative">
-                <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                <ImageIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input
                   type="text"
                   placeholder="https://exemplo.com/logo.png"
@@ -232,7 +231,7 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 />
               </div>
               {companyLogo && (
-                <div className="mt-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center justify-center">
+                <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-center">
                   <img src={companyLogo} alt="Preview Logo" className="max-h-12 object-contain" referrerPolicy="no-referrer" />
                 </div>
               )}
@@ -276,20 +275,20 @@ const Settings: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 </div>
               </div>
 
-              <div className="p-6 bg-zinc-50 rounded-3xl border border-zinc-200">
-                <p className="text-sm font-bold text-zinc-900 mb-4">Informações do Sistema</p>
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200">
+                <p className="text-sm font-bold text-slate-900 mb-4">Informações do Sistema</p>
                 <div className="space-y-2">
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-zinc-400">Versão</span>
-                    <span className="text-zinc-900">2.4.0-PRO</span>
+                    <span className="text-slate-400">Versão</span>
+                    <span className="text-slate-900">2.4.0-PRO</span>
                   </div>
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-zinc-400">Ambiente</span>
-                    <span className="text-zinc-900">Produção</span>
+                    <span className="text-slate-400">Ambiente</span>
+                    <span className="text-slate-900">Produção</span>
                   </div>
                   <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                    <span className="text-zinc-400">Último Backup</span>
-                    <span className="text-zinc-900">Hoje, 04:00</span>
+                    <span className="text-slate-400">Último Backup</span>
+                    <span className="text-slate-900">Hoje, 04:00</span>
                   </div>
                 </div>
               </div>

@@ -47,23 +47,23 @@ export class ErrorBoundary extends React.Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-zinc-100">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center border border-slate-100">
             <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <AlertCircle className="w-8 h-8 text-red-500" />
             </div>
-            <h1 className="text-2xl font-bold text-zinc-900 mb-2">Ops! Algo deu errado</h1>
-            <p className="text-zinc-600 mb-8">
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Ops! Algo deu errado</h1>
+            <p className="text-slate-600 mb-8">
               {errorMessage}
               {isPermissionError && (
-                <span className="block mt-2 text-sm text-zinc-500">
+                <span className="block mt-2 text-sm text-slate-500">
                   Se você acredita que isso é um erro, entre em contato com o administrador.
                 </span>
               )}
             </p>
             <button
               onClick={this.handleReset}
-              className="w-full flex items-center justify-center gap-2 bg-zinc-900 text-white py-3 rounded-xl font-semibold hover:bg-zinc-800 transition-colors"
+              className="w-full flex items-center justify-center gap-2 bg-slate-900 text-white py-3 rounded-xl font-semibold hover:bg-slate-800 transition-colors"
             >
               <RefreshCcw className="w-4 h-4" />
               Tentar Novamente

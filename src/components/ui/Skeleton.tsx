@@ -6,7 +6,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {}
 export function Skeleton({ className, ...props }: SkeletonProps) {
   return (
     <div
-      className={cn("animate-pulse rounded-md bg-zinc-200", className)}
+      className={cn("animate-pulse rounded-md bg-slate-200", className)}
       {...props}
     />
   );
@@ -29,7 +29,7 @@ export function CardSkeleton() {
 
 export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
   return (
-    <tr className="border-b border-zinc-100">
+    <tr className="border-b border-slate-100">
       {Array.from({ length: columns }).map((_, i) => (
         <td key={i} className="px-12 py-8">
           <Skeleton className="h-6 w-full" />

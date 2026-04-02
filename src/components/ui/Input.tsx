@@ -19,7 +19,7 @@ export const Input: React.FC<InputProps> = ({
       {label && <label className="label-modern">{label}</label>}
       <div className="relative group">
         {icon && (
-          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-accent transition-colors">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors">
             {icon}
           </div>
         )}
@@ -57,7 +57,7 @@ export const Select: React.FC<SelectProps> = ({
       {label && <label className="label-modern">{label}</label>}
       <div className="relative group">
         {icon && (
-          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400 group-focus-within:text-accent transition-colors pointer-events-none">
+          <div className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent transition-colors pointer-events-none">
             {icon}
           </div>
         )}
@@ -72,7 +72,7 @@ export const Select: React.FC<SelectProps> = ({
         >
           {children}
         </select>
-        <div className="absolute right-5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none group-focus-within:text-accent transition-colors">
+        <div className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-focus-within:text-accent transition-colors">
           <svg width="12" height="8" viewBox="0 0 12 8" fill="none" xmlns="http://www.w3.org/2000/svg">
             <path d="M1 1L6 6L11 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>

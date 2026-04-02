@@ -193,7 +193,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
       case 'birthday': return <Gift className="text-pink-500" />;
       case 'account-expiration': return <AlertCircle className="text-orange-500" />;
       case 'quote-followup': return <MessageSquare className="text-purple-500" />;
-      case 'inactive-client': return <History className="text-zinc-500" />;
+      case 'inactive-client': return <History className="text-slate-500" />;
       default: return <Zap className="text-accent" />;
     }
   };
@@ -216,18 +216,18 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 glass-card p-8 rounded-[2.5rem]">
         <div>
-          <h2 className="text-3xl font-black text-zinc-900 flex items-center gap-3 tracking-tight">
+          <h2 className="text-3xl font-black text-slate-900 flex items-center gap-3 tracking-tight">
             <Zap className="text-accent animate-pulse" size={32} />
             Automações & Integrações
           </h2>
-          <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest mt-2">Otimize sua oficina com processos automáticos</p>
+          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-2">Otimize sua oficina com processos automáticos</p>
         </div>
-        <div className="flex bg-zinc-100 p-1.5 rounded-2xl border border-zinc-200 shadow-inner">
+        <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200 shadow-inner">
           <button 
             onClick={() => setActiveSubTab('rules')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-              activeTab === 'rules' ? "bg-white text-accent shadow-lg" : "text-zinc-400 hover:text-zinc-600"
+              activeTab === 'rules' ? "bg-white text-accent shadow-lg" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Regras
@@ -236,7 +236,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
             onClick={() => setActiveSubTab('integrations')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-              activeTab === 'integrations' ? "bg-white text-accent shadow-lg" : "text-zinc-400 hover:text-zinc-600"
+              activeTab === 'integrations' ? "bg-white text-accent shadow-lg" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Integrações
@@ -245,7 +245,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
             onClick={() => setActiveSubTab('logs')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all",
-              activeTab === 'logs' ? "bg-white text-accent shadow-lg" : "text-zinc-400 hover:text-zinc-600"
+              activeTab === 'logs' ? "bg-white text-accent shadow-lg" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Histórico
@@ -256,13 +256,13 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
       {activeTab === 'rules' && (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
               <Settings size={18} className="text-accent" />
               Regras Ativas
             </h3>
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
               {lastCheck && (
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest bg-zinc-50 px-3 py-1.5 rounded-lg border border-zinc-100">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
                   Última verificação: {new Date(lastCheck).toLocaleString('pt-BR')}
                 </span>
               )}
@@ -271,7 +271,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                   onClick={handleRunChecks}
                   disabled={isRunningChecks}
                   className={cn(
-                    "flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-black transition-all text-xs uppercase tracking-widest border border-zinc-200 hover:bg-zinc-50",
+                    "flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-black transition-all text-xs uppercase tracking-widest border border-slate-200 hover:bg-slate-50",
                     isRunningChecks && "opacity-50 cursor-not-allowed"
                   )}
                 >
@@ -302,9 +302,9 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rules.map((rule) => (
-              <div key={rule.id} className="bg-white rounded-[2rem] border border-zinc-200 p-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
+              <div key={rule.id} className="bg-white rounded-[2rem] border border-slate-200 p-6 shadow-sm hover:shadow-xl transition-all group relative overflow-hidden">
                 <div className="flex items-start justify-between mb-6">
-                  <div className="w-12 h-12 bg-zinc-50 rounded-2xl flex items-center justify-center border border-zinc-100 group-hover:scale-110 transition-transform">
+                  <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-100 group-hover:scale-110 transition-transform">
                     {getRuleIcon(rule.type)}
                   </div>
                   <div className="flex items-center gap-2">
@@ -312,7 +312,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                       onClick={() => toggleRuleStatus(rule)}
                       className={cn(
                         "p-2 rounded-xl transition-all",
-                        rule.active ? "bg-green-50 text-green-600" : "bg-zinc-50 text-zinc-400"
+                        rule.active ? "bg-green-50 text-green-600" : "bg-slate-50 text-slate-400"
                       )}
                     >
                       {rule.active ? <Play size={16} /> : <Pause size={16} />}
@@ -323,45 +323,45 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                         setRuleFormData(rule);
                         setIsAddRuleModalOpen(true);
                       }}
-                      className="p-2 bg-zinc-50 text-zinc-400 hover:text-accent rounded-xl transition-all"
+                      className="p-2 bg-slate-50 text-slate-400 hover:text-accent rounded-xl transition-all"
                     >
                       <Settings size={16} />
                     </button>
                     <button 
                       onClick={() => deleteRule(rule.id)}
-                      className="p-2 bg-zinc-50 text-zinc-400 hover:text-red-500 rounded-xl transition-all"
+                      className="p-2 bg-slate-50 text-slate-400 hover:text-red-500 rounded-xl transition-all"
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
                 </div>
 
-                <h4 className="text-lg font-black text-zinc-900 mb-1">{rule.name}</h4>
-                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-4">{getRuleLabel(rule.type)}</p>
+                <h4 className="text-lg font-black text-slate-900 mb-1">{rule.name}</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">{getRuleLabel(rule.type)}</p>
                 
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Clock size={14} />
                     <span>Gatilho: {rule.triggerDays} dias {rule.triggerDays > 0 ? 'após' : 'antes'} o evento</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Smartphone size={14} />
                     <span>Canal: {rule.channel}</span>
                   </div>
                 </div>
 
-                <div className="mt-6 pt-6 border-t border-zinc-100">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Template da Mensagem</p>
-                  <p className="text-xs text-zinc-600 line-clamp-2 italic">"{rule.messageTemplate}"</p>
+                <div className="mt-6 pt-6 border-t border-slate-100">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Template da Mensagem</p>
+                  <p className="text-xs text-slate-600 line-clamp-2 italic">"{rule.messageTemplate}"</p>
                 </div>
               </div>
             ))}
 
             {rules.length === 0 && !loading && (
-              <div className="col-span-full py-20 text-center bg-zinc-50 rounded-[2rem] border-2 border-dashed border-zinc-200">
-                <Zap size={48} className="mx-auto text-zinc-200 mb-4" />
-                <h3 className="text-lg font-black text-zinc-400 uppercase tracking-widest">Nenhuma regra configurada</h3>
-                <p className="text-xs text-zinc-400 mt-2">Comece criando sua primeira automação para economizar tempo.</p>
+              <div className="col-span-full py-20 text-center bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                <Zap size={48} className="mx-auto text-slate-200 mb-4" />
+                <h3 className="text-lg font-black text-slate-400 uppercase tracking-widest">Nenhuma regra configurada</h3>
+                <p className="text-xs text-slate-400 mt-2">Comece criando sua primeira automação para economizar tempo.</p>
               </div>
             )}
           </div>
@@ -371,7 +371,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
       {activeTab === 'integrations' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           {/* WhatsApp */}
-          <div className="bg-white rounded-[2.5rem] border border-zinc-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/5 rounded-full -mr-16 -mt-16 blur-2xl" />
             <div className="flex items-center justify-between mb-8">
               <div className="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 shadow-lg shadow-green-100 border border-green-100">
@@ -381,16 +381,16 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 Recomendado
               </span>
             </div>
-            <h3 className="text-xl font-black text-zinc-900 mb-2">WhatsApp Business</h3>
-            <p className="text-sm text-zinc-500 mb-8">Envie lembretes, orçamentos e notificações automáticas diretamente para o celular do cliente.</p>
+            <h3 className="text-xl font-black text-slate-900 mb-2">WhatsApp Business</h3>
+            <p className="text-sm text-slate-500 mb-8">Envie lembretes, orçamentos e notificações automáticas diretamente para o celular do cliente.</p>
             <div className="flex gap-2">
-              <button className="flex-1 py-4 bg-zinc-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-zinc-800 transition-all flex items-center justify-center gap-2">
+              <button className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
                 <ExternalLink size={18} />
                 Configurar API
               </button>
               <button 
                 onClick={() => toast.info('Teste de WhatsApp iniciado...')}
-                className="px-4 py-4 bg-zinc-100 text-zinc-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                className="px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-200 transition-all"
               >
                 Testar
               </button>
@@ -398,29 +398,29 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
           </div>
 
           {/* NFS-e */}
-          <div className="bg-white rounded-[2.5rem] border border-zinc-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-lg shadow-blue-100 border border-blue-100">
                 <FileText size={32} />
               </div>
             </div>
-            <h3 className="text-xl font-black text-zinc-900 mb-2">NFS-e Automática</h3>
-            <p className="text-sm text-zinc-500 mb-8">Emissão automática de Notas Fiscais de Serviço ao finalizar a Ordem de Serviço.</p>
-            <button className="w-full py-4 bg-zinc-100 text-zinc-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed flex items-center justify-center gap-2">
+            <h3 className="text-xl font-black text-slate-900 mb-2">NFS-e Automática</h3>
+            <p className="text-sm text-slate-500 mb-8">Emissão automática de Notas Fiscais de Serviço ao finalizar a Ordem de Serviço.</p>
+            <button className="w-full py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed flex items-center justify-center gap-2">
               <Lock size={18} />
               Em breve
             </button>
           </div>
 
           {/* PIX */}
-          <div className="bg-white rounded-[2.5rem] border border-zinc-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <div className="w-16 h-16 bg-cyan-50 rounded-2xl flex items-center justify-center text-cyan-600 shadow-lg shadow-cyan-100 border border-cyan-100">
                 <QrCode size={32} />
               </div>
             </div>
-            <h3 className="text-xl font-black text-zinc-900 mb-2">PIX Integrado</h3>
-            <p className="text-sm text-zinc-500 mb-8">Gere QR Codes dinâmicos para cada venda e receba confirmação de pagamento instantânea.</p>
+            <h3 className="text-xl font-black text-slate-900 mb-2">PIX Integrado</h3>
+            <p className="text-sm text-slate-500 mb-8">Gere QR Codes dinâmicos para cada venda e receba confirmação de pagamento instantânea.</p>
             <button className="w-full py-4 bg-accent text-accent-foreground rounded-2xl font-black text-xs uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2">
               <Settings size={18} />
               Ativar PIX
@@ -428,15 +428,15 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
           </div>
 
           {/* Stripe / Mercado Pago */}
-          <div className="bg-white rounded-[2.5rem] border border-zinc-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm hover:shadow-2xl transition-all group relative overflow-hidden">
             <div className="flex items-center justify-between mb-8">
               <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 shadow-lg shadow-indigo-100 border border-indigo-100">
                 <CreditCard size={32} />
               </div>
             </div>
-            <h3 className="text-xl font-black text-zinc-900 mb-2">Cartão & Online</h3>
-            <p className="text-sm text-zinc-500 mb-8">Integração com Stripe e Mercado Pago para recebimento via cartão de crédito e links de pagamento.</p>
-            <button className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-zinc-800 transition-all flex items-center justify-center gap-2">
+            <h3 className="text-xl font-black text-slate-900 mb-2">Cartão & Online</h3>
+            <p className="text-sm text-slate-500 mb-8">Integração com Stripe e Mercado Pago para recebimento via cartão de crédito e links de pagamento.</p>
+            <button className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center justify-center gap-2">
               <Settings size={18} />
               Conectar Gateways
             </button>
@@ -445,9 +445,9 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
       )}
 
       {activeTab === 'logs' && (
-        <div className="bg-white rounded-[2.5rem] border border-zinc-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-sm">
-          <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-widest flex items-center gap-2">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 shadow-sm">
+          <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
               <History size={18} className="text-accent" />
               Histórico de Envios
             </h3>
@@ -456,25 +456,25 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-zinc-50/50 border-b border-zinc-100">
-                  <th className="px-8 py-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Data/Hora</th>
-                  <th className="px-8 py-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Regra</th>
-                  <th className="px-8 py-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Cliente</th>
-                  <th className="px-8 py-4 text-left text-[10px] font-black text-zinc-400 uppercase tracking-widest">Status</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Data/Hora</th>
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Regra</th>
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Cliente</th>
+                  <th className="px-8 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-slate-100">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-zinc-50/50 transition-colors">
-                    <td className="px-8 py-4 text-xs font-bold text-zinc-600">
+                  <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-8 py-4 text-xs font-bold text-slate-600">
                       {new Date(log.timestamp).toLocaleString('pt-BR')}
                     </td>
                     <td className="px-8 py-4">
-                      <span className="text-xs font-bold text-zinc-900">
+                      <span className="text-xs font-bold text-slate-900">
                         {rules.find(r => r.id === log.ruleId)?.name || 'Regra Excluída'}
                       </span>
                     </td>
-                    <td className="px-8 py-4 text-xs text-zinc-500">
+                    <td className="px-8 py-4 text-xs text-slate-500">
                       ID: {log.clienteId}
                     </td>
                     <td className="px-8 py-4">
@@ -482,7 +482,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                         "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
                         log.status === 'sent' ? "bg-green-50 text-green-600 border-green-100" :
                         log.status === 'failed' ? "bg-red-50 text-red-600 border-red-100" :
-                        "bg-zinc-50 text-zinc-400 border-zinc-100"
+                        "bg-slate-50 text-slate-400 border-slate-100"
                       )}>
                         {log.status === 'sent' ? 'Enviado' : log.status === 'failed' ? 'Erro' : 'Pendente'}
                       </span>
@@ -494,9 +494,9 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
 
             {logs.length === 0 && (
               <div className="p-20 text-center">
-                <History size={48} className="mx-auto text-zinc-200 mb-4" />
-                <h3 className="text-lg font-black text-zinc-400 uppercase tracking-widest">Nenhuma atividade recente</h3>
-                <p className="text-xs text-zinc-400 mt-2">As automações disparadas aparecerão aqui para seu controle.</p>
+                <History size={48} className="mx-auto text-slate-200 mb-4" />
+                <h3 className="text-lg font-black text-slate-400 uppercase tracking-widest">Nenhuma atividade recente</h3>
+                <p className="text-xs text-slate-400 mt-2">As automações disparadas aparecerão aqui para seu controle.</p>
               </div>
             )}
           </div>
@@ -505,16 +505,16 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
 
       {/* Add/Edit Rule Modal */}
       {isAddRuleModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-2xl font-black text-zinc-900">{editingRule ? 'Editar Regra' : 'Nova Automação'}</h3>
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Configure o comportamento da regra</p>
+                <h3 className="text-2xl font-black text-slate-900">{editingRule ? 'Editar Regra' : 'Nova Automação'}</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configure o comportamento da regra</p>
               </div>
               <button 
                 onClick={() => setIsAddRuleModalOpen(false)}
-                className="p-3 hover:bg-zinc-100 rounded-2xl transition-colors text-zinc-400"
+                className="p-3 hover:bg-slate-100 rounded-2xl transition-colors text-slate-400"
               >
                 <X size={24} />
               </button>
@@ -523,7 +523,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
             <form onSubmit={handleSaveRule} className="p-8 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome da Regra</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome da Regra</label>
                   <input 
                     type="text" 
                     required
@@ -535,7 +535,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Tipo de Evento</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo de Evento</label>
                   <select 
                     className="select-modern"
                     value={ruleFormData.type}
@@ -552,7 +552,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Gatilho (Dias)</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gatilho (Dias)</label>
                   <div className="relative">
                     <input 
                       type="number" 
@@ -561,13 +561,13 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                       value={ruleFormData.triggerDays}
                       onChange={(e) => setRuleFormData({ ...ruleFormData, triggerDays: parseInt(e.target.value) })}
                     />
-                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Dias</span>
+                    <span className="absolute right-6 top-1/2 -translate-y-1/2 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dias</span>
                   </div>
-                  <p className="text-[10px] text-zinc-400 ml-1 italic">Use números negativos para dias antes do evento.</p>
+                  <p className="text-[10px] text-slate-400 ml-1 italic">Use números negativos para dias antes do evento.</p>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Canal de Envio</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Canal de Envio</label>
                   <select 
                     className="select-modern"
                     value={ruleFormData.channel}
@@ -582,14 +582,14 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Template da Mensagem</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Template da Mensagem</label>
                   <div className="flex gap-2">
                     {['{cliente}', '{veiculo}', '{data}', '{valor}'].map(tag => (
                       <button 
                         key={tag}
                         type="button"
                         onClick={() => setRuleFormData({ ...ruleFormData, messageTemplate: (ruleFormData.messageTemplate || '') + tag })}
-                        className="text-[8px] font-black bg-zinc-100 text-zinc-500 px-2 py-1 rounded-md hover:bg-accent hover:text-white transition-all"
+                        className="text-[8px] font-black bg-slate-100 text-slate-500 px-2 py-1 rounded-md hover:bg-accent hover:text-white transition-all"
                       >
                         {tag}
                       </button>
@@ -610,7 +610,7 @@ const Automations: React.FC<{ setActiveTab?: (tab: string) => void }> = () => {
                 <button 
                   type="button"
                   onClick={() => setIsAddRuleModalOpen(false)}
-                  className="flex-1 px-8 py-4 border border-zinc-200 rounded-2xl font-black text-zinc-600 hover:bg-zinc-50 transition-all text-xs uppercase tracking-widest"
+                  className="flex-1 px-8 py-4 border border-slate-200 rounded-2xl font-black text-slate-600 hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
                 >
                   Cancelar
                 </button>

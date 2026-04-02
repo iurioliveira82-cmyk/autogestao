@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth, LoginScreen } from './modules/auth/Auth';
-import Layout from './components/Layout';
+import AppLayout from './layouts/AppLayout';
 import { AppRoutes } from './routes';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Toaster } from 'sonner';
@@ -30,7 +30,7 @@ const AppContent: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
 
-    const accentColor = localStorage.getItem('accentColor') || 'zinc';
+    const accentColor = localStorage.getItem('accentColor') || 'slate';
     document.documentElement.setAttribute('data-theme', accentColor);
 
     const bgColor = localStorage.getItem('bgColor') || 'white';
@@ -68,10 +68,10 @@ const AppContent: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-500 font-medium animate-pulse">Carregando AutoGestão...</p>
+          <p className="text-slate-500 font-medium animate-pulse">Carregando AutoGestão...</p>
         </div>
       </div>
     );
@@ -82,7 +82,7 @@ const AppContent: React.FC = () => {
   }
 
   return (
-    <Layout activeTab={activeTab} setActiveTab={handleSetActiveTab}>
+    <AppLayout activeTab={activeTab} setActiveTab={handleSetActiveTab}>
       <AppRoutes 
         activeTab={activeTab} 
         setActiveTab={handleSetActiveTab}
@@ -90,7 +90,7 @@ const AppContent: React.FC = () => {
         activeItemStatus={activeItemStatus}
         stockSupplierId={stockSupplierId}
       />
-    </Layout>
+    </AppLayout>
   );
 };
 

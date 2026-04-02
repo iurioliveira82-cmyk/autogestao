@@ -29,10 +29,10 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-zinc-950 shadow-2xl z-[101] flex flex-col border-l border-border"
+            className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white dark:bg-slate-950 shadow-2xl z-[101] flex flex-col border-l border-border"
           >
-            <div className="p-6 border-b border-border flex items-center justify-between bg-white dark:bg-zinc-950">
-              <h3 className="text-xl font-black text-zinc-900 dark:text-white font-display">{title}</h3>
+            <div className="p-6 border-b border-border flex items-center justify-between bg-white dark:bg-slate-950">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white font-display">{title}</h3>
               <Button variant="ghost" size="sm" onClick={onClose} className="!p-2">
                 <X size={20} />
               </Button>
@@ -41,7 +41,7 @@ export const Drawer: React.FC<DrawerProps> = ({ isOpen, onClose, title, children
               {children}
             </div>
             {footer && (
-              <div className="p-6 border-t border-border bg-white dark:bg-zinc-950">
+              <div className="p-6 border-t border-border bg-white dark:bg-slate-950">
                 {footer}
               </div>
             )}

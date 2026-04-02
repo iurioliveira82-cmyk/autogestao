@@ -23,7 +23,7 @@ export const Button: React.FC<ButtonProps> = ({
     secondary: 'btn-secondary',
     outline: 'btn-outline',
     danger: 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20 px-6 py-3 font-bold rounded-2xl active:scale-95 transition-all duration-200 flex items-center justify-center gap-2 text-sm uppercase tracking-widest',
-    ghost: 'p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all active:scale-95',
+    ghost: 'p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-95',
   };
 
   const sizes = {

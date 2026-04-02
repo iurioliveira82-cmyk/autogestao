@@ -9,8 +9,8 @@ interface FiltersBarProps {
 
 export const FiltersBar: React.FC<FiltersBarProps> = ({ children, className }) => {
   return (
-    <div className={cn("flex items-center gap-4 p-4 bg-white dark:bg-zinc-900 rounded-2xl border border-border shadow-sm", className)}>
-      <div className="flex items-center gap-2 text-zinc-400">
+    <div className={cn("flex items-center gap-4 p-4 bg-white dark:bg-slate-900 rounded-2xl border border-border shadow-sm", className)}>
+      <div className="flex items-center gap-2 text-slate-400">
         <Filter size={18} />
         <span className="text-xs font-black uppercase tracking-widest">Filtros:</span>
       </div>

@@ -12,7 +12,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({ label, className, ...props }
         <input
           type="checkbox"
           className={cn(
-            "peer appearance-none w-6 h-6 border-2 border-border rounded-lg bg-zinc-50 dark:bg-zinc-900 checked:bg-accent checked:border-accent transition-all duration-300",
+            "peer appearance-none w-6 h-6 border-2 border-border rounded-lg bg-slate-50 dark:bg-slate-900 checked:bg-accent checked:border-accent transition-all duration-300",
             className
           )}
           {...props}
@@ -27,7 +27,7 @@ export const Checkbox: React.FC<CheckboxProps> = ({ label, className, ...props }
           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      {label && <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-zinc-900 dark:group-hover:text-white transition-colors">{label}</span>}
+      {label && <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{label}</span>}
     </label>
   );
 };

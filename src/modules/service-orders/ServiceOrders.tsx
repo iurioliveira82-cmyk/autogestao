@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
-  Search, 
   ClipboardList, 
   Clock, 
   CheckCircle2, 
@@ -26,7 +25,8 @@ import {
   LayoutGrid,
   List as ListIcon,
   History,
-  FileText
+  FileText,
+  Search
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -65,10 +65,18 @@ import { OSService } from '../../services/os';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import PageHeader from '../../components/layout/PageHeader';
+import PageContainer from '../../components/layout/PageContainer';
+import FiltersToolbar from '../../components/layout/FiltersToolbar';
+import StandardTable from '../../components/layout/StandardTable';
+import StandardDialog from '../../components/layout/StandardDialog';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import EmptyState from '../../components/layout/EmptyState';
+import LoadingSkeleton from '../../components/layout/LoadingSkeleton';
 import { generateAIResponse } from '../../services/gemini';
 import { SignatureModal } from './components/SignatureModal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
+import { Button } from '../../components/ui/Button';
 
 interface ServiceOrdersProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: OSStatus) => void;
@@ -79,7 +87,7 @@ interface ServiceOrdersProps {
 const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, initialStatus }) => {
   const { profile } = useAuth();
   const statusMap: Record<OSStatus, { label: string; color: string; icon: any }> = {
-    recepcao: { label: 'Recepção', color: 'bg-zinc-100 text-zinc-600', icon: Clock },
+    recepcao: { label: 'Recepção', color: 'bg-slate-100 text-slate-600', icon: Clock },
     diagnostico: { label: 'Diagnóstico', color: 'bg-blue-50 text-blue-600', icon: Wrench },
     orcamento: { label: 'Orçamento', color: 'bg-amber-50 text-amber-600', icon: Clock },
     aguardando_aprovacao: { label: 'Aguardando Aprovação', color: 'bg-orange-50 text-orange-600', icon: Clock },
@@ -633,12 +641,12 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
       <div className="flex gap-6 overflow-x-auto pb-8 min-h-[600px] custom-scrollbar">
         {columns.map(status => (
           <div key={status} className="flex-shrink-0 w-80 flex flex-col gap-4">
-            <div className="flex items-center justify-between px-4 py-2 bg-zinc-50 rounded-2xl border border-zinc-100">
+            <div className="flex items-center justify-between px-4 py-2 bg-slate-50 rounded-2xl border border-slate-100">
               <div className="flex items-center gap-2">
                 <div className={cn("w-2 h-2 rounded-full", statusMap[status].color.split(' ')[0].replace('bg-', 'bg-').replace('-50', '-500'))} />
-                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{statusMap[status].label}</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{statusMap[status].label}</span>
               </div>
-              <span className="text-[10px] font-black text-zinc-400 bg-white px-2 py-0.5 rounded-lg border border-zinc-100">
+              <span className="text-[10px] font-black text-slate-400 bg-white px-2 py-0.5 rounded-lg border border-slate-100">
                 {filteredOS.filter(os => os.status === status).length}
               </span>
             </div>
@@ -649,24 +657,24 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   layout
                   key={os.id}
                   onClick={() => openModal(os)}
-                  className="bg-white p-6 rounded-3xl border border-zinc-100 shadow-sm hover:shadow-xl hover:border-accent/20 transition-all cursor-pointer group"
+                  className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-accent/20 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono font-bold text-zinc-400">#{os.id.slice(0, 6).toUpperCase()}</span>
-                    <span className="text-xs font-black text-zinc-900 font-display">{formatCurrency(os.valorTotal)}</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">#{os.id.slice(0, 6).toUpperCase()}</span>
+                    <span className="text-xs font-black text-slate-900 font-display">{formatCurrency(os.valorTotal)}</span>
                   </div>
-                  <h4 className="text-sm font-black text-zinc-900 mb-2 group-hover:text-accent transition-colors">{getClientName(os.clienteId)}</h4>
-                  <div className="flex items-center gap-2 text-[10px] text-zinc-500 font-bold">
-                    <CarIcon size={12} className="text-zinc-300" />
+                  <h4 className="text-sm font-black text-slate-900 mb-2 group-hover:text-accent transition-colors">{getClientName(os.clienteId)}</h4>
+                  <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
+                    <CarIcon size={12} className="text-slate-300" />
                     {getVehicleInfo(os.veiculoId)}
                   </div>
-                  <div className="mt-4 pt-4 border-t border-zinc-50 flex items-center justify-between">
+                  <div className="mt-4 pt-4 border-t border-slate-50 flex items-center justify-between">
                     <div className="flex -space-x-2">
-                      <div className="w-6 h-6 rounded-full bg-zinc-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-zinc-400">
+                      <div className="w-6 h-6 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-[8px] font-black text-slate-400">
                         {getClientName(os.clienteId).slice(0, 1)}
                       </div>
                     </div>
-                    <span className="text-[10px] text-zinc-400 font-bold">{format(new Date(os.createdAt), 'dd/MM')}</span>
+                    <span className="text-[10px] text-slate-400 font-bold">{format(new Date(os.createdAt), 'dd/MM')}</span>
                   </div>
                 </motion.div>
               ))}
@@ -678,312 +686,242 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
   };
 
   return (
-    <div className="space-y-10 animate-in">
-      {/* Header Actions */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-        <div>
-          <h1 className="text-3xl sm:text-5xl font-black text-zinc-900 tracking-tighter font-display">Ordens de Serviço</h1>
-          <p className="text-sm sm:text-lg text-zinc-500 font-medium mt-2">Gerencie e acompanhe todos os serviços da sua oficina.</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
-          <div className="flex bg-zinc-100 p-1 rounded-2xl border border-zinc-200">
-            <button 
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'list' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
-              )}
-            >
-              Lista
-            </button>
-            <button 
-              onClick={() => setViewMode('kanban')}
-              className={cn(
-                "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                viewMode === 'kanban' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
-              )}
-            >
-              Kanban
-            </button>
+    <PageContainer>
+      <PageHeader 
+        title="Ordens de Serviço" 
+        subtitle="Gerencie e acompanhe todos os serviços da sua oficina."
+        breadcrumbs={[{ label: 'Ordens de Serviço' }]}
+        actions={
+          <div className="flex items-center gap-4">
+            <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'list' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Lista
+              </button>
+              <button 
+                onClick={() => setViewMode('kanban')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                  viewMode === 'kanban' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                )}
+              >
+                Kanban
+              </button>
+            </div>
+            {canCreate && (
+              <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+                Nova Ordem
+              </Button>
+            )}
           </div>
-          <div className="relative flex-1 w-full sm:min-w-[300px]">
-            <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-            <input 
-              type="text" 
-              placeholder="Buscar..." 
-              className="input-modern !pl-14 !py-4"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          {canCreate && (
-            <button 
-              onClick={() => openModal()}
-              className="btn-modern flex items-center justify-center gap-3 w-full sm:w-auto !px-8 !py-4"
-            >
-              <Plus size={22} />
-              Nova Ordem
-            </button>
-          )}
-        </div>
-      </div>
+        }
+      />
+
+      <FiltersToolbar 
+        searchQuery={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Buscar por cliente, veículo ou número da OS..."
+      />
 
       {/* OS List / Kanban */}
-      <div className="grid grid-cols-1 gap-6 sm:gap-8">
+      <div className="mt-6">
         {loading ? (
-          <div className="py-32 text-center">
-            <Loader2 size={40} className="animate-spin text-accent mx-auto mb-4" />
-            <p className="text-zinc-400 font-medium italic">Carregando ordens de serviço...</p>
-          </div>
+          <LoadingSkeleton variant="table" count={5} />
         ) : filteredOS.length > 0 ? (
           viewMode === 'list' ? (
-            <div className="space-y-6">
-              {filteredOS.map((os) => {
-              const status = statusMap[os.status];
-              return (
-                <motion.div 
-                  layout
-                  key={os.id} 
-                  className="modern-card !p-0 overflow-hidden group hover:border-accent/20 transition-all duration-500"
-                >
-                  <div className="flex flex-col lg:flex-row">
-                    {/* Status Accent Bar */}
-                    <div className={cn("w-full lg:w-2 h-2 lg:h-auto shrink-0", status.color.split(' ')[0].replace('bg-', 'bg-').replace('-50', '-500'))} />
-                    
-                    <div className="flex-1 p-8 sm:p-10 flex flex-col lg:flex-row lg:items-center gap-10">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-4 mb-4">
-                          <span className="font-mono text-[10px] font-black text-zinc-400 bg-zinc-50 px-3 py-1.5 rounded-xl border border-zinc-100">
-                            #{os.id.slice(0, 8).toUpperCase()}
-                          </span>
-                          <span className={cn(
-                            "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] border",
-                            status.color
-                          )}>
-                            <status.icon size={14} />
-                            {status.label}
-                          </span>
-                        </div>
-                        
-                        <div className="flex items-center gap-6">
-                          <div className="w-16 h-16 bg-zinc-50 text-zinc-400 rounded-[1.5rem] flex items-center justify-center font-black text-xl border border-zinc-100 group-hover:bg-accent group-hover:text-accent-foreground group-hover:border-accent transition-all duration-500 shadow-sm">
-                            {(getClientName(os.clienteId) || 'C').slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-2xl font-black text-zinc-900 truncate font-display group-hover:text-accent transition-colors duration-500">
-                              {getClientName(os.clienteId)}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mt-2">
-                              <span className="flex items-center gap-2 text-sm font-bold text-zinc-500">
-                                <CarIcon size={16} className="text-zinc-300" /> 
-                                {getVehicleInfo(os.veiculoId)}
-                              </span>
-                              <span className="flex items-center gap-2 text-sm font-bold text-zinc-500">
-                                <Calendar size={16} className="text-zinc-300" /> 
-                                {format(new Date(os.createdAt), 'dd/MM/yyyy')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 lg:max-w-[300px] lg:justify-center">
-                        {os.servicos?.slice(0, 3).map((s, i) => (
-                          <span key={i} className="px-4 py-2 bg-zinc-50 border border-zinc-100 rounded-xl text-[10px] font-black text-zinc-500 uppercase tracking-widest group-hover:bg-white transition-colors">
-                            {s.name}
-                          </span>
-                        ))}
-                        {os.servicos?.length > 3 && (
-                          <span className="px-4 py-2 bg-zinc-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest">
-                            +{os.servicos.length - 3}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row items-center gap-8 lg:min-w-[350px] lg:justify-end pt-8 lg:pt-0 border-t lg:border-t-0 border-zinc-100">
-                        <div className="flex items-center gap-2 bg-zinc-50 p-2 rounded-[1.5rem] border border-zinc-100 shadow-inner">
-                          {[
-                            { id: 'em_execucao', icon: Wrench, color: 'text-blue-600', bg: 'hover:bg-blue-50', active: 'bg-blue-600 text-white shadow-lg shadow-blue-200', label: 'Em Andamento' },
-                            { id: 'finalizada', icon: CheckCircle2, color: 'text-green-600', bg: 'hover:bg-green-50', active: 'bg-green-600 text-white shadow-lg shadow-green-200', label: 'Finalizar' },
-                            { id: 'cancelada', icon: XCircle, color: 'text-red-600', bg: 'hover:bg-red-50', active: 'bg-red-600 text-white shadow-lg shadow-red-200', label: 'Cancelar' }
-                          ].map((action) => (
-                            <button 
-                              key={action.id}
-                              onClick={() => handleUpdateStatus(os, action.id as OSStatus)}
-                              className={cn(
-                                "p-3 rounded-xl transition-all duration-300 group/btn relative",
-                                os.status === action.id ? action.active : cn("text-zinc-400", action.bg)
-                              )}
-                              title={action.label}
-                            >
-                              <action.icon size={20} />
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="text-center sm:text-right min-w-[120px]">
-                          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em] mb-2">Valor Total</p>
-                          <p className="text-3xl font-black text-zinc-900 font-display tracking-tighter">{formatCurrency(os.valorTotal)}</p>
-                        </div>
-
-                        <div className="flex items-center gap-1">
-                          {canEdit && (
-                            <button 
-                              onClick={() => openModal(os)}
-                              className="p-4 text-zinc-400 hover:text-accent hover:bg-accent/5 rounded-2xl transition-all active:scale-90"
-                            >
-                              <Edit2 size={22} />
-                            </button>
-                          )}
-                          <div className="relative group/more">
-                            <button className="p-4 text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 rounded-2xl transition-all active:scale-90">
-                              <MoreVertical size={22} />
-                            </button>
-                            <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-zinc-100 rounded-[1.5rem] shadow-2xl opacity-0 invisible group-hover/more:opacity-100 group-hover/more:visible transition-all duration-300 z-20 overflow-hidden">
-                              <button className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-zinc-600 hover:bg-zinc-50 transition-colors">
-                                <Printer size={18} /> Imprimir OS
-                              </button>
-                              {os.status === 'finalizada' && (
-                                <button 
-                                  onClick={() => sendNotification(os)}
-                                  className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-zinc-600 hover:bg-zinc-50 transition-colors"
-                                >
-                                  <MessageSquare size={18} /> Notificar Cliente
-                                </button>
-                              )}
-                              {canDelete && (
-                                <button 
-                                  onClick={() => handleDelete(os.id)}
-                                  className="w-full flex items-center gap-3 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 transition-colors"
-                                >
-                                  <Trash2 size={18} /> Excluir OS
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+            <StandardTable
+              data={filteredOS}
+              columns={[
+                {
+                  header: 'OS / Data',
+                  accessor: (os) => (
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900">#{os.numeroOS || os.id.slice(0, 8).toUpperCase()}</span>
+                      <span className="text-xs text-slate-500">
+                        {format(new Date(os.createdAt), 'dd/MM/yyyy')}
+                      </span>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        ) : (
-          <KanbanBoard />
-        )
-      ) : (
-        <div className="py-32 text-center bg-zinc-50/50 rounded-[3rem] border border-dashed border-zinc-200">
-          <ClipboardList size={64} className="text-zinc-200 mx-auto mb-6" />
-          <h4 className="text-2xl font-black text-zinc-900 mb-2 font-display">Nenhuma OS encontrada</h4>
-          <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Tente ajustar sua busca ou crie uma nova OS.</p>
-        </div>
-      )}
-    </div>
-
-      {/* OS Modal */}
-      <AnimatePresence>
-        {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeModal}
-              className="fixed inset-0 bg-zinc-900/80 backdrop-blur-xl"
-            />
-            
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-5xl bg-white rounded-[3rem] shadow-2xl overflow-hidden border border-zinc-100"
-            >
-              {/* Decorative Background Element */}
-              <div className="absolute top-0 right-0 w-96 h-96 bg-accent/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl pointer-events-none" />
-              
-              <div className="relative flex flex-col max-h-[90vh]">
-                {/* Modal Header */}
-                <div className="p-8 sm:p-12 border-b border-zinc-100 flex items-center justify-between bg-white/50 backdrop-blur-md sticky top-0 z-10">
-                  <div>
-                    <h2 className="text-3xl sm:text-4xl font-black text-zinc-900 tracking-tighter font-display">
-                      {editingOS ? 'Editar Ordem' : 'Nova Ordem de Serviço'}
-                    </h2>
-                    <p className="text-zinc-500 font-medium mt-2">Preencha os detalhes para {editingOS ? 'atualizar' : 'emitir'} a OS.</p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    {editingOS && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const client = clients.find(c => c.id === formData.clienteId);
-                          if (client?.phone) {
-                            const message = `Olá ${client.name}, sua Ordem de Serviço #${editingOS.numeroOS} está pronta para aprovação. Acesse os detalhes aqui: ${window.location.origin}/os/${editingOS.id}`;
-                            window.open(`https://wa.me/55${client.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
-                          } else {
-                            toast.error('Telefone do cliente não encontrado.');
-                          }
-                        }}
-                        className="flex items-center gap-3 px-6 py-3 bg-emerald-500 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20"
-                      >
-                        <MessageSquare size={16} />
-                        Aprovação WhatsApp
-                      </button>
-                    )}
+                  ),
+                  width: '120px'
+                },
+                {
+                  header: 'Cliente / Veículo',
+                  accessor: (os) => (
+                    <div className="flex flex-col">
+                      <span className="font-medium text-slate-900">{getClientName(os.clienteId)}</span>
+                      <span className="text-xs text-slate-500">{getVehicleInfo(os.veiculoId)}</span>
+                    </div>
+                  )
+                },
+                {
+                  header: 'Status',
+                  accessor: (os) => {
+                    const status = statusMap[os.status];
+                    const StatusIcon = status.icon;
+                    return (
+                      <div className={cn(
+                        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
+                        status.color
+                      )}>
+                        <StatusIcon size={12} />
+                        {status.label}
+                      </div>
+                    );
+                  }
+                },
+                {
+                  header: 'Total',
+                  accessor: (os) => (
+                    <span className="font-bold text-slate-900">{formatCurrency(os.valorTotal)}</span>
+                  ),
+                  className: 'text-right'
+                }
+              ]}
+              actions={(os) => (
+                <div className="flex items-center justify-end gap-2">
+                  <button 
+                    onClick={() => openModal(os)}
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-accent transition-colors"
+                    title="Editar"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button 
+                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
+                    title="Imprimir"
+                  >
+                    <Printer size={18} />
+                  </button>
+                  {canDelete && (
                     <button 
-                      onClick={closeModal}
-                      className="p-4 hover:bg-zinc-100 rounded-2xl transition-all active:scale-90"
+                      onClick={() => handleDelete(os.id)}
+                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-destructive transition-colors"
+                      title="Excluir"
                     >
-                      <XCircle size={28} className="text-zinc-400" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Tab Navigation */}
-                <div className="px-8 sm:px-12 py-4 border-b border-zinc-100 bg-zinc-50/50 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
-                  <div className="flex items-center gap-2">
-                    {[
-                      { id: 'details', label: 'Detalhes', icon: FileText },
-                      { id: 'checklist', label: 'Checklist', icon: ClipboardList },
-                      { id: 'photos', label: 'Fotos', icon: ImageIcon },
-                      { id: 'signature', label: 'Assinatura', icon: Edit2 },
-                      { id: 'timeline', label: 'Linha do Tempo', icon: History },
-                    ].map((tab) => (
-                      <button
-                        key={tab.id}
-                        type="button"
-                        onClick={() => setActiveModalTab(tab.id as any)}
-                        className={cn(
-                          "flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap relative",
-                          activeModalTab === tab.id 
-                            ? "bg-white text-accent shadow-xl shadow-accent/5 border border-accent/10" 
-                            : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
-                        )}
-                      >
-                        <tab.icon size={16} />
-                        {tab.label}
-                        {activeModalTab === tab.id && (
-                          <motion.div 
-                            layoutId="activeTab"
-                            className="absolute -bottom-[17px] left-0 right-0 h-1 bg-accent rounded-t-full"
-                          />
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {editingOS && (
-                    <button
-                      type="button"
-                      className="flex items-center gap-2 px-6 py-3 bg-zinc-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-lg shadow-zinc-200"
-                    >
-                      <Printer size={16} />
-                      Imprimir OS
+                      <Trash2 size={18} />
                     </button>
                   )}
                 </div>
+              )}
+            />
+          ) : (
+            <KanbanBoard />
+          )
+        ) : (
+          <EmptyState
+            icon={ClipboardList}
+            title="Nenhuma ordem de serviço encontrada"
+            description={searchTerm ? "Tente ajustar sua busca para encontrar o que procura." : "Comece criando sua primeira ordem de serviço para gerenciar seus atendimentos."}
+            action={!searchTerm ? (
+              <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+                Nova Ordem
+              </Button>
+            ) : undefined}
+          />
+        )}
+      </div>
 
-                <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-8 sm:p-12 space-y-12 custom-scrollbar">
+      <StandardDialog
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingOS ? `Editar OS #${editingOS.numeroOS || editingOS.id.slice(0, 8).toUpperCase()}` : 'Nova Ordem de Serviço'}
+        maxWidth="max-w-7xl"
+        footer={
+          <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-6">
+            <div className="flex items-center gap-8">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Subtotal</p>
+                <p className="text-xl font-bold text-slate-900">{formatCurrency(calculateTotal() + formData.desconto)}</p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Desconto</p>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input 
+                    type="number"
+                    className="bg-slate-100 border-slate-200 rounded-xl pl-8 pr-3 py-1.5 w-28 text-sm font-bold focus:ring-2 focus:ring-accent transition-all"
+                    value={formData.desconto}
+                    onChange={(e) => setFormData({ ...formData, desconto: Number(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-[10px] font-black text-accent uppercase tracking-[0.4em]">Total Final</p>
+                <p className="text-3xl font-black font-display tracking-tighter text-slate-900">{formatCurrency(calculateTotal())}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                type="button"
+                variant="ghost"
+                onClick={closeModal}
+              >
+                Descartar
+              </Button>
+              <Button 
+                type="submit"
+                form="os-form"
+                variant="primary"
+                className="!px-12"
+                icon={<CheckCircle2 size={20} />}
+              >
+                {editingOS ? 'Salvar Alterações' : 'Emitir Ordem de Serviço'}
+              </Button>
+            </div>
+          </div>
+        }
+      >
+        <form id="os-form" onSubmit={handleSubmit} className="relative flex flex-col">
+          {/* Tab Navigation */}
+          <div className="py-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between gap-4 overflow-x-auto no-scrollbar">
+            <div className="flex items-center gap-2">
+              {[
+                { id: 'details', label: 'Detalhes', icon: FileText },
+                { id: 'checklist', label: 'Checklist', icon: ClipboardList },
+                { id: 'photos', label: 'Fotos', icon: ImageIcon },
+                { id: 'signature', label: 'Assinatura', icon: Edit2 },
+                { id: 'timeline', label: 'Linha do Tempo', icon: History },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveModalTab(tab.id as any)}
+                  className={cn(
+                    "flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap relative",
+                    activeModalTab === tab.id 
+                      ? "bg-white text-accent shadow-xl shadow-accent/5 border border-accent/10" 
+                      : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  )}
+                >
+                  <tab.icon size={16} />
+                  {tab.label}
+                  {activeModalTab === tab.id && (
+                    <motion.div 
+                      layoutId="activeTab"
+                      className="absolute -bottom-[17px] left-0 right-0 h-1 bg-accent rounded-t-full"
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+            
+            {editingOS && (
+              <button
+                type="button"
+                className="flex items-center gap-2 px-6 py-3 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+              >
+                <Printer size={16} />
+                Imprimir OS
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1 p-8 sm:p-12 space-y-12">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeModalTab}
@@ -1034,7 +972,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                           
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Status</label>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
                               <select 
                                 className="select-modern"
                                 value={formData.status}
@@ -1047,7 +985,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </div>
 
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Tipo de Pagamento</label>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Pagamento</label>
                               <select 
                                 className="select-modern"
                                 value={formData.paymentType}
@@ -1059,7 +997,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </div>
 
                             <div className="space-y-2">
-                              <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
+                              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
                               <select 
                                 className="select-modern"
                                 value={formData.paymentMethod}
@@ -1074,7 +1012,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                             {formData.paymentType === 'deferred' && (
                               <div className="space-y-2">
-                                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Data de Vencimento</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Vencimento</label>
                                 <input 
                                   type="date"
                                   className="input-modern"
@@ -1097,7 +1035,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                           
                           <div className="space-y-4">
                             <div className="relative">
-                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                               <input 
                                 type="text" 
                                 placeholder="Buscar serviços..." 
@@ -1106,7 +1044,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                 onChange={(e) => setServiceSearchTerm(e.target.value)}
                               />
                               {serviceSearchTerm && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-20 max-h-60 overflow-y-auto p-2">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-20 max-h-60 overflow-y-auto p-2">
                                   {services
                                     .filter(s => s.name.toLowerCase().includes(serviceSearchTerm.toLowerCase()))
                                     .map(s => (
@@ -1117,13 +1055,13 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                           addServiceToOS(s);
                                           setServiceSearchTerm('');
                                         }}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-zinc-50 rounded-xl transition-colors text-left group"
+                                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors text-left group"
                                       >
                                         <div>
-                                          <p className="font-bold text-zinc-900 group-hover:text-accent transition-colors">{s.name}</p>
-                                          <p className="text-xs text-zinc-400 font-medium">{formatCurrency(s.price)}</p>
+                                          <p className="font-bold text-slate-900 group-hover:text-accent transition-colors">{s.name}</p>
+                                          <p className="text-xs text-slate-400 font-medium">{formatCurrency(s.price)}</p>
                                         </div>
-                                        <Plus size={18} className="text-zinc-300 group-hover:text-accent" />
+                                        <Plus size={18} className="text-slate-300 group-hover:text-accent" />
                                       </button>
                                     ))}
                                 </div>
@@ -1131,7 +1069,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </div>
 
                             <div className="relative">
-                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                               <input 
                                 type="text" 
                                 placeholder="Buscar peças..." 
@@ -1140,7 +1078,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                 onChange={(e) => setPartSearchTerm(e.target.value)}
                               />
                               {partSearchTerm && (
-                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-100 rounded-2xl shadow-2xl z-20 max-h-60 overflow-y-auto p-2">
+                                <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-20 max-h-60 overflow-y-auto p-2">
                                   {inventory
                                     .filter(p => p.name.toLowerCase().includes(partSearchTerm.toLowerCase()))
                                     .map(p => (
@@ -1151,13 +1089,13 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                           addPartToOS(p);
                                           setPartSearchTerm('');
                                         }}
-                                        className="w-full flex items-center justify-between p-4 hover:bg-zinc-50 rounded-xl transition-colors text-left group"
+                                        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors text-left group"
                                       >
                                         <div>
-                                          <p className="font-bold text-zinc-900 group-hover:text-accent transition-colors">{p.name}</p>
-                                          <p className="text-xs text-zinc-400 font-medium">{formatCurrency(p.precoVenda)} - Estoque: {p.quantidadeAtual}</p>
+                                          <p className="font-bold text-slate-900 group-hover:text-accent transition-colors">{p.name}</p>
+                                          <p className="text-xs text-slate-400 font-medium">{formatCurrency(p.precoVenda)} - Estoque: {p.quantidadeAtual}</p>
                                         </div>
-                                        <Plus size={18} className="text-zinc-300 group-hover:text-accent" />
+                                        <Plus size={18} className="text-slate-300 group-hover:text-accent" />
                                       </button>
                                     ))}
                                 </div>
@@ -1166,11 +1104,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                             <div className="space-y-3">
                               {formData.selectedServices.map((s, i) => (
-                                <div key={`service-${i}`} className="flex items-center justify-between p-5 bg-zinc-50 border border-zinc-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
+                                <div key={`service-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Serviço</span>
-                                      <p className="font-bold text-zinc-900">{s.name}</p>
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço</span>
+                                      <p className="font-bold text-slate-900">{s.name}</p>
                                     </div>
                                     <div className="flex items-center gap-4 mt-1">
                                       <span className="text-xs font-black text-accent">{formatCurrency(s.price)}</span>
@@ -1182,11 +1120,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                             newServices[i].quantity = Math.max(1, newServices[i].quantity - 1);
                                             setFormData({ ...formData, selectedServices: newServices });
                                           }}
-                                          className="p-1 hover:bg-zinc-100 rounded-lg"
+                                          className="p-1 hover:bg-slate-100 rounded-lg"
                                         >
                                           <Minus size={12} />
                                         </button>
-                                        <span className="text-xs font-bold text-zinc-600">{s.quantity}</span>
+                                        <span className="text-xs font-bold text-slate-600">{s.quantity}</span>
                                         <button 
                                           type="button"
                                           onClick={() => {
@@ -1194,7 +1132,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                             newServices[i].quantity += 1;
                                             setFormData({ ...formData, selectedServices: newServices });
                                           }}
-                                          className="p-1 hover:bg-zinc-100 rounded-lg"
+                                          className="p-1 hover:bg-slate-100 rounded-lg"
                                         >
                                           <Plus size={12} />
                                         </button>
@@ -1202,9 +1140,9 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                     </div>
                                     <div className="flex flex-wrap items-center gap-4 mt-3">
                                       <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Técnico</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Técnico</span>
                                         <select
-                                          className="bg-white border border-zinc-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
+                                          className="bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
                                           value={s.tecnicoId}
                                           onChange={(e) => {
                                             const newServices = [...formData.selectedServices];
@@ -1219,10 +1157,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                         </select>
                                       </div>
                                       <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Comissão (%)</span>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comissão (%)</span>
                                         <input
                                           type="number"
-                                          className="w-16 bg-white border border-zinc-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
+                                          className="w-16 bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
                                           value={s.comissao}
                                           onChange={(e) => {
                                             const newServices = [...formData.selectedServices];
@@ -1236,7 +1174,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   <button 
                                     type="button"
                                     onClick={() => removeServiceFromOS(i)}
-                                    className="p-3 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                   >
                                     <Trash2 size={18} />
                                   </button>
@@ -1244,11 +1182,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               ))}
 
                               {formData.selectedParts.map((p, i) => (
-                                <div key={`part-${i}`} className="flex items-center justify-between p-5 bg-zinc-50 border border-zinc-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
+                                <div key={`part-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Peça</span>
-                                      <p className="font-bold text-zinc-900">{p.name}</p>
+                                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</span>
+                                      <p className="font-bold text-slate-900">{p.name}</p>
                                     </div>
                                     <div className="flex items-center gap-4 mt-1">
                                       <span className="text-xs font-black text-accent">{formatCurrency(p.price)}</span>
@@ -1260,11 +1198,11 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                             newParts[i].quantity = Math.max(1, newParts[i].quantity - 1);
                                             setFormData({ ...formData, selectedParts: newParts });
                                           }}
-                                          className="p-1 hover:bg-zinc-100 rounded-lg"
+                                          className="p-1 hover:bg-slate-100 rounded-lg"
                                         >
                                           <Minus size={12} />
                                         </button>
-                                        <span className="text-xs font-bold text-zinc-600">{p.quantity}</span>
+                                        <span className="text-xs font-bold text-slate-600">{p.quantity}</span>
                                         <button 
                                           type="button"
                                           onClick={() => {
@@ -1272,7 +1210,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                             newParts[i].quantity += 1;
                                             setFormData({ ...formData, selectedParts: newParts });
                                           }}
-                                          className="p-1 hover:bg-zinc-100 rounded-lg"
+                                          className="p-1 hover:bg-slate-100 rounded-lg"
                                         >
                                           <Plus size={12} />
                                         </button>
@@ -1282,7 +1220,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   <button 
                                     type="button"
                                     onClick={() => removePartFromOS(i)}
-                                    className="p-3 text-zinc-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                   >
                                     <Trash2 size={18} />
                                   </button>
@@ -1290,8 +1228,8 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               ))}
 
                               {formData.selectedServices.length === 0 && formData.selectedParts.length === 0 && (
-                                <div className="py-12 text-center border-2 border-dashed border-zinc-100 rounded-[2rem]">
-                                  <p className="text-sm font-bold text-zinc-300 uppercase tracking-widest">Nenhum item selecionado</p>
+                                <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-[2rem]">
+                                  <p className="text-sm font-bold text-slate-300 uppercase tracking-widest">Nenhum item selecionado</p>
                                 </div>
                               )}
                             </div>
@@ -1321,7 +1259,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
                           />
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Observações Internas (Não visível ao cliente)</label>
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações Internas (Não visível ao cliente)</label>
                             <textarea
                               className="textarea-modern !min-h-[100px] !py-3"
                               placeholder="Notas para a equipe técnica, histórico interno..."
@@ -1342,10 +1280,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {formData.checklist.map((item, i) => (
-                          <div key={i} className="p-6 bg-zinc-50 border border-zinc-100 rounded-[2rem] flex items-center justify-between gap-4 group hover:bg-white hover:shadow-xl transition-all">
-                            <span className="text-sm font-bold text-zinc-700">{item.item}</span>
+                          <div key={i} className="p-6 bg-slate-50 border border-slate-100 rounded-[2rem] flex items-center justify-between gap-4 group hover:bg-white hover:shadow-xl transition-all">
+                            <span className="text-sm font-bold text-slate-700">{item.item}</span>
                             <div className="flex items-center gap-2">
-                              <div className="flex bg-white p-1 rounded-xl border border-zinc-200">
+                              <div className="flex bg-white p-1 rounded-xl border border-slate-200">
                                 {(['ok', 'not_ok', 'na'] as const).map((status) => (
                                   <button
                                     key={status}
@@ -1358,8 +1296,8 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                     className={cn(
                                       "px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all",
                                       item.status === status 
-                                        ? status === 'ok' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : status === 'not_ok' ? "bg-rose-500 text-white shadow-lg shadow-rose-200" : "bg-zinc-500 text-white shadow-lg shadow-zinc-200"
-                                        : "text-zinc-400 hover:text-zinc-600"
+                                        ? status === 'ok' ? "bg-emerald-500 text-white shadow-lg shadow-emerald-200" : status === 'not_ok' ? "bg-rose-500 text-white shadow-lg shadow-rose-200" : "bg-slate-500 text-white shadow-lg shadow-slate-200"
+                                        : "text-slate-400 hover:text-slate-600"
                                     )}
                                   >
                                     {status === 'ok' ? 'OK' : status === 'not_ok' ? 'X' : '-'}
@@ -1372,7 +1310,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   const newChecklist = formData.checklist.filter((_, idx) => idx !== i);
                                   setFormData({ ...formData, checklist: newChecklist });
                                 }}
-                                className="p-2 text-zinc-300 hover:text-rose-500 transition-colors"
+                                className="p-2 text-slate-300 hover:text-rose-500 transition-colors"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -1412,7 +1350,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               input.value = '';
                             }
                           }}
-                          className="px-8 py-4 bg-zinc-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-900/10"
+                          className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
                         >
                           Adicionar Item
                         </button>
@@ -1425,14 +1363,15 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                       <div className="space-y-6">
                         <div className="flex items-center gap-3 text-accent">
                           <ImageIcon size={24} />
-                          <h3 className="text-lg font-black uppercase tracking-[0.2em]">Fotos do Veículo</h3>
+                          <h3 className="text-lg font-black uppercase tracking-widest">Galeria de Fotos</h3>
                         </div>
+                        
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                           <div className="space-y-4">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Fotos Antes</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fotos Antes</p>
                             <div className="grid grid-cols-3 gap-4">
                               {formData.fotosAntes.map((foto, i) => (
-                                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-zinc-100 group">
+                                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 group">
                                   <img src={foto} alt={`Foto ${i}`} className="w-full h-full object-cover" />
                                   <button
                                     type="button"
@@ -1443,7 +1382,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   </button>
                                 </div>
                               ))}
-                              <label className="aspect-square rounded-2xl border-2 border-dashed border-zinc-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-zinc-400 hover:text-accent">
+                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-slate-400 hover:text-accent">
                                 <Plus size={24} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Adicionar</span>
                                 <input 
@@ -1466,10 +1405,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                           </div>
 
                           <div className="space-y-4">
-                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Fotos Depois</p>
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Fotos Depois</p>
                             <div className="grid grid-cols-3 gap-4">
                               {formData.fotosDepois.map((foto, i) => (
-                                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-zinc-100 group">
+                                <div key={i} className="relative aspect-square rounded-2xl overflow-hidden border border-slate-100 group">
                                   <img src={foto} alt={`Foto ${i}`} className="w-full h-full object-cover" />
                                   <button
                                     type="button"
@@ -1480,7 +1419,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   </button>
                                 </div>
                               ))}
-                              <label className="aspect-square rounded-2xl border-2 border-dashed border-zinc-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-zinc-400 hover:text-accent">
+                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-slate-400 hover:text-accent">
                                 <Plus size={24} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Adicionar</span>
                                 <input 
@@ -1510,11 +1449,12 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                     <div className="space-y-8">
                       <div className="flex items-center gap-3 text-accent">
                         <Edit2 size={24} />
-                        <h3 className="text-lg font-black uppercase tracking-[0.2em]">Assinatura Digital</h3>
+                        <h3 className="text-lg font-black uppercase tracking-widest">Assinatura do Cliente</h3>
                       </div>
-                      <div className="bg-zinc-50 border border-zinc-100 rounded-[3rem] p-12 relative group min-h-[400px] flex flex-col items-center justify-center">
+
+                      <div className="bg-slate-50 border border-slate-100 rounded-[3rem] p-12 relative group min-h-[400px] flex flex-col items-center justify-center">
                         {formData.signatureData ? (
-                          <div className="relative w-full max-w-md aspect-[2/1] bg-white rounded-[2rem] overflow-hidden border border-zinc-100 shadow-2xl">
+                          <div className="relative w-full max-w-md aspect-[2/1] bg-white rounded-[2rem] overflow-hidden border border-slate-100 shadow-2xl">
                             <img src={formData.signatureData} alt="Assinatura" className="w-full h-full object-contain" />
                             <button
                               type="button"
@@ -1525,13 +1465,13 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </button>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-center justify-center gap-8 text-zinc-400">
-                            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-zinc-200 border border-zinc-100 shadow-sm">
+                          <div className="flex flex-col items-center justify-center gap-8 text-slate-400">
+                            <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-slate-200 border border-slate-100 shadow-sm">
                               <Sparkles size={48} />
                             </div>
                             <div className="text-center">
-                              <p className="text-lg font-bold text-zinc-900">Aguardando Assinatura</p>
-                              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-2">O cliente deve assinar para validar a OS</p>
+                              <p className="text-lg font-bold text-slate-900">Aguardando Assinatura</p>
+                              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">O cliente deve assinar para validar a OS</p>
                             </div>
                             <button
                               type="button"
@@ -1545,116 +1485,62 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                       </div>
                     </div>
                   )}
+                  {activeModalTab === 'timeline' && (
+                    <div className="space-y-8">
+                      <div className="flex items-center gap-3 text-accent">
+                        <Clock size={24} />
+                        <h3 className="text-lg font-black uppercase tracking-widest">Linha do Tempo</h3>
+                      </div>
 
-                      {activeModalTab === 'timeline' && (
-                        <div className="space-y-8">
-                          <div className="flex items-center gap-3 text-accent">
-                            <Clock size={24} />
-                            <h3 className="text-lg font-black uppercase tracking-[0.2em]">Linha do Tempo da OS</h3>
-                          </div>
-                          
-                          <div className="space-y-8 relative before:absolute before:left-6 before:top-2 before:bottom-2 before:w-0.5 before:bg-zinc-100">
-                            {(editingOS?.historico || []).length > 0 ? (
-                              editingOS?.historico.map((step, idx) => (
-                                <div key={idx} className="relative pl-16 group">
-                                  <div className={cn(
-                                    "absolute left-0 top-0 w-12 h-12 rounded-2xl border-4 border-white flex items-center justify-center z-10 transition-all duration-500 shadow-lg",
-                                    statusMap[step.status]?.color.replace('text-', 'bg-').replace('50', '500')
-                                  )}>
-                                    <div className="w-2.5 h-2.5 bg-white rounded-full" />
-                                  </div>
-                                  <div className="bg-zinc-50 p-8 rounded-[2.5rem] border border-zinc-100 group-hover:bg-white group-hover:shadow-2xl group-hover:shadow-zinc-100 transition-all">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                                      <span className={cn(
-                                        "text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-xl w-fit",
-                                        statusMap[step.status]?.color.replace('text-', 'bg-').replace('500', '100'),
-                                        statusMap[step.status]?.color
-                                      )}>
-                                        {statusMap[step.status]?.label}
-                                      </span>
-                                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                                        {format(new Date(step.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                                      </span>
-                                    </div>
-                                    <p className="text-base font-bold text-zinc-900 leading-relaxed">{step.notes}</p>
-                                    <div className="flex items-center gap-3 mt-4 pt-4 border-t border-zinc-100">
-                                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-zinc-400 border border-zinc-100">
-                                        <User size={16} />
-                                      </div>
-                                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                                        Operador: <span className="text-zinc-900">{users.find(u => u.uid === step.usuarioId)?.name || 'Sistema'}</span>
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="py-20 text-center bg-zinc-50 rounded-[3rem] border border-dashed border-zinc-200">
-                                <History size={48} className="text-zinc-200 mx-auto mb-4" />
-                                <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Nenhum histórico disponível</p>
+                      <div className="space-y-8 relative before:absolute before:left-6 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-100">
+                        {(editingOS?.historico || []).length > 0 ? (
+                          editingOS?.historico.map((step, idx) => (
+                            <div key={idx} className="relative pl-16 group">
+                              <div className={cn(
+                                "absolute left-0 top-0 w-12 h-12 rounded-2xl border-4 border-white flex items-center justify-center z-10 transition-all duration-500 shadow-lg",
+                                statusMap[step.status]?.color.replace('text-', 'bg-').replace('50', '500')
+                              )}>
+                                <div className="w-2.5 h-2.5 bg-white rounded-full" />
                               </div>
-                            )}
+                              <div className="bg-slate-50 p-8 rounded-[2.5rem] border border-slate-100 group-hover:bg-white group-hover:shadow-2xl group-hover:shadow-slate-100 transition-all">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                                  <span className={cn(
+                                    "text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-xl w-fit",
+                                    statusMap[step.status]?.color.replace('text-', 'bg-').replace('500', '100'),
+                                    statusMap[step.status]?.color
+                                  )}>
+                                    {statusMap[step.status]?.label}
+                                  </span>
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    {format(new Date(step.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                  </span>
+                                </div>
+                                <p className="text-base font-bold text-slate-900 leading-relaxed">{step.notes}</p>
+                                <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-100">
+                                  <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 border border-slate-100">
+                                    <User size={16} />
+                                  </div>
+                                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                    Operador: <span className="text-slate-900">{users.find(u => u.uid === step.usuarioId)?.name || 'Sistema'}</span>
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="py-20 text-center bg-slate-50 rounded-[3rem] border border-dashed border-slate-200">
+                            <History size={48} className="text-slate-200 mx-auto mb-4" />
+                            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">Nenhum histórico disponível</p>
                           </div>
-                        </div>
-                      )}
-                    </motion.div>
-                  </AnimatePresence>
-
-                  {/* Summary Section */}
-                  <div className="mt-12 p-8 sm:p-10 bg-zinc-900 rounded-[2.5rem] text-white flex flex-col sm:flex-row items-center justify-between gap-8 shadow-2xl shadow-zinc-200">
-                    <div className="flex flex-wrap items-center gap-10">
-                      <div className="space-y-1">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Subtotal</p>
-                        <p className="text-xl font-bold text-zinc-300">{formatCurrency(calculateTotal() + formData.desconto)}</p>
+                        )}
                       </div>
-                      <div className="space-y-2">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">Desconto</p>
-                        <div className="relative">
-                          <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={16} />
-                          <input 
-                            type="number"
-                            className="bg-zinc-800 border-none rounded-xl pl-10 pr-4 py-2 w-32 text-sm font-bold focus:ring-2 focus:ring-accent transition-all"
-                            value={formData.desconto}
-                            onChange={(e) => setFormData({ ...formData, desconto: Number(e.target.value) })}
-                          />
-                        </div>
-                      </div>
-                      {profile?.role === 'admin' && (
-                        <div className="space-y-1">
-                          <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.3em]">Lucro Estimado</p>
-                          <p className="text-xl font-bold text-emerald-400">{formatCurrency(calculateTotal() - calculateTotalCost())}</p>
-                        </div>
-                      )}
                     </div>
-                    <div className="text-center sm:text-right">
-                      <p className="text-[10px] font-black text-accent uppercase tracking-[0.4em] mb-2">Total Final</p>
-                      <p className="text-5xl font-black font-display tracking-tighter">{formatCurrency(calculateTotal())}</p>
-                    </div>
-                  </div>
-
-                  {/* Modal Actions */}
-                  <div className="flex flex-col sm:flex-row items-center justify-end gap-4 pt-8">
-                    <button 
-                      type="button"
-                      onClick={closeModal}
-                      className="w-full sm:w-auto px-10 py-4 text-sm font-black text-zinc-400 uppercase tracking-widest hover:text-zinc-900 transition-colors"
-                    >
-                      Descartar
-                    </button>
-                    <button 
-                      type="submit"
-                      className="btn-modern w-full sm:w-auto !px-12 !py-4 flex items-center justify-center gap-3"
-                    >
-                      <CheckCircle2 size={20} />
-                      {editingOS ? 'Salvar Alterações' : 'Emitir Ordem de Serviço'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                  )}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+          </form>
+        </StandardDialog>
 
       <SignatureModal 
         isOpen={isSignatureModalOpen}
@@ -1662,14 +1548,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
         onSave={(data) => setFormData({ ...formData, signatureData: data })}
       />
 
-      <ConfirmationModal
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Ordem de Serviço?"
         message="Tem certeza que deseja excluir esta OS? Esta ação não pode ser desfeita."
       />
-    </div>
+    </PageContainer>
   );
 };
 

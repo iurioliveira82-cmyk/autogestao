@@ -1,27 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Plus, 
-  Search, 
   Truck, 
   Phone, 
   Mail, 
   MapPin, 
-  MoreVertical, 
   Edit2, 
   Trash2,
   Tag,
   History,
-  XCircle,
   ArrowUpCircle
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { Supplier, OperationType } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { handleFirestoreError } from '../../utils';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { Button } from '../../components/ui/Button';
+import { Modal } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface SuppliersProps {
   setActiveTab?: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -197,7 +198,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
   if (!canView) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <Truck size={48} className="mb-4" />
         <p className="text-lg font-medium">Acesso restrito.</p>
       </div>
@@ -205,28 +206,24 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome, CNPJ ou categoria..." 
-            className="input-modern pl-12"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-        
-        {canCreate && (
-          <button 
-            onClick={() => openModal()}
-            className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-          >
-            <Plus size={20} />
+    <div className="space-y-8">
+      <PageHeader 
+        title="Fornecedores" 
+        description="Gerencie seus fornecedores e parcerias."
+        action={canCreate && (
+          <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
             Novo Fornecedor
-          </button>
+          </Button>
         )}
+      />
+
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <SearchBar 
+          placeholder="Buscar por nome, CNPJ ou categoria..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -234,16 +231,16 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-zinc-400 text-sm italic">Carregando fornecedores...</p>
+              <p className="text-slate-400 text-sm italic">Carregando fornecedores...</p>
             </div>
           </div>
         ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
           <div 
             key={supplier.id} 
-            className="bg-white rounded-[2rem] border border-zinc-200 p-6 hover:shadow-xl hover:shadow-zinc-100 transition-all group relative overflow-hidden"
+            className="modern-card group relative overflow-hidden transition-all hover:shadow-xl hover:shadow-slate-200/50"
           >
             <div className="flex items-start justify-between mb-6">
-              <div className="w-14 h-14 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+              <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
                 <Truck size={28} />
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -259,7 +256,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 {canEdit && (
                   <button 
                     onClick={() => openModal(supplier)}
-                    className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
+                    className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
                   >
                     <Edit2 size={16} />
                   </button>
@@ -267,7 +264,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
                 {canDelete && (
                   <button 
                     onClick={() => handleDelete(supplier.id)}
-                    className="p-2 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -277,40 +274,40 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-black text-zinc-900 line-clamp-1">{supplier.name}</h3>
-                {supplier.cnpj && <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">CNPJ: {supplier.cnpj}</p>}
+                <h3 className="text-sm font-black text-slate-900 dark:text-white line-clamp-1">{supplier.name}</h3>
+                {supplier.cnpj && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">CNPJ: {supplier.cnpj}</p>}
               </div>
 
-              <div className="bg-zinc-50 rounded-2xl p-4 space-y-3 border border-zinc-100">
-                <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
-                  <Phone size={14} className="text-zinc-400" />
+              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 space-y-3 border border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <Phone size={14} className="text-slate-400" />
                   <span>{supplier.phone}</span>
                 </div>
                 {supplier.email && (
-                  <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
-                    <Mail size={14} className="text-zinc-400" />
+                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+                    <Mail size={14} className="text-slate-400" />
                     <span className="truncate">{supplier.email}</span>
                   </div>
                 )}
                 {supplier.address && (
-                  <div className="flex items-center gap-3 text-xs font-bold text-zinc-600">
-                    <MapPin size={14} className="text-zinc-400" />
+                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+                    <MapPin size={14} className="text-slate-400" />
                     <span className="truncate">{supplier.address}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-100">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
                 {supplier.category ? (
                   <div className="flex items-center gap-2">
-                    <Tag size={12} className="text-zinc-400" />
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{supplier.category}</span>
+                    <Tag size={12} className="text-slate-400" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{supplier.category}</span>
                   </div>
                 ) : <div />}
                 
                 <button
                   onClick={() => setActiveTab?.('stock', undefined, supplier.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-accent text-accent-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
                 >
                   <History size={12} />
                   Histórico
@@ -321,116 +318,106 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         )) : (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-2 opacity-40">
-              <Truck size={48} className="text-zinc-300" />
-              <p className="text-zinc-500 text-sm font-medium">Nenhum fornecedor encontrado.</p>
+              <Truck size={48} className="text-slate-300" />
+              <p className="text-slate-500 text-sm font-medium">Nenhum fornecedor encontrado.</p>
             </div>
           </div>
         )}
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
-              <div>
-                <h3 className="text-xl font-black text-zinc-900">
-                  {editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
-                </h3>
-                <p className="text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">Dados Cadastrais</p>
-              </div>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-xl hover:bg-zinc-100 transition-all">
-                <XCircle size={24} />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Razão Social</label>
+              <input 
+                type="text" 
+                required
+                className="input-modern"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome / Razão Social</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="input-modern"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">CNPJ</label>
-                  <input 
-                    type="text" 
-                    placeholder="00.000.000/0000-00"
-                    className="input-modern"
-                    value={formData.cnpj}
-                    onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Telefone</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="input-modern"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">E-mail</label>
-                  <input 
-                    type="email" 
-                    className="input-modern"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Endereço</label>
-                <input 
-                  type="text" 
-                  className="input-modern"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Categoria / Ramo</label>
-                <input 
-                  type="text" 
-                  placeholder="Ex: Peças, Pneus, Óleos..."
-                  className="input-modern"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-                >
-                  {editingSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
-                </button>
-              </div>
-            </form>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
+              <input 
+                type="text" 
+                placeholder="00.000.000/0000-00"
+                className="input-modern"
+                value={formData.cnpj}
+                onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
+              />
+            </div>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
+              <input 
+                type="text" 
+                required
+                className="input-modern"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
+              <input 
+                type="email" 
+                className="input-modern"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço</label>
+            <input 
+              type="text" 
+              className="input-modern"
+              value={formData.address}
+              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Categoria / Ramo</label>
+            <input 
+              type="text" 
+              placeholder="Ex: Peças, Pneus, Óleos..."
+              className="input-modern"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="submit"
+              variant="primary"
+              className="flex-1"
+            >
+              {editingSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}

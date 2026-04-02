@@ -280,7 +280,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
   if (!canView) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <Package size={48} className="mb-4" />
         <p className="text-lg font-medium">Acesso restrito.</p>
       </div>
@@ -290,12 +290,12 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 glass-card p-4 rounded-3xl">
-        <div className="flex items-center gap-2 bg-zinc-100 p-1 rounded-2xl w-fit">
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-2xl w-fit">
           <button
             onClick={() => setViewMode('movements')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              viewMode === 'movements' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+              viewMode === 'movements' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Movimentações
@@ -304,7 +304,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             onClick={() => setViewMode('items')}
             className={cn(
               "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              viewMode === 'items' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+              viewMode === 'items' ? "bg-white text-slate-800 shadow-sm" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Saldos por Item
@@ -313,11 +313,11 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1 justify-end">
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
             <input 
               type="text" 
               placeholder={viewMode === 'movements' ? "Buscar por item ou motivo..." : "Buscar por item ou categoria..."}
-              className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
+              className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -336,16 +336,16 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
       </div>
 
       {viewMode === 'movements' && (
-        <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-3xl border border-zinc-200 shadow-sm">
-          <div className="flex items-center gap-3 bg-zinc-50 border border-zinc-200 rounded-2xl px-4 py-2">
-            <Calendar size={16} className="text-zinc-400" />
+        <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-3xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2">
+            <Calendar size={16} className="text-slate-400" />
             <input 
               type="date" 
               className="text-xs font-black uppercase tracking-widest focus:outline-none bg-transparent"
               value={dateRange.start}
               onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
             />
-            <span className="text-zinc-300">|</span>
+            <span className="text-slate-300">|</span>
             <input 
               type="date" 
               className="text-xs font-black uppercase tracking-widest focus:outline-none bg-transparent"
@@ -356,7 +356,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
           <div className="flex flex-wrap gap-2">
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterItem}
               onChange={(e) => setFilterItem(e.target.value)}
             >
@@ -367,7 +367,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterSupplier}
               onChange={(e) => setFilterSupplier(e.target.value)}
             >
@@ -378,7 +378,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterType}
               onChange={(e) => setFilterType(e.target.value as any)}
             >
@@ -388,7 +388,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             </select>
 
             <select
-              className="px-4 py-2 bg-zinc-50 border border-zinc-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-accent transition-all"
               value={filterUser}
               onChange={(e) => setFilterUser(e.target.value)}
             >
@@ -416,34 +416,34 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
       )}
 
       {viewMode === 'movements' ? (
-        <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-zinc-50/50 border-b border-zinc-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Data</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Tipo</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Item</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Qtd</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Motivo</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Fornecedor</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Usuário</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Data</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Tipo</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Qtd</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Motivo</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Fornecedor</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Usuário</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="px-8 py-20 text-center">
                       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                      <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Carregando movimentações...</p>
+                      <p className="text-slate-400 text-xs font-black uppercase tracking-widest italic">Carregando movimentações...</p>
                     </td>
                   </tr>
                 ) : filteredMovements.length > 0 ? filteredMovements.map((m) => (
-                  <tr key={m.id} className="hover:bg-zinc-50/50 transition-colors group">
+                  <tr key={m.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex flex-col">
-                        <span className="text-sm font-black text-zinc-900">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
-                        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{format(new Date(m.timestamp), 'HH:mm')}</span>
+                        <span className="text-sm font-black text-slate-800">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(m.timestamp), 'HH:mm')}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">
@@ -461,31 +461,31 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                       </span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-black text-zinc-900">{getItemName(m.itemInventarioId)}</span>
+                      <span className="text-sm font-black text-slate-800">{getItemName(m.itemInventarioId)}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-black text-zinc-900">{m.quantidade} un</span>
+                      <span className="text-sm font-black text-slate-800">{m.quantidade} un</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-500">{m.reason}</span>
+                      <span className="text-sm font-bold text-slate-500">{m.reason}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-500">{getSupplierName(m.fornecedorId || '')}</span>
+                      <span className="text-sm font-bold text-slate-500">{getSupplierName(m.fornecedorId || '')}</span>
                     </td>
                     <td className="px-8 py-5">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-zinc-100 rounded-xl flex items-center justify-center text-[10px] font-black text-zinc-500 border border-zinc-200 group-hover:scale-110 transition-transform">
+                        <div className="w-8 h-8 bg-slate-100 rounded-xl flex items-center justify-center text-[10px] font-black text-slate-500 border border-slate-200 group-hover:scale-110 transition-transform">
                           {getUserName(m.usuarioId).charAt(0)}
                         </div>
-                        <span className="text-sm font-bold text-zinc-500">{getUserName(m.usuarioId)}</span>
+                        <span className="text-sm font-bold text-slate-500">{getUserName(m.usuarioId)}</span>
                       </div>
                     </td>
                   </tr>
                 )) : (
                   <tr>
                     <td colSpan={7} className="px-8 py-20 text-center">
-                      <Package size={48} className="mx-auto text-zinc-200 mb-4" />
-                      <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Nenhuma movimentação registrada.</p>
+                      <Package size={48} className="mx-auto text-slate-200 mb-4" />
+                      <p className="text-slate-400 text-xs font-black uppercase tracking-widest italic">Nenhuma movimentação registrada.</p>
                     </td>
                   </tr>
                 )}
@@ -494,49 +494,49 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-zinc-50/50 border-b border-zinc-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Item</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Categoria</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Saldo Atual</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Mínimo</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-zinc-400 uppercase tracking-widest text-right">Ações</th>
+                <tr className="bg-slate-50/50 border-b border-slate-100">
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Item</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Categoria</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Saldo Atual</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Mínimo</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-50">
+              <tbody className="divide-y divide-slate-50">
                 {loading ? (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
                       <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                      <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Carregando itens...</p>
+                      <p className="text-slate-400 text-xs font-black uppercase tracking-widest italic">Carregando itens...</p>
                     </td>
                   </tr>
                 ) : filteredInventory.length > 0 ? filteredInventory.map((item) => (
-                  <tr key={item.id} className="hover:bg-zinc-50/50 transition-colors group">
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
-                      <span className="text-sm font-black text-zinc-900">{item.name}</span>
+                      <span className="text-sm font-black text-slate-800">{item.name}</span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-500">{item.category || '-'}</span>
+                      <span className="text-sm font-bold text-slate-500">{item.category || '-'}</span>
                     </td>
                     <td className="px-8 py-5">
                       <span className={cn(
                         "text-sm font-black px-3 py-1 rounded-xl",
-                        item.quantidadeAtual <= item.estoqueMinimo ? "bg-red-50 text-red-600 border border-red-100" : "bg-zinc-50 text-zinc-900 border border-zinc-100"
+                        item.quantidadeAtual <= item.estoqueMinimo ? "bg-red-50 text-red-600 border border-red-100" : "bg-slate-50 text-slate-800 border border-slate-100"
                       )}>
                         {item.quantidadeAtual} un
                       </span>
                     </td>
                     <td className="px-8 py-5">
-                      <span className="text-sm font-bold text-zinc-400">{item.estoqueMinimo} un</span>
+                      <span className="text-sm font-bold text-slate-400">{item.estoqueMinimo} un</span>
                     </td>
                     <td className="px-8 py-5 text-right">
                       <button
                         onClick={() => openHistory(item)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 text-zinc-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-all shadow-sm group-hover:scale-105"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-600 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-accent hover:text-accent-foreground transition-all shadow-sm group-hover:scale-105"
                       >
                         <History size={14} />
                         Histórico
@@ -546,8 +546,8 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                 )) : (
                   <tr>
                     <td colSpan={5} className="px-8 py-20 text-center">
-                      <Package size={48} className="mx-auto text-zinc-200 mb-4" />
-                      <p className="text-zinc-400 text-xs font-black uppercase tracking-widest italic">Nenhum item encontrado.</p>
+                      <Package size={48} className="mx-auto text-slate-200 mb-4" />
+                      <p className="text-slate-400 text-xs font-black uppercase tracking-widest italic">Nenhum item encontrado.</p>
                     </td>
                   </tr>
                 )}
@@ -558,19 +558,19 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
       )}
 
       {isHistoryModalOpen && selectedItem && (
-        <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 bg-slate-900/50 z-[70] flex items-center justify-center p-4 backdrop-blur-sm">
           <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-zinc-200 text-zinc-900">
+                <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 text-slate-800">
                   <History size={24} />
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold text-zinc-900">Histórico de Movimentações</h3>
-                  <p className="text-sm text-zinc-500">{selectedItem.name}</p>
+                  <h3 className="text-xl font-bold text-slate-800">Histórico de Movimentações</h3>
+                  <p className="text-sm text-slate-500">{selectedItem.name}</p>
                 </div>
               </div>
-              <button onClick={closeHistoryModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+              <button onClick={closeHistoryModal} className="p-2 text-slate-400 hover:text-slate-800 rounded-lg">
                 <XCircle size={24} className="rotate-45" />
               </button>
             </div>
@@ -578,22 +578,22 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             <div className="p-0 max-h-[60vh] overflow-y-auto">
               <table className="w-full text-left border-collapse">
                 <thead className="sticky top-0 bg-white z-10 shadow-sm">
-                  <tr className="border-b border-zinc-100">
-                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Data</th>
-                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Tipo</th>
-                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-right">Quantidade</th>
-                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Motivo</th>
-                    <th className="px-8 py-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Usuário</th>
+                  <tr className="border-b border-slate-100">
+                    <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Quantidade</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Motivo</th>
+                    <th className="px-8 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Usuário</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-50">
+                <tbody className="divide-y divide-slate-50">
                   {movements.filter(m => m.itemInventarioId === selectedItem.id).length > 0 ? (
                     movements.filter(m => m.itemInventarioId === selectedItem.id).map((m) => (
-                      <tr key={m.id} className="hover:bg-zinc-50/30 transition-colors">
+                      <tr key={m.id} className="hover:bg-slate-50/30 transition-colors">
                         <td className="px-8 py-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-bold text-zinc-900">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
-                            <span className="text-[10px] text-zinc-400">{format(new Date(m.timestamp), 'HH:mm')}</span>
+                            <span className="text-sm font-bold text-slate-800">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
+                            <span className="text-[10px] text-slate-400">{format(new Date(m.timestamp), 'HH:mm')}</span>
                           </div>
                         </td>
                         <td className="px-8 py-4">
@@ -613,28 +613,28 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                           </span>
                         </td>
                         <td className="px-8 py-4">
-                          <span className="text-sm text-zinc-600">{m.reason}</span>
+                          <span className="text-sm text-slate-600">{m.reason}</span>
                         </td>
                         <td className="px-8 py-4">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-zinc-100 rounded-full flex items-center justify-center text-[10px] font-bold text-zinc-500">
+                            <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-500">
                               {getUserName(m.usuarioId).charAt(0)}
                             </div>
-                            <span className="text-xs text-zinc-500">{getUserName(m.usuarioId)}</span>
+                            <span className="text-xs text-slate-500">{getUserName(m.usuarioId)}</span>
                           </div>
                         </td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={5} className="px-8 py-20 text-center text-zinc-400 italic">Nenhuma movimentação para este item.</td>
+                      <td colSpan={5} className="px-8 py-20 text-center text-slate-400 italic">Nenhuma movimentação para este item.</td>
                     </tr>
                   )}
                 </tbody>
               </table>
             </div>
 
-            <div className="p-8 bg-zinc-50/50 border-t border-zinc-100 flex justify-end">
+            <div className="p-8 bg-slate-50/50 border-t border-slate-100 flex justify-end">
               <button 
                 onClick={closeHistoryModal}
                 className="px-8 py-3 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
@@ -646,11 +646,11 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
         </div>
       )}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-zinc-900">Nova Movimentação de Estoque</h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-zinc-900 rounded-lg">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-slate-800">Nova Movimentação de Estoque</h3>
+              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-slate-800 rounded-lg">
                 <XCircle size={24} className="rotate-45" />
               </button>
             </div>
@@ -658,9 +658,9 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
             <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[80vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Tipo de Movimento</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tipo de Movimento</label>
                   <select
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-xs font-bold"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-xs font-bold"
                     value={formData.tipo}
                     onChange={(e) => setFormData({ ...formData, tipo: e.target.value as any })}
                   >
@@ -672,10 +672,10 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Item do Estoque</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Item do Estoque</label>
                   <select 
                     required
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.itemInventarioId}
                     onChange={(e) => setFormData({ ...formData, itemInventarioId: e.target.value })}
                   >
@@ -689,20 +689,20 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Lote</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Lote</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.lote}
                     onChange={(e) => setFormData({ ...formData, lote: e.target.value })}
                     placeholder="Ex: L-2024-001"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Validade</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Validade</label>
                   <input 
                     type="date" 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.validade}
                     onChange={(e) => setFormData({ ...formData, validade: e.target.value })}
                   />
@@ -711,23 +711,23 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Quantidade</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Quantidade</label>
                   <input 
                     type="number" 
                     required
                     min="1"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.quantidade}
                     onChange={(e) => setFormData({ ...formData, quantidade: parseInt(e.target.value) })}
                   />
                 </div>
                 {formData.tipo === 'entrada' && (
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Custo Unitário (R$)</label>
+                    <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Custo Unitário (R$)</label>
                     <input 
                       type="number" 
                       step="0.01"
-                      className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                       value={formData.cost}
                       onChange={(e) => setFormData({ ...formData, cost: parseFloat(e.target.value) })}
                     />
@@ -737,11 +737,11 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
               {formData.tipo === 'entrada' && (
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Novo Preço de Venda (R$ - Opcional)</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Novo Preço de Venda (R$ - Opcional)</label>
                   <input 
                     type="number" 
                     step="0.01"
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.precoVenda}
                     onChange={(e) => setFormData({ ...formData, precoVenda: parseFloat(e.target.value) })}
                   />
@@ -750,9 +750,9 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
 
               {formData.tipo === 'entrada' && (
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
+                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Fornecedor</label>
                   <select 
-                    className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                     value={formData.fornecedorId}
                     onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
                   >
@@ -765,11 +765,11 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Motivo / Observação</label>
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Motivo / Observação</label>
                 <textarea 
                   required
                   rows={3}
-                  className="w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all resize-none"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all resize-none"
                   value={formData.reason}
                   onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
                   placeholder={formData.tipo === 'entrada' ? "Ex: Compra de mercadoria, Devolução..." : "Ex: Uso em serviço, Ajuste de inventário..."}
@@ -777,25 +777,25 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
               </div>
 
               {formData.tipo === 'entrada' && (
-                <div className="space-y-4 p-4 bg-zinc-50 rounded-2xl border border-zinc-200">
+                <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
                   <div className="flex items-center gap-3">
                     <input 
                       type="checkbox" 
                       id="createTransaction"
-                      className="w-4 h-4 rounded border-zinc-300 text-accent focus:ring-accent"
+                      className="w-4 h-4 rounded border-slate-300 text-accent focus:ring-accent"
                       checked={formData.createTransaction}
                       onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
                     />
-                    <label htmlFor="createTransaction" className="text-sm font-bold text-zinc-700">Lançar no Financeiro (Contas a Pagar)</label>
+                    <label htmlFor="createTransaction" className="text-sm font-bold text-slate-700">Lançar no Financeiro (Contas a Pagar)</label>
                   </div>
 
                   {formData.createTransaction && (
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data de Vencimento</label>
+                      <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data de Vencimento</label>
                       <input 
                         type="date" 
                         required
-                        className="w-full px-4 py-3 bg-white border border-zinc-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                        className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-accent transition-all"
                         value={formData.dueDate}
                         onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
                       />
@@ -808,7 +808,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
                 >
                   Cancelar
                 </button>

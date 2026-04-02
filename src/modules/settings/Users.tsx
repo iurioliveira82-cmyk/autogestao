@@ -278,11 +278,11 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input 
             type="text" 
             placeholder="Buscar usuários..." 
-            className="w-full pl-12 pr-4 py-3 bg-zinc-50/50 border border-zinc-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm text-zinc-900 dark:text-zinc-100 dark:bg-zinc-900/50"
+            className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm text-slate-900 dark:text-slate-100 dark:bg-slate-900/50"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -298,35 +298,35 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Users List */}
-        <div className="lg:col-span-1 bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden h-fit">
-          <div className="p-6 border-b border-zinc-100 bg-zinc-50/50">
-            <h3 className="text-sm font-black text-zinc-900 flex items-center gap-2 uppercase tracking-widest">
-              <UsersIcon size={18} className="text-zinc-400" />
+        <div className="lg:col-span-1 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden h-fit">
+          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest">
+              <UsersIcon size={18} className="text-slate-400" />
               Usuários
             </h3>
           </div>
-          <div className="divide-y divide-zinc-100 max-h-[600px] overflow-y-auto custom-scrollbar">
+          <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto custom-scrollbar">
             {loading ? (
               <div className="p-8 text-center">
                 <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-zinc-400 text-xs italic">Carregando...</p>
+                <p className="text-slate-400 text-xs italic">Carregando...</p>
               </div>
             ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
               <button
                 key={user.uid}
                 onClick={() => handleEditPermissions(user)}
                 className={cn(
-                  "w-full p-5 flex items-center gap-4 hover:bg-zinc-50 transition-all text-left group",
-                  selectedUser?.uid === user.uid && "bg-zinc-50 border-l-4 border-accent"
+                  "w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-all text-left group",
+                  selectedUser?.uid === user.uid && "bg-slate-50 border-l-4 border-accent"
                 )}
               >
-                <div className="w-12 h-12 bg-zinc-100 rounded-2xl flex items-center justify-center text-zinc-600 font-black border border-zinc-200 group-hover:scale-105 transition-transform">
+                <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 font-black border border-slate-200 group-hover:scale-105 transition-transform">
                   {user.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-zinc-900 truncate">{user.name}</p>
+                  <p className="text-sm font-black text-slate-900 truncate">{user.name}</p>
                   <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-zinc-400 truncate uppercase tracking-widest">{user.email}</p>
+                    <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{user.email}</p>
                     {user.status && (
                       <span className={cn(
                         "w-1.5 h-1.5 rounded-full",
@@ -337,15 +337,15 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                 </div>
                 <div className={cn(
                   "p-2 rounded-xl shadow-sm",
-                  user.role === 'admin' ? "bg-accent text-accent-foreground" : "bg-zinc-100 text-zinc-400"
+                  user.role === 'admin' ? "bg-accent text-accent-foreground" : "bg-slate-100 text-slate-400"
                 )}>
                   {user.role === 'admin' ? <ShieldCheck size={16} /> : <Shield size={16} />}
                 </div>
               </button>
             )) : (
               <div className="p-12 text-center">
-                <UsersIcon size={32} className="mx-auto text-zinc-200 mb-2" />
-                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">Nenhum usuário</p>
+                <UsersIcon size={32} className="mx-auto text-slate-200 mb-2" />
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhum usuário</p>
               </div>
             )}
           </div>
@@ -354,8 +354,8 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
         {/* Permissions Section */}
         <div className="lg:col-span-2 space-y-6">
           {selectedUser ? (
-            <div className="bg-white rounded-[2rem] border border-zinc-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground relative overflow-hidden">
+            <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl" />
                 <div className="flex items-center gap-6 relative z-10">
                   <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black border border-white/10 shadow-xl">
@@ -372,7 +372,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                         />
                         <div className="flex items-center gap-2">
                           <select
-                            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-[10px] text-zinc-300 uppercase tracking-widest font-black focus:outline-none cursor-pointer hover:text-white transition-colors"
+                            className="bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-[10px] text-slate-300 uppercase tracking-widest font-black focus:outline-none cursor-pointer hover:text-white transition-colors"
                             value={basicInfoForm.role}
                             onChange={(e) => setBasicInfoForm({ ...basicInfoForm, role: e.target.value as UserRole })}
                           >
@@ -382,7 +382,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                           </select>
                           <button
                             onClick={handleSaveBasicInfo}
-                            className="text-[10px] bg-white text-accent px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-zinc-100 transition-all shadow-lg"
+                            className="text-[10px] bg-white text-accent px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-lg"
                           >
                             Salvar
                           </button>
@@ -400,13 +400,13 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                           {selectedUser.name}
                           <button 
                             onClick={startEditingBasicInfo}
-                            className="p-2 hover:bg-white/10 rounded-xl transition-colors text-zinc-400"
+                            className="p-2 hover:bg-white/10 rounded-xl transition-colors text-slate-400"
                           >
                             <Edit2 size={16} />
                           </button>
                         </h3>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-black px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black px-2 py-1 bg-white/5 rounded-lg border border-white/5">
                             {roles.find(r => r.id === selectedUser.role)?.label || selectedUser.role}
                           </span>
                           {selectedUser.status && (
@@ -436,13 +436,13 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                     <>
                       <button 
                         onClick={() => setIsEditingPermissions(false)}
-                        className="p-3 hover:bg-white/10 rounded-2xl transition-colors text-zinc-400"
+                        className="p-3 hover:bg-white/10 rounded-2xl transition-colors text-slate-400"
                       >
                         <X size={24} />
                       </button>
                       <button 
                         onClick={handleSavePermissions}
-                        className="flex items-center gap-2 bg-white text-accent px-6 py-3 rounded-2xl font-black hover:bg-zinc-100 transition-all shadow-xl"
+                        className="flex items-center gap-2 bg-white text-accent px-6 py-3 rounded-2xl font-black hover:bg-slate-100 transition-all shadow-xl"
                       >
                         <Save size={20} />
                         Salvar
@@ -462,30 +462,30 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
 
               <div className="p-8">
                 <div className="flex items-center gap-3 mb-8">
-                  <div className="w-10 h-10 bg-zinc-50 rounded-xl flex items-center justify-center text-zinc-400">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400">
                     <ShieldAlert size={20} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-zinc-900 uppercase tracking-widest">Controle de Acesso</h4>
-                    <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Defina o que este usuário pode fazer</p>
+                    <h4 className="text-xs font-black text-slate-900 uppercase tracking-widest">Controle de Acesso</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Defina o que este usuário pode fazer</p>
                   </div>
                 </div>
 
                 <div className="overflow-x-auto custom-scrollbar">
                   <table className="w-full text-left">
                     <thead>
-                      <tr className="text-[10px] font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-100">
+                      <tr className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
                         <th className="px-6 py-4">Módulo</th>
                         {actions.map(action => (
                           <th key={action.id} className="px-6 py-4 text-center">{action.label}</th>
                         ))}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-50">
+                    <tbody className="divide-y divide-slate-50">
                       {modules.map(module => (
-                        <tr key={module.id} className="group hover:bg-zinc-50/50 transition-colors">
+                        <tr key={module.id} className="group hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-5">
-                            <span className="text-sm font-black text-zinc-700">{module.label}</span>
+                            <span className="text-sm font-black text-slate-700">{module.label}</span>
                           </td>
                           {actions.map(action => {
                             const isAllowed = selectedUser.role === 'admin' 
@@ -503,7 +503,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                                     "p-2.5 rounded-2xl transition-all shadow-sm",
                                     isAllowed 
                                       ? "text-accent-foreground bg-accent/10 hover:bg-accent/20" 
-                                      : "text-zinc-300 bg-zinc-50 hover:bg-zinc-100",
+                                      : "text-slate-300 bg-slate-50 hover:bg-slate-100",
                                     (!isEditingPermissions || selectedUser.role === 'admin') && "cursor-default opacity-80 shadow-none"
                                   )}
                                 >
@@ -526,19 +526,19 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                     </div>
                     <div className="relative z-10">
                       <p className="text-xs font-black uppercase tracking-widest">Acesso Irrestrito</p>
-                      <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Administradores possuem controle total sobre todos os módulos.</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Administradores possuem controle total sobre todos os módulos.</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-zinc-200 border-dashed p-12 text-center">
-              <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center text-zinc-200 mb-6">
+            <div className="h-full min-h-[400px] flex flex-col items-center justify-center bg-white rounded-3xl border border-slate-200 border-dashed p-12 text-center">
+              <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-6">
                 <Shield size={40} />
               </div>
-              <h3 className="text-xl font-bold text-zinc-900 mb-2">Gerenciamento de Acesso</h3>
-              <p className="text-zinc-500 max-w-xs mx-auto">
+              <h3 className="text-xl font-bold text-slate-900 mb-2">Gerenciamento de Acesso</h3>
+              <p className="text-slate-500 max-w-xs mx-auto">
                 Selecione um usuário na lista ao lado para visualizar e gerenciar suas permissões de acesso ao sistema.
               </p>
             </div>
@@ -548,16 +548,16 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
 
       {/* Add User Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-black text-zinc-900">Novo Usuário</h3>
-                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1">Acesso ao Sistema</p>
+                <h3 className="text-xl font-black text-slate-900">Novo Usuário</h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Acesso ao Sistema</p>
               </div>
               <button 
                 onClick={() => setIsAddModalOpen(false)}
-                className="p-2 hover:bg-zinc-100 rounded-xl transition-colors text-zinc-400"
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
               >
                 <X size={24} />
               </button>
@@ -565,7 +565,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
             
             <form onSubmit={handleAddUser} className="p-8 space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Nome Completo</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
                 <input 
                   type="text" 
                   required
@@ -576,7 +576,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Email</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email</label>
                 <input 
                   type="email" 
                   required
@@ -587,7 +587,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest ml-1">Cargo / Função</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cargo / Função</label>
                 <select 
                   className="select-modern"
                   value={newUserFormData.role}
@@ -603,7 +603,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                 <button 
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 px-6 py-4 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all text-sm"
+                  className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all text-sm"
                 >
                   Cancelar
                 </button>
@@ -621,20 +621,20 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
             <div className="p-8 text-center">
               <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center text-red-600 mx-auto mb-6 shadow-xl shadow-red-100/50">
                 <AlertTriangle size={40} />
               </div>
-              <h3 className="text-2xl font-black text-zinc-900 mb-2">Excluir Usuário?</h3>
-              <p className="text-sm text-zinc-500 mb-8">
-                Tem certeza que deseja excluir <span className="font-black text-zinc-900">{selectedUser.name}</span>? Esta ação removerá permanentemente o acesso deste usuário ao sistema.
+              <h3 className="text-2xl font-black text-slate-900 mb-2">Excluir Usuário?</h3>
+              <p className="text-sm text-slate-500 mb-8">
+                Tem certeza que deseja excluir <span className="font-black text-slate-900">{selectedUser.name}</span>? Esta ação removerá permanentemente o acesso deste usuário ao sistema.
               </p>
               <div className="flex gap-4">
                 <button 
                   onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 px-6 py-4 border border-zinc-200 rounded-2xl font-bold text-zinc-600 hover:bg-zinc-50 transition-all text-sm"
+                  className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all text-sm"
                 >
                   Cancelar
                 </button>

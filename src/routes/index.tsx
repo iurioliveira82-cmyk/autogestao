@@ -3,7 +3,7 @@ import { OSStatus } from '../types';
 
 // Skeleton Loaders
 const Skeleton = ({ className }: { className?: string }) => (
-  <div className={`animate-pulse bg-zinc-200 rounded ${className}`} />
+  <div className={`animate-pulse bg-slate-200 rounded ${className}`} />
 );
 
 const PageSkeleton = () => (

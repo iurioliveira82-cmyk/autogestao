@@ -1,6 +1,8 @@
+import './server/lib/firebase-admin.ts';
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import financeRoutes from './server/routes/finance.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,10 +11,14 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // API routes go here
+  app.use(express.json());
+
+  // API routes
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
   });
+
+  app.use('/api/finance', financeRoutes);
 
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');

@@ -70,26 +70,26 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ stats }) => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="bg-white text-zinc-900 p-6 sm:p-8 rounded-3xl border border-zinc-200 shadow-2xl relative overflow-hidden group"
+            className="bg-white text-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-2xl relative overflow-hidden group"
           >
             <div className="flex items-start justify-between mb-4 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-zinc-100 rounded-xl">
+                <div className="p-2 bg-slate-100 rounded-xl">
                   <Sparkles size={20} className="text-amber-500" />
                 </div>
                 <h3 className="text-lg font-bold">Insights da Inteligência Artificial</h3>
               </div>
               <button 
                 onClick={() => setAiAnalysis(null)}
-                className="p-2 hover:bg-zinc-100 rounded-lg transition-colors"
+                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
               >
-                <XCircle size={20} className="text-zinc-400" />
+                <XCircle size={20} className="text-slate-400" />
               </button>
             </div>
-            <p className="text-sm sm:text-base text-zinc-600 leading-relaxed relative z-10 italic">
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed relative z-10 italic">
               "{aiAnalysis}"
             </p>
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-zinc-50 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
           </motion.div>
         )}
       </AnimatePresence>

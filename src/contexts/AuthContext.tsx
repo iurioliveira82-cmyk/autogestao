@@ -50,7 +50,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        setProfile(docSnap.data() as UserProfile);
+        const data = docSnap.data() as UserProfile;
+        setProfile(data);
+        if (data.empresaId) {
+          localStorage.setItem('empresaId', data.empresaId);
+        }
         setLoading(false);
         return;
       }
@@ -113,6 +117,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         batch.set(docRef, newProfileData);
         
         await batch.commit();
+        
+        if (newProfileData.empresaId) {
+          localStorage.setItem('empresaId', newProfileData.empresaId);
+        }
         
         setProfile({
           ...newProfileData,

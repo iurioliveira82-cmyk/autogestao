@@ -21,8 +21,8 @@ export const KPICard: React.FC<KPICardProps> = ({ label, value, icon: Icon, colo
         </div>
       </div>
       <div>
-        <p className="text-[10px] sm:text-xs font-black text-zinc-400 uppercase tracking-[0.2em] mb-3">{label}</p>
-        <h3 className="text-4xl sm:text-5xl font-black text-zinc-900 dark:text-white tracking-tight font-display">{value}</h3>
+        <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3">{label}</p>
+        <h3 className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white tracking-tight font-display">{value}</h3>
       </div>
     </Card>
   );

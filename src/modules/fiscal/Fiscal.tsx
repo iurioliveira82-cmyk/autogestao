@@ -268,7 +268,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
   if (!canView) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-zinc-400">
+      <div className="flex flex-col items-center justify-center py-20 text-slate-400">
         <XCircle size={48} className="mb-4" />
         <p className="text-lg font-medium">Acesso restrito.</p>
       </div>
@@ -284,34 +284,34 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
             <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:rotate-12 transition-transform">
               <FileText size={24} />
             </div>
-            <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Total de Notas</span>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Total de Notas</span>
           </div>
-          <h3 className="text-4xl font-black text-zinc-900 font-display tracking-tighter">{filteredRecords.length}</h3>
+          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{filteredRecords.length}</h3>
         </div>
         <div className="modern-card !p-8 group hover:scale-[1.02] transition-all duration-500">
           <div className="flex items-center gap-5 mb-4">
             <div className="p-4 bg-green-50 text-green-600 rounded-2xl group-hover:rotate-12 transition-transform">
               <DollarSign size={24} />
             </div>
-            <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Valor Total</span>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Valor Total</span>
           </div>
-          <h3 className="text-4xl font-black text-zinc-900 font-display tracking-tighter">{formatCurrency(totalValue)}</h3>
+          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{formatCurrency(totalValue)}</h3>
         </div>
         <div className="modern-card !p-8 group hover:scale-[1.02] transition-all duration-500">
           <div className="flex items-center gap-5 mb-4">
             <div className="p-4 bg-orange-50 text-orange-600 rounded-2xl group-hover:rotate-12 transition-transform">
               <TrendingUp size={24} />
             </div>
-            <span className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Total Impostos</span>
+            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Total Impostos</span>
           </div>
-          <h3 className="text-4xl font-black text-zinc-900 font-display tracking-tighter">{formatCurrency(totalTax)}</h3>
+          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{formatCurrency(totalTax)}</h3>
         </div>
       </div>
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
         <div className="relative flex-1 max-w-xl">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" size={22} />
+          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
           <input 
             type="text" 
             placeholder="Buscar por número ou cliente..." 
@@ -322,13 +322,13 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         </div>
         
         <div className="flex items-center gap-4">
-          <button className="p-4 bg-white border border-zinc-100 rounded-2xl text-zinc-500 hover:bg-zinc-50 hover:text-accent transition-all shadow-sm">
+          <button className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-500 hover:bg-slate-50 hover:text-accent transition-all shadow-sm">
             <Download size={22} />
           </button>
           {canCreate && (
             <button 
               onClick={() => openModal()}
-              className="flex items-center justify-center gap-3 bg-zinc-900 text-white px-10 py-4 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:bg-accent hover:text-accent-foreground active:scale-95 transition-all shadow-xl shadow-zinc-900/10"
+              className="flex items-center justify-center gap-3 bg-slate-900 text-white px-10 py-4 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:bg-accent hover:text-accent-foreground active:scale-95 transition-all shadow-xl shadow-slate-900/10"
             >
               <Plus size={20} />
               Emitir Nota
@@ -342,7 +342,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-zinc-50/50 text-zinc-400 text-[10px] font-black uppercase tracking-[0.3em]">
+              <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
                 <th className="px-10 py-8">Tipo / Número</th>
                 <th className="px-10 py-8">Entidade</th>
                 <th className="px-10 py-8">Data</th>
@@ -352,39 +352,39 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 <th className="px-10 py-8 text-right">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
+            <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-10 py-20 text-center text-zinc-400 italic font-medium">Carregando registros fiscais...</td>
+                  <td colSpan={7} className="px-10 py-20 text-center text-slate-400 italic font-medium">Carregando registros fiscais...</td>
                 </tr>
               ) : filteredRecords.length > 0 ? filteredRecords.map((record) => (
-                <tr key={record.id} className="group/row hover:bg-zinc-50/80 transition-all duration-300">
+                <tr key={record.id} className="group/row hover:bg-slate-50/80 transition-all duration-300">
                   <td className="px-10 py-8">
                     <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-500 font-black text-[10px] uppercase group-hover/row:bg-white transition-colors">
+                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 font-black text-[10px] uppercase group-hover/row:bg-white transition-colors">
                         {record.type}
                       </div>
                       <div>
-                        <span className="text-base font-black text-zinc-900 block group-hover/row:text-accent transition-colors">{record.number}</span>
-                        <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">Série: {record.serie || '0'}</span>
+                        <span className="text-base font-black text-slate-900 block group-hover/row:text-accent transition-colors">{record.number}</span>
+                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Série: {record.serie || '0'}</span>
                       </div>
                     </div>
                   </td>
                   <td className="px-10 py-8">
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm font-black text-zinc-900 truncate block max-w-[200px]">
+                      <span className="text-sm font-black text-slate-900 truncate block max-w-[200px]">
                         {record.clienteId ? clients[record.clienteId] : suppliers[record.fornecedorId || ''] || 'Entidade não encontrada'}
                       </span>
                       <span className={cn(
                         "text-[10px] font-black uppercase tracking-[0.2em]",
-                        record.direction === 'in' ? "text-blue-600" : "text-zinc-400"
+                        record.direction === 'in' ? "text-blue-600" : "text-slate-400"
                       )}>
                         {record.direction === 'in' ? 'Entrada (Compra)' : 'Saída (Venda)'}
                       </span>
                       {record.relatedId && (
                         <button
                           onClick={() => setActiveTab('os', record.relatedId)}
-                          className="text-[10px] text-zinc-400 hover:text-accent flex items-center gap-2 uppercase font-black tracking-widest transition-colors mt-1"
+                          className="text-[10px] text-slate-400 hover:text-accent flex items-center gap-2 uppercase font-black tracking-widest transition-colors mt-1"
                         >
                           {serviceOrders[record.relatedId] || 'OS não encontrada'}
                           <ExternalLink className="w-3 h-3" />
@@ -392,13 +392,13 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                       )}
                     </div>
                   </td>
-                  <td className="px-10 py-8 text-sm font-bold text-zinc-500">
+                  <td className="px-10 py-8 text-sm font-bold text-slate-500">
                     {format(new Date(record.date), 'dd/MM/yyyy')}
                   </td>
-                  <td className="px-10 py-8 font-black text-zinc-900 font-display text-lg">
+                  <td className="px-10 py-8 font-black text-slate-900 font-display text-lg">
                     {formatCurrency(record.value)}
                   </td>
-                  <td className="px-10 py-8 text-sm font-bold text-zinc-500">
+                  <td className="px-10 py-8 text-sm font-bold text-slate-500">
                     {formatCurrency(record.valorImposto || 0)}
                   </td>
                   <td className="px-10 py-8">
@@ -418,13 +418,13 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                     <div className="flex items-center justify-end gap-3 opacity-0 group-hover/row:opacity-100 transition-all duration-300">
                       <button 
                         onClick={() => openModal(record)}
-                        className="p-3 text-zinc-400 hover:text-accent hover:bg-white rounded-xl transition-all shadow-sm"
+                        className="p-3 text-slate-400 hover:text-accent hover:bg-white rounded-xl transition-all shadow-sm"
                       >
                         <Edit2 size={18} />
                       </button>
                       <button 
                         onClick={() => handleDelete(record.id)}
-                        className="p-3 text-zinc-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm"
+                        className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm"
                       >
                         <Trash2 size={18} />
                       </button>
@@ -433,7 +433,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 </tr>
               )) : (
                 <tr>
-                  <td colSpan={7} className="px-10 py-20 text-center text-zinc-400 italic font-medium">Nenhum registro fiscal encontrado.</td>
+                  <td colSpan={7} className="px-10 py-20 text-center text-slate-400 italic font-medium">Nenhum registro fiscal encontrado.</td>
                 </tr>
               )}
             </tbody>
@@ -443,16 +443,16 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
       {/* Modal Form */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-10 border-b border-zinc-100 flex items-center justify-between bg-zinc-50/50">
+            <div className="p-10 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-2xl font-black text-zinc-900 font-display">
+                <h3 className="text-2xl font-black text-slate-900 font-display">
                   {editingRecord ? 'Editar Registro Fiscal' : 'Novo Registro Fiscal'}
                 </h3>
-                <p className="text-sm font-bold text-zinc-400 uppercase tracking-widest mt-1">Preencha os dados da nota</p>
+                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Preencha os dados da nota</p>
               </div>
-              <button onClick={closeModal} className="p-3 text-zinc-400 hover:text-accent hover:bg-white rounded-2xl transition-all shadow-sm">
+              <button onClick={closeModal} className="p-3 text-slate-400 hover:text-accent hover:bg-white rounded-2xl transition-all shadow-sm">
                 <XCircle size={28} />
               </button>
             </div>
@@ -460,7 +460,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
             <form onSubmit={handleSubmit} className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Direção</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Direção</label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -469,7 +469,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                         "flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border",
                         formData.direction === 'out' 
                           ? "bg-accent text-accent-foreground border-accent shadow-lg shadow-accent/20" 
-                          : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
+                          : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
                       )}
                     >
                       Saída (Venda)
@@ -481,7 +481,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                         "flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border",
                         formData.direction === 'in' 
                           ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20" 
-                          : "bg-white text-zinc-400 border-zinc-100 hover:border-zinc-200"
+                          : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
                       )}
                     >
                       Entrada (Compra)
@@ -489,7 +489,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Tipo de Nota</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tipo de Nota</label>
                   <select 
                     className="select-modern"
                     value={formData.type}
@@ -504,7 +504,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Número</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Número</label>
                   <input 
                     type="text" 
                     required
@@ -514,7 +514,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Série</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Série</label>
                   <input 
                     type="text" 
                     className="input-modern"
@@ -526,7 +526,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
                     {formData.direction === 'out' ? 'Cliente' : 'Fornecedor'}
                   </label>
                   {formData.direction === 'out' ? (
@@ -556,7 +556,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   )}
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">OS Relacionada (Opcional)</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">OS Relacionada (Opcional)</label>
                   <select 
                     className="select-modern"
                     value={formData.relatedId}
@@ -572,7 +572,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Data de Emissão</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Data de Emissão</label>
                   <input 
                     type="date" 
                     required
@@ -582,7 +582,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   />
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Status</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Status</label>
                   <select 
                     className="select-modern"
                     value={formData.status}
@@ -597,9 +597,9 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Valor Total</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Valor Total</label>
                   <div className="relative">
-                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="number" 
                       step="0.01"
@@ -611,9 +611,9 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Valor Imposto</label>
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Valor Imposto</label>
                   <div className="relative">
-                    <TrendingUp className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
+                    <TrendingUp className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                     <input 
                       type="number" 
                       step="0.01"
@@ -625,23 +625,23 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 </div>
               </div>
 
-              <div className="space-y-6 p-8 bg-zinc-50 rounded-[2rem] border border-zinc-100">
+              <div className="space-y-6 p-8 bg-slate-50 rounded-[2rem] border border-slate-100">
                 <div className="flex items-center gap-4">
                   <input 
                     type="checkbox" 
                     id="createTransactionFiscal"
-                    className="w-6 h-6 rounded-lg border-zinc-200 text-accent focus:ring-accent transition-all cursor-pointer"
+                    className="w-6 h-6 rounded-lg border-slate-200 text-accent focus:ring-accent transition-all cursor-pointer"
                     checked={formData.createTransaction}
                     onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
                   />
-                  <label htmlFor="createTransactionFiscal" className="text-sm font-black text-zinc-700 uppercase tracking-widest cursor-pointer">
+                  <label htmlFor="createTransactionFiscal" className="text-sm font-black text-slate-700 uppercase tracking-widest cursor-pointer">
                     Lançar no Financeiro ({formData.direction === 'in' ? 'Contas a Pagar' : 'Contas a Receber'})
                   </label>
                 </div>
 
                 {formData.createTransaction && (
                   <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Data de Vencimento</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Data de Vencimento</label>
                     <input 
                       type="date" 
                       required
@@ -654,7 +654,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] ml-1">Observações</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Observações</label>
                 <textarea 
                   className="textarea-modern"
                   rows={4}
@@ -667,13 +667,13 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
                 <button 
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-8 py-5 border border-zinc-100 text-zinc-500 font-black uppercase tracking-widest rounded-2xl hover:bg-zinc-50 transition-all"
+                  className="flex-1 px-8 py-5 border border-slate-100 text-slate-500 font-black uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 px-8 py-5 bg-zinc-900 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-accent hover:text-accent-foreground transition-all shadow-xl shadow-zinc-900/10 active:scale-95"
+                  className="flex-1 px-8 py-5 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-accent hover:text-accent-foreground transition-all shadow-xl shadow-slate-900/10 active:scale-95"
                 >
                   {editingRecord ? 'Salvar Alterações' : 'Registrar Nota'}
                 </button>

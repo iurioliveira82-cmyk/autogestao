@@ -11,7 +11,7 @@ interface QuickStatsProps {
 
 export const QuickStats: React.FC<QuickStatsProps> = ({ totalClients, totalVehicles, salesLast7Days }) => {
   return (
-    <Card className="!p-10 bg-zinc-900 text-white border-none shadow-2xl shadow-zinc-900/20 relative overflow-hidden group flex flex-col min-h-[450px]">
+    <Card className="!p-10 bg-slate-900 text-white border-none shadow-2xl shadow-slate-900/20 relative overflow-hidden group flex flex-col min-h-[450px]">
       <div className="relative z-10 flex-1">
         <div className="flex items-center justify-between mb-10">
           <h3 className="text-2xl font-black tracking-tight font-display">Visão Geral</h3>

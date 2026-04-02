@@ -18,7 +18,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ setActiveTab }) => {
 
   return (
     <Card className="!p-10 group">
-      <h3 className="text-xl font-black text-zinc-900 dark:text-white mb-8 font-display">Atalhos Rápidos</h3>
+      <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 font-display">Atalhos Rápidos</h3>
       <div className="grid grid-cols-2 gap-5">
         {actions.map((action, i) => (
           <Button

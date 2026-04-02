@@ -27,12 +27,21 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
 
+import { Button } from '../../components/ui/Button';
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import FiltersToolbar from '../../components/layout/FiltersToolbar';
+import StandardTable from '../../components/layout/StandardTable';
+import EmptyState from '../../components/layout/EmptyState';
+import StandardDialog from '../../components/layout/StandardDialog';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+
 interface LeadsProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
 }
 
 const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
-  const { profile, isAdmin } = useAuth();
+  const { profile } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,7 +171,6 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
 
   const convertToClient = async (lead: Lead) => {
     try {
-      // 1. Create client
       const clientData = {
         empresaId: profile?.empresaId,
         name: lead.name,
@@ -173,7 +181,6 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
       };
       await addDoc(collection(db, 'clientes'), clientData);
       
-      // 2. Update lead status
       await updateDoc(doc(db, 'leads', lead.id), {
         status: 'convertido',
         updatedAt: serverTimestamp()
@@ -205,12 +212,12 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
 
   const getStatusColor = (status: Lead['status']) => {
     switch (status) {
-      case 'novo_lead': return 'bg-blue-100 text-blue-700';
-      case 'contato_realizado': return 'bg-yellow-100 text-yellow-700';
-      case 'negociacao': return 'bg-green-100 text-green-700';
-      case 'convertido': return 'bg-purple-100 text-purple-700';
-      case 'perdido': return 'bg-red-100 text-red-700';
-      default: return 'bg-zinc-100 text-zinc-700';
+      case 'novo_lead': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400';
+      case 'contato_realizado': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'negociacao': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      case 'convertido': return 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400';
+      case 'perdido': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400';
     }
   };
 
@@ -222,278 +229,283 @@ const Leads: React.FC<LeadsProps> = ({ setActiveTab }) => {
     }
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar leads por nome, email ou telefone..."
-            className="input-modern pl-12"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+  const columns = [
+    {
+      header: 'Lead',
+      accessor: (lead: Lead) => (
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-400">
+            <UserPlus size={20} />
+          </div>
+          <div className="flex flex-col">
+            <span className="font-bold text-slate-900 dark:text-white">{lead.name}</span>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              {getTemperatureIcon(lead.temperature)}
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                {lead.temperature}
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+      )
+    },
+    {
+      header: 'Status',
+      accessor: (lead: Lead) => (
+        <span className={cn("text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full", getStatusColor(lead.status))}>
+          {lead.status.replace('_', ' ')}
+        </span>
+      )
+    },
+    {
+      header: 'Contato',
+      accessor: (lead: Lead) => (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+            <Phone size={14} className="text-slate-400" />
+            {lead.phone}
+          </div>
+          {lead.email && (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Mail size={14} className="text-slate-400" />
+              {lead.email}
+            </div>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Origem',
+      accessor: (lead: Lead) => (
+        <span className="text-sm font-medium text-slate-600 dark:text-slate-400">
+          {lead.source || 'Não informada'}
+        </span>
+      )
+    },
+    {
+      header: 'Data',
+      accessor: (lead: Lead) => (
+        <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
+          <Calendar size={12} />
+          {lead.createdAt ? format(new Date(lead.createdAt), 'dd/MM/yyyy') : 'Recente'}
+        </div>
+      )
+    }
+  ];
+
+  return (
+    <PageContainer>
+      <PageHeader 
+        title="CRM / Leads"
+        subtitle="Gerencie suas oportunidades de negócio e conversões."
+        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Leads' }]}
+        actions={
           <button
             onClick={() => openModal()}
-            className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
+            className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm font-bold"
           >
-            <UserPlus size={18} />
+            <Plus size={18} />
             Novo Lead
           </button>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-          <Filter size={16} className="text-zinc-400" />
-          <select
-            className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-          >
-            <option value="all">Todos os Status</option>
-            <option value="novo_lead">Novo</option>
-            <option value="contato_realizado">Contatado</option>
-            <option value="negociacao">Qualificado</option>
-            <option value="convertido">Convertido</option>
-            <option value="perdido">Perdido</option>
-          </select>
-        </div>
-        <div className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-          <Flame size={16} className="text-zinc-400" />
-          <select
-            className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer"
-            value={filterTemperature}
-            onChange={(e) => setFilterTemperature(e.target.value)}
-          >
-            <option value="all">Todas as Temperaturas</option>
-            <option value="hot">Quente</option>
-            <option value="warm">Morno</option>
-            <option value="cold">Frio</option>
-          </select>
-        </div>
-      </div>
+      <div className="space-y-6">
+        <FiltersToolbar 
+          searchQuery={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Buscar leads..."
+          filters={
+            <div className="flex flex-wrap items-center gap-3">
+              <select
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+              >
+                <option value="all">Todos os Status</option>
+                <option value="novo_lead">Novo</option>
+                <option value="contato_realizado">Contatado</option>
+                <option value="negociacao">Qualificado</option>
+                <option value="convertido">Convertido</option>
+                <option value="perdido">Perdido</option>
+              </select>
+              <select
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold focus:outline-none cursor-pointer"
+                value={filterTemperature}
+                onChange={(e) => setFilterTemperature(e.target.value)}
+              >
+                <option value="all">Todas as Temperaturas</option>
+                <option value="hot">Quente</option>
+                <option value="warm">Morno</option>
+                <option value="cold">Frio</option>
+              </select>
+            </div>
+          }
+        />
 
-      {/* Leads Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredLeads.map((lead) => (
-          <div key={lead.id} className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 hover:shadow-xl hover:shadow-zinc-200/50 dark:hover:shadow-none transition-all group relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-              <div className="flex items-center gap-1">
+        {filteredLeads.length > 0 ? (
+          <StandardTable 
+            data={filteredLeads}
+            columns={columns}
+            actions={(lead) => (
+              <div className="flex items-center gap-2">
+                {lead.status !== 'convertido' && (
+                  <button
+                    onClick={() => convertToClient(lead)}
+                    className="p-2 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-xl text-green-600 transition-colors"
+                    title="Converter em Cliente"
+                  >
+                    <CheckCircle2 size={18} />
+                  </button>
+                )}
                 <button
                   onClick={() => openModal(lead)}
-                  className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl text-zinc-600 dark:text-zinc-400 transition-colors"
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-400 transition-colors"
+                  title="Editar"
                 >
-                  <Edit2 size={16} />
+                  <Edit2 size={18} />
                 </button>
                 <button
                   onClick={() => handleDelete(lead.id)}
                   className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl text-red-600 transition-colors"
+                  title="Excluir"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={18} />
                 </button>
               </div>
-            </div>
-
-            <div className="flex items-start gap-4 mb-4">
-              <div className="w-12 h-12 bg-zinc-100 dark:bg-zinc-800 rounded-2xl flex items-center justify-center text-zinc-600 dark:text-zinc-400 shrink-0">
-                <UserPlus size={24} />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-zinc-900 dark:text-white truncate pr-12">{lead.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full", getStatusColor(lead.status))}>
-                    {lead.status}
-                  </span>
-                  <div className="flex items-center gap-1 px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-full">
-                    {getTemperatureIcon(lead.temperature)}
-                    <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                      {lead.temperature}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex items-center gap-3 text-sm text-zinc-500">
-                <Phone size={16} className="shrink-0" />
-                <span className="font-medium">{lead.phone}</span>
-              </div>
-              {lead.email && (
-                <div className="flex items-center gap-3 text-sm text-zinc-500">
-                  <Mail size={16} className="shrink-0" />
-                  <span className="font-medium truncate">{lead.email}</span>
-                </div>
-              )}
-              <div className="flex items-center gap-3 text-sm text-zinc-500">
-                <TrendingUp size={16} className="shrink-0" />
-                <span className="font-medium">Origem: {lead.source || 'Não informada'}</span>
-              </div>
-            </div>
-
-            <div className="mt-6 pt-6 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                <Calendar size={12} />
-                {lead.createdAt ? format(new Date(lead.createdAt), 'dd/MM/yyyy') : 'Recente'}
-              </div>
-              <button
-                onClick={() => openModal(lead)}
-                className="text-xs font-bold text-accent dark:text-white flex items-center gap-1 hover:gap-2 transition-all"
-              >
-                Detalhes
-                <ChevronRight size={14} />
-              </button>
-            </div>
-            
-            {lead.status !== 'convertido' && (
-              <button
-                onClick={() => convertToClient(lead)}
-                className="mt-4 w-full py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-xl text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/40 transition-all flex items-center justify-center gap-2"
-              >
-                <CheckCircle2 size={14} />
-                Converter em Cliente
-              </button>
             )}
-          </div>
-        ))}
+          />
+        ) : (
+          <EmptyState 
+            icon={UserPlus}
+            title="Nenhum lead encontrado"
+            description={searchTerm ? "Não encontramos leads para sua busca." : "Comece cadastrando seu primeiro lead."}
+            action={!searchTerm ? (
+              <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+                Cadastrar Lead
+              </Button>
+            ) : undefined}
+          />
+        )}
       </div>
 
-      {/* Lead Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-zinc-900 w-full max-w-lg rounded-[32px] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                  {editingLead ? 'Editar Lead' : 'Novo Lead'}
-                </h2>
-                <p className="text-zinc-500 text-sm font-medium mt-1">Preencha as informações do lead</p>
-              </div>
-              <button onClick={closeModal} className="p-3 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl text-zinc-400 transition-colors">
-                <XCircle size={24} />
-              </button>
+      <StandardDialog
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingLead ? 'Editar Lead' : 'Novo Lead'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 gap-6">
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Nome Completo</label>
+              <input
+                required
+                className="input-modern"
+                placeholder="Ex: João Silva"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 gap-6">
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Nome Completo</label>
-                  <input
-                    required
-                    className="input-modern"
-                    placeholder="Ex: João Silva"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Telefone</label>
-                    <input
-                      required
-                      className="input-modern"
-                      placeholder="(00) 00000-0000"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Email</label>
-                    <input
-                      type="email"
-                      className="input-modern"
-                      placeholder="email@exemplo.com"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Status</label>
-                    <select
-                      className="select-modern"
-                      value={formData.status}
-                      onChange={(e) => setFormData({ ...formData, status: e.target.value as Lead['status'] })}
-                    >
-                      <option value="novo_lead">Novo</option>
-                      <option value="contato_realizado">Contatado</option>
-                      <option value="negociacao">Qualificado</option>
-                      <option value="convertido">Convertido</option>
-                      <option value="perdido">Perdido</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Temperatura</label>
-                    <select
-                      className="select-modern"
-                      value={formData.temperature}
-                      onChange={(e) => setFormData({ ...formData, temperature: e.target.value as Lead['temperature'] })}
-                    >
-                      <option value="cold">Frio</option>
-                      <option value="warm">Morno</option>
-                      <option value="hot">Quente</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Origem</label>
-                  <input
-                    className="input-modern"
-                    placeholder="Ex: Instagram, Indicação, Site"
-                    value={formData.source}
-                    onChange={(e) => setFormData({ ...formData, source: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-black uppercase tracking-widest text-zinc-400 ml-1">Observações</label>
-                  <textarea
-                    className="textarea-modern min-h-[100px]"
-                    placeholder="Detalhes sobre o lead..."
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  />
-                </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Telefone</label>
+                <input
+                  required
+                  className="input-modern"
+                  placeholder="(00) 00000-0000"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
+                />
               </div>
-
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-8 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-2xl hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-all text-sm font-bold"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-8 py-4 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-zinc-200 dark:shadow-none text-sm font-bold"
-                >
-                  {editingLead ? 'Salvar Alterações' : 'Cadastrar Lead'}
-                </button>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
+                <input
+                  type="email"
+                  className="input-modern"
+                  placeholder="email@exemplo.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                />
               </div>
-            </form>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Status</label>
+                <select
+                  className="select-modern"
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as Lead['status'] })}
+                >
+                  <option value="novo_lead">Novo</option>
+                  <option value="contato_realizado">Contatado</option>
+                  <option value="negociacao">Qualificado</option>
+                  <option value="convertido">Convertido</option>
+                  <option value="perdido">Perdido</option>
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Temperatura</label>
+                <select
+                  className="select-modern"
+                  value={formData.temperature}
+                  onChange={(e) => setFormData({ ...formData, temperature: e.target.value as Lead['temperature'] })}
+                >
+                  <option value="cold">Frio</option>
+                  <option value="warm">Morno</option>
+                  <option value="hot">Quente</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Origem</label>
+              <input
+                className="input-modern"
+                placeholder="Ex: Instagram, Indicação, Site"
+                value={formData.source}
+                onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-widest text-slate-400 ml-1">Observações</label>
+              <textarea
+                className="textarea-modern min-h-[100px]"
+                placeholder="Detalhes sobre o lead..."
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="flex gap-4 pt-4">
+            <button
+              type="button"
+              onClick={closeModal}
+              className="flex-1 px-8 py-4 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl hover:bg-slate-200 dark:hover:bg-slate-700 transition-all text-sm font-bold"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-8 py-4 bg-accent text-accent-foreground rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm font-bold"
+            >
+              {editingLead ? 'Salvar Alterações' : 'Cadastrar Lead'}
+            </button>
+          </div>
+        </form>
+      </StandardDialog>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Lead"
         message="Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita."
       />
-    </div>
+    </PageContainer>
   );
 };
 

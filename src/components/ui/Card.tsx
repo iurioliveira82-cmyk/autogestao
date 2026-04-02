@@ -39,7 +39,7 @@ export const Badge: React.FC<BadgeProps> = ({
     warning: 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20',
     danger: 'bg-red-50 text-red-600 border-red-100 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/20',
     info: 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20',
-    neutral: 'bg-zinc-50 text-zinc-600 border-zinc-100 dark:bg-zinc-500/10 dark:text-zinc-400 dark:border-zinc-500/20',
+    neutral: 'bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20',
   };
 
   return (
@@ -78,10 +78,10 @@ export const Modal: React.FC<ModalProps> = ({
       >
         {showHeader && (
           <div className="modal-header">
-            <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight font-display">{title}</h2>
+            <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight font-display">{title}</h2>
             <button 
               onClick={onClose}
-              className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all active:scale-90"
+              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all active:scale-90"
             >
               <X size={24} />
             </button>
@@ -130,6 +130,6 @@ export const Table: React.FC<TableProps> = ({
 
 export const Skeleton: React.FC<React.HTMLAttributes<HTMLDivElement>> = ({ className, ...props }) => {
   return (
-    <div className={cn("animate-pulse bg-zinc-200 dark:bg-zinc-800 rounded-xl", className)} {...props} />
+    <div className={cn("animate-pulse bg-slate-200 dark:bg-slate-800 rounded-xl", className)} {...props} />
   );
 };

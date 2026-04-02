@@ -40,11 +40,11 @@ export const RecentOS: React.FC<RecentOSProps> = ({
 
   return (
     <Card className="!p-0 overflow-hidden group">
-      <div className="p-8 sm:p-12 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-8 bg-zinc-50/50 dark:bg-zinc-900/50">
+      <div className="p-8 sm:p-12 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-8 bg-slate-50/50 dark:bg-slate-900/50">
         <div className="flex flex-col sm:flex-row sm:items-center gap-8">
           <div>
-            <h3 className="text-2xl sm:text-3xl font-black text-zinc-900 dark:text-white tracking-tight font-display">Ordens de Serviço</h3>
-            <p className="text-sm text-zinc-500 font-medium mt-1">Acompanhamento das Ordens de Serviço por data</p>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight font-display">Ordens de Serviço</h3>
+            <p className="text-sm text-slate-500 font-medium mt-1">Acompanhamento das Ordens de Serviço por data</p>
           </div>
           <div className="w-full sm:w-64">
             <Input 
@@ -67,9 +67,9 @@ export const RecentOS: React.FC<RecentOSProps> = ({
       {/* Mobile View: List of Cards */}
       <div className="block sm:hidden divide-y divide-border">
         {recentOS.length > 0 ? recentOS.map((os) => (
-          <div key={os.id} className="p-8 space-y-6 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors">
+          <div key={os.id} className="p-8 space-y-6 hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
             <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] font-black text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-xl">
+              <span className="font-mono text-[10px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl">
                 #{os.id.slice(0, 8).toUpperCase()}
               </span>
               {getStatusBadge(os.status)}
@@ -80,19 +80,19 @@ export const RecentOS: React.FC<RecentOSProps> = ({
                 {(clients[os.clienteId] || 'C').slice(0, 2).toUpperCase()}
               </div>
               <div className="flex flex-col">
-                <span className="text-base font-black text-zinc-900 dark:text-white">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
-                <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
+                <span className="text-base font-black text-slate-900 dark:text-white">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
               </div>
             </div>
             
             <div className="flex items-center justify-between pt-4 border-t border-border">
               <div className="flex flex-col">
-                <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Abertura</span>
-                <span className="text-sm font-black text-zinc-600 dark:text-zinc-400">{format(new Date(os.createdAt), 'dd/MM/yyyy')}</span>
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Abertura</span>
+                <span className="text-sm font-black text-slate-600 dark:text-slate-400">{format(new Date(os.createdAt), 'dd/MM/yyyy')}</span>
               </div>
               <div className="text-right">
-                <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">Total</span>
-                <p className="text-lg font-black text-zinc-900 dark:text-white font-display">{formatCurrency(os.valorTotal)}</p>
+                <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Total</span>
+                <p className="text-lg font-black text-slate-900 dark:text-white font-display">{formatCurrency(os.valorTotal)}</p>
               </div>
             </div>
 
@@ -128,7 +128,7 @@ export const RecentOS: React.FC<RecentOSProps> = ({
           </div>
         )) : (
           <div className="p-16 text-center">
-            <p className="text-xs text-zinc-400 font-black uppercase tracking-[0.3em]">Nenhuma OS para esta data</p>
+            <p className="text-xs text-slate-400 font-black uppercase tracking-[0.3em]">Nenhuma OS para esta data</p>
           </div>
         )}
       </div>
@@ -141,7 +141,7 @@ export const RecentOS: React.FC<RecentOSProps> = ({
           {recentOS.map((os) => (
             <tr key={os.id} className="group/row">
               <td className="px-6 py-4">
-                <span className="font-mono text-[11px] font-black text-zinc-400 bg-zinc-100 dark:bg-zinc-800 px-3 py-1.5 rounded-xl group-hover/row:bg-white dark:group-hover/row:bg-zinc-950 transition-colors">
+                <span className="font-mono text-[11px] font-black text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1.5 rounded-xl group-hover/row:bg-white dark:group-hover/row:bg-slate-900 transition-colors">
                   #{os.id.slice(0, 8).toUpperCase()}
                 </span>
               </td>
@@ -151,8 +151,8 @@ export const RecentOS: React.FC<RecentOSProps> = ({
                     {(clients[os.clienteId] || 'C').slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-sm font-black text-zinc-900 dark:text-white group-hover/row:text-accent transition-colors">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
-                    <span className="text-[9px] text-zinc-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
+                    <span className="text-sm font-black text-slate-900 dark:text-white group-hover/row:text-accent transition-colors">{clients[os.clienteId] || `Cliente ${os.clienteId.slice(0, 4)}`}</span>
+                    <span className="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em]">Pessoa Física</span>
                   </div>
                 </div>
               </td>
@@ -160,7 +160,7 @@ export const RecentOS: React.FC<RecentOSProps> = ({
                 {getStatusBadge(os.status)}
               </td>
               <td className="px-6 py-4">
-                <span className="text-base font-black text-zinc-900 dark:text-white font-display">{formatCurrency(os.valorTotal)}</span>
+                <span className="text-base font-black text-slate-900 dark:text-white font-display">{formatCurrency(os.valorTotal)}</span>
               </td>
               <td className="px-6 py-4">
                 <div className="flex items-center gap-2">

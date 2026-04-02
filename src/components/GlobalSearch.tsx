@@ -124,14 +124,14 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
   return (
     <div className="relative w-full max-w-xl" ref={searchRef}>
       <div className={cn(
-        "flex items-center gap-3 bg-zinc-100 dark:bg-zinc-900 px-4 py-2.5 rounded-2xl border border-border group focus-within:ring-4 focus-within:ring-accent/5 focus-within:border-accent/30 transition-all duration-300",
+        "flex items-center gap-3 bg-slate-100 dark:bg-slate-800 px-4 py-2.5 rounded-2xl border border-border group focus-within:ring-4 focus-within:ring-accent/5 focus-within:border-accent/30 transition-all duration-300",
         isOpen && results.length > 0 && "rounded-b-none border-b-transparent"
       )}>
-        <Search size={18} className="text-zinc-400 group-focus-within:text-accent transition-colors" />
+        <Search size={18} className="text-slate-400 group-focus-within:text-accent transition-colors" />
         <input 
           type="text" 
           placeholder="Pesquisa global (clientes, OS, placas...)" 
-          className="bg-transparent border-none outline-none text-sm font-medium w-full text-zinc-900 dark:text-white placeholder:text-zinc-400"
+          className="bg-transparent border-none outline-none text-sm font-medium w-full text-slate-800 dark:text-white placeholder:text-slate-400"
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -141,7 +141,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
         />
         {loading && <Loader2 size={16} className="text-accent animate-spin" />}
         {searchTerm && (
-          <button onClick={() => setSearchTerm('')} className="text-zinc-400 hover:text-zinc-600 transition-colors">
+          <button onClick={() => setSearchTerm('')} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={16} />
           </button>
         )}
@@ -153,7 +153,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="absolute top-full left-0 right-0 bg-white dark:bg-zinc-900 border border-border border-t-0 rounded-b-[1.5rem] shadow-2xl z-[100] overflow-hidden"
+            className="absolute top-full left-0 right-0 bg-white dark:bg-slate-800 border border-border border-t-0 rounded-b-[1.5rem] shadow-2xl z-[100] overflow-hidden"
           >
             <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
               {results.map((result) => (
@@ -164,7 +164,7 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
                     setIsOpen(false);
                     setSearchTerm('');
                   }}
-                  className="w-full flex items-center gap-4 px-6 py-4 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors text-left group border-b border-border last:border-none"
+                  className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-left group border-b border-border last:border-none"
                 >
                   <div className={cn(
                     "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110",
@@ -177,8 +177,8 @@ export const GlobalSearch: React.FC<GlobalSearchProps> = ({ onSelect }) => {
                      <Car size={20} />}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white truncate group-hover:text-accent transition-colors font-display">{result.title}</p>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-0.5">{result.subtitle}</p>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white truncate group-hover:text-accent transition-colors font-display">{result.title}</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{result.subtitle}</p>
                   </div>
                 </button>
               ))}

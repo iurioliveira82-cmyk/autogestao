@@ -51,7 +51,7 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
   return (
     <div className={cn("space-y-2 relative", className)} ref={containerRef}>
       {label && (
-        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">
+        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
           {label} {required && <span className="text-rose-500">*</span>}
         </label>
       )}
@@ -63,20 +63,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
           isOpen && "ring-2 ring-accent border-accent"
         )}
       >
-        <span className={cn("truncate", !selectedOption && "text-zinc-400")}>
+        <span className={cn("truncate", !selectedOption && "text-slate-400")}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown size={18} className={cn("text-zinc-400 transition-transform", isOpen && "rotate-180")} />
+        <ChevronDown size={18} className={cn("text-slate-400 transition-transform", isOpen && "rotate-180")} />
       </div>
 
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-zinc-100 rounded-[1.5rem] shadow-2xl z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
-          <div className="p-4 border-b border-zinc-50">
+        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-[1.5rem] shadow-2xl z-[60] overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <div className="p-4 border-b border-slate-50">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={16} />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
               <input
                 type="text"
-                className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-2 text-sm font-medium focus:ring-2 focus:ring-accent transition-all placeholder:text-zinc-500"
+                className="w-full bg-white border border-border rounded-xl pl-10 pr-4 py-2 text-sm font-medium focus:ring-2 focus:ring-accent transition-all placeholder:text-slate-500"
                 placeholder="Pesquisar..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -98,20 +98,20 @@ export const SearchableSelect: React.FC<SearchableSelectProps> = ({
                     setSearchTerm('');
                   }}
                   className={cn(
-                    "px-6 py-4 hover:bg-zinc-50 cursor-pointer transition-colors flex flex-col",
+                    "px-6 py-4 hover:bg-slate-50 cursor-pointer transition-colors flex flex-col",
                     value === option.id && "bg-accent/5 border-l-4 border-accent"
                   )}
                 >
-                  <span className="text-sm font-bold text-zinc-900">{option.label}</span>
+                  <span className="text-sm font-bold text-slate-900">{option.label}</span>
                   {option.subLabel && (
-                    <span className="text-[10px] font-medium text-zinc-400 uppercase tracking-wider mt-0.5">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider mt-0.5">
                       {option.subLabel}
                     </span>
                   )}
                 </div>
               ))
             ) : (
-              <div className="px-6 py-8 text-center text-zinc-400 italic text-sm">
+              <div className="px-6 py-8 text-center text-slate-400 italic text-sm">
                 Nenhum resultado encontrado
               </div>
             )}

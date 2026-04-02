@@ -21,8 +21,8 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white/90 backdrop-blur-md border border-zinc-100 p-4 rounded-2xl shadow-2xl">
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2">{label}</p>
+        <div className="bg-white/90 backdrop-blur-md border border-slate-100 p-4 rounded-2xl shadow-2xl">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{label}</p>
           <div className="space-y-1">
             <p className="text-sm font-bold text-emerald-600">
               Receita: {formatCurrency(payload[0].value)}
@@ -30,8 +30,8 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
             <p className="text-sm font-bold text-rose-600">
               Despesa: {formatCurrency(payload[1].value)}
             </p>
-            <div className="pt-2 mt-2 border-t border-zinc-100">
-              <p className="text-sm font-black text-zinc-900">
+            <div className="pt-2 mt-2 border-t border-slate-100">
+              <p className="text-sm font-black text-slate-900">
                 Lucro: {formatCurrency(payload[0].value - payload[1].value)}
               </p>
             </div>
@@ -47,17 +47,17 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
       <div className="modern-card !p-8 sm:!p-10">
         <div className="flex items-center justify-between mb-10">
           <div>
-            <h3 className="text-xl font-black text-zinc-900 tracking-tight font-display">Fluxo de Caixa</h3>
-            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Últimos 7 dias</p>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight font-display">Fluxo de Caixa</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Últimos 7 dias</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Receita</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Receita</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-rose-500" />
-              <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Despesa</span>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Despesa</span>
             </div>
           </div>
         </div>
@@ -116,8 +116,8 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
       <div className="modern-card !p-8 sm:!p-10">
         <div className="flex items-center justify-between mb-10">
           <div>
-            <h3 className="text-xl font-black text-zinc-900 tracking-tight font-display">Performance Diária</h3>
-            <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mt-1">Lucro Líquido</p>
+            <h3 className="text-xl font-black text-slate-900 tracking-tight font-display">Performance Diária</h3>
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Lucro Líquido</p>
           </div>
         </div>
 
@@ -143,8 +143,8 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-zinc-900 text-white p-4 rounded-2xl shadow-2xl border border-zinc-800">
-                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">{label}</p>
+                      <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-2xl border border-slate-800">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
                         <p className="text-sm font-black">Lucro: {formatCurrency(Number(payload[0].value))}</p>
                       </div>
                     );

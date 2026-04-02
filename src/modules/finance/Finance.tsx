@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Plus, 
   Search, 
@@ -24,17 +24,27 @@ import {
   Lock,
   List
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, where, getDocs, updateDoc, doc, getDoc } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
 import { Transaction, Supplier, OperationType, ServiceOrder, Client } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../auth/Auth';
-import { formatCurrency, cn, handleFirestoreError } from '../../utils';
-import { format, startOfMonth, endOfMonth, differenceInDays } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { formatCurrency, cn } from '../../utils';
+import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
+
+// UI Components
+import { PageHeader } from '../../components/ui/PageHeader';
+import { SearchBar } from '../../components/ui/SearchBar';
+import { Button } from '../../components/ui/Button';
+import { Modal, Card } from '../../components/ui/Card';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+
+// Hooks
+import { useFinance } from '../../hooks/useFinance';
+import { useClients } from '../../hooks/useClients';
+import { useSuppliers } from '../../hooks/useSuppliers';
+import { useServiceOrders } from '../../hooks/useServiceOrders';
 
 // New Components
 import FinancialDashboard from './components/FinancialDashboard';
@@ -49,19 +59,7 @@ interface FinanceProps {
 
 const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
   const { profile } = useAuth();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [summary, setSummary] = useState({
-    income: 0,
-    expense: 0,
-    balance: 0,
-    receivable: 0,
-    payable: 0
-  });
+  const { canCreate, canEdit, canDelete } = usePermissions('finance');
 
   const [filters, setFilters] = useState({
     status: 'all' as 'all' | 'paid' | 'pending' | 'cancelled',
@@ -75,6 +73,57 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
     startDueDate: '',
     endDueDate: ''
   });
+
+  const { 
+    transactions, 
+    loading: financeLoading, 
+    addTransaction, 
+    updateTransaction, 
+    deleteTransaction,
+    refresh 
+  } = useFinance(filters);
+
+  const { clients } = useClients(profile?.empresaId);
+  const { suppliers } = useSuppliers(profile?.empresaId);
+  const { serviceOrders } = useServiceOrders(profile?.empresaId);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const [relatedOS, setRelatedOS] = useState<ServiceOrder | null>(null);
+  const [chartView, setChartView] = useState<'general' | 'income' | 'expense'>('general');
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState({
+    title: '',
+    message: '',
+    confirmLabel: '',
+    onConfirm: () => {}
+  });
+
+  const [activeSubTab, setActiveSubTab] = useState<'transactions' | 'dashboard' | 'cost-centers' | 'recurring' | 'commissions' | 'closing'>('transactions');
+  const [financeTab, setFinanceTab] = useState<'all' | 'receivable' | 'payable'>(() => {
+    const saved = localStorage.getItem('financeTab');
+    if (saved === 'receivable' || saved === 'payable' || saved === 'all') return saved;
+    return 'all';
+  });
+
+  const handleSetFinanceTab = (tab: 'all' | 'receivable' | 'payable') => {
+    setFinanceTab(tab);
+    localStorage.setItem('financeTab', tab);
+  };
+
+  const calculateInterest = (t: Transaction) => {
+    if (t.status !== 'pending' || !t.dueDate) return 0;
+    const dueDate = new Date(t.dueDate);
+    const today = new Date();
+    if (dueDate >= today) return 0;
+    
+    const daysOverdue = differenceInDays(today, dueDate);
+    const client = clients.find(c => c.id === t.clienteId);
+    const rate = client?.interestRate || 0;
+    
+    return (t.value * (rate / 100)) * daysOverdue;
+  };
 
   // Form state
   const [formData, setFormData] = useState({
@@ -90,185 +139,77 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
     dueDate: format(new Date(), 'yyyy-MM-dd')
   });
 
-  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
-  const [relatedOS, setRelatedOS] = useState<any>(null);
-  const [chartView, setChartView] = useState<'general' | 'income' | 'expense'>('general');
-  const [financeTab, setFinanceTab] = useState<'all' | 'receivable' | 'payable'>(() => {
-    const saved = localStorage.getItem('financeTab');
-    if (saved === 'receivable' || saved === 'payable' || saved === 'all') return saved;
-    return 'all';
-  });
-  const [activeSubTab, setActiveSubTab] = useState<'transactions' | 'dashboard' | 'cost-centers' | 'recurring' | 'commissions' | 'closing'>('transactions');
+  const summary = useMemo(() => {
+    let inc = 0;
+    let exp = 0;
+    let rec = 0;
+    let pay = 0;
 
-  const handleSetFinanceTab = (tab: 'all' | 'receivable' | 'payable') => {
-    setFinanceTab(tab);
-    localStorage.setItem('financeTab', tab);
-  };
-  const [confirmAction, setConfirmAction] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-    type: 'danger' | 'success';
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {},
-    type: 'success'
-  });
-  const { canCreate, canEdit, canDelete } = usePermissions('finance');
-
-  const calculateInterest = (transaction: Transaction) => {
-    if (transaction.type !== 'in' || transaction.status !== 'pending' || !transaction.dueDate) return 0;
-    
-    const dueDate = new Date(transaction.dueDate);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (dueDate >= today) return 0;
-    
-    const diffDays = Math.max(0, differenceInDays(today, dueDate));
-    if (diffDays <= 0) return 0;
-    
-    // Find client to get interest rate
-    const client = clients.find(c => c.id === transaction.clienteId);
-    const rate = client?.interestRate || 0; // monthly rate
-    
-    // Simple interest calculation: (value * rate/100) * (days / 30)
-    const interest = (transaction.value * (rate / 100)) * (diffDays / 30);
-    return interest;
-  };
-
-  useEffect(() => {
-    if (!profile?.empresaId) return;
-    
-    if (profile.role !== 'admin') {
-      setLoading(false);
-      return;
-    }
-
-    const q = query(
-      collection(db, 'transacoes_financeiras'), 
-      where('empresaId', '==', profile.empresaId),
-      orderBy('date', 'desc')
-    );
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: Transaction[] = [];
-      let inc = 0;
-      let exp = 0;
-      let rec = 0;
-      let pay = 0;
-      
-      snapshot.forEach((doc) => {
-        const data = doc.data() as Transaction;
-        const transaction = { id: doc.id, ...data };
-        list.push(transaction);
-        
-        if (data.status !== 'cancelled') {
-          if (data.status === 'paid') {
-            if (data.type === 'in') inc += data.value;
-            else exp += data.value;
-          } else {
-            if (data.type === 'in') {
-              const interest = calculateInterest(transaction);
-              rec += data.value + interest;
-            }
-            else pay += data.value;
-          }
+    transactions.forEach(t => {
+      if (t.status !== 'cancelled') {
+        if (t.status === 'paid') {
+          if (t.type === 'in') inc += t.value;
+          else exp += t.value;
+        } else {
+          if (t.type === 'in') rec += t.value;
+          else pay += t.value;
         }
-      });
-      
-      setTransactions(list);
-      setSummary({ 
-        income: inc, 
-        expense: exp, 
-        balance: inc - exp,
-        receivable: rec,
-        payable: pay
-      });
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'transacoes_financeiras');
-      setLoading(false);
+      }
     });
 
-    const unsubscribeSuppliers = onSnapshot(
-      query(collection(db, 'fornecedores'), where('empresaId', '==', profile.empresaId)), 
-      (snapshot) => {
-        const list: Supplier[] = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Supplier));
-        setSuppliers(list);
-      }, (error) => handleFirestoreError(error, OperationType.GET, 'fornecedores')
-    );
-
-    const unsubscribeOS = onSnapshot(
-      query(collection(db, 'ordens_servico'), where('empresaId', '==', profile.empresaId)), 
-      (snapshot) => {
-        const list: ServiceOrder[] = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as ServiceOrder));
-        setServiceOrders(list);
-      }, (error) => handleFirestoreError(error, OperationType.GET, 'ordens_servico')
-    );
-
-    const unsubscribeClients = onSnapshot(
-      query(collection(db, 'clientes'), where('empresaId', '==', profile.empresaId)), 
-      (snapshot) => {
-        const list: Client[] = [];
-        snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() } as Client));
-        setClients(list);
-      }, (error) => handleFirestoreError(error, OperationType.GET, 'clientes')
-    );
-
-    return () => {
-      unsubscribe();
-      unsubscribeSuppliers();
-      unsubscribeOS();
-      unsubscribeClients();
+    return {
+      income: inc,
+      expense: exp,
+      balance: inc - exp,
+      receivable: rec,
+      payable: pay
     };
-  }, [profile]);
+  }, [transactions]);
 
-  const filteredTransactions = transactions.filter(t => {
-    // Tab filtering
-    if (financeTab === 'receivable' && (t.type !== 'in' || t.status !== 'pending')) return false;
-    if (financeTab === 'payable' && (t.type !== 'out' || t.status !== 'pending')) return false;
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      // Tab filtering
+      if (financeTab === 'receivable' && (t.type !== 'in' || t.status !== 'pending')) return false;
+      if (financeTab === 'payable' && (t.type !== 'out' || t.status !== 'pending')) return false;
 
-    const matchesStatus = filters.status === 'all' || t.status === filters.status;
-    const matchesType = filters.type === 'all' || t.type === filters.type;
-    const matchesOS = filters.relatedId === 'all' || t.relatedId === filters.relatedId;
-    const matchesSupplier = filters.supplierId === 'all' || t.fornecedorId === filters.supplierId;
-    
-    let matchesClient = true;
-    if (filters.clientId !== 'all') {
-      const os = serviceOrders.find(o => o.id === t.relatedId);
-      matchesClient = os?.clienteId === filters.clientId;
-    }
+      const matchesStatus = filters.status === 'all' || t.status === filters.status;
+      const matchesType = filters.type === 'all' || t.type === filters.type;
+      const matchesOS = filters.relatedId === 'all' || t.relatedId === filters.relatedId;
+      const matchesSupplier = filters.supplierId === 'all' || t.fornecedorId === filters.supplierId;
+      
+      let matchesClient = true;
+      if (filters.clientId !== 'all') {
+        const os = serviceOrders.find(o => o.id === t.relatedId);
+        matchesClient = os?.clienteId === filters.clientId;
+      }
 
-    const matchesSearch = t.description.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-                          t.category.toLowerCase().includes(filters.searchTerm.toLowerCase());
-    
-    // Date filters
-    const transactionDate = t.date ? new Date(t.date) : null;
-    const dueDate = t.dueDate ? new Date(t.dueDate) : null;
+      const matchesSearch = t.description.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+                            t.category.toLowerCase().includes(filters.searchTerm.toLowerCase());
+      
+      // Date filters
+      const transactionDate = t.date ? new Date(t.date) : null;
+      const dueDate = t.dueDate ? new Date(t.dueDate) : null;
 
-    if (filters.startDate && transactionDate && transactionDate < new Date(filters.startDate)) return false;
-    if (filters.endDate && transactionDate && transactionDate > new Date(filters.endDate)) return false;
-    if (filters.startDueDate && dueDate && dueDate < new Date(filters.startDueDate)) return false;
-    if (filters.endDueDate && dueDate && dueDate > new Date(filters.endDueDate)) return false;
+      if (filters.startDate && transactionDate && transactionDate < new Date(filters.startDate)) return false;
+      if (filters.endDate && transactionDate && transactionDate > new Date(filters.endDate)) return false;
+      if (filters.startDueDate && dueDate && dueDate < new Date(filters.startDueDate)) return false;
+      if (filters.endDueDate && dueDate && dueDate > new Date(filters.endDueDate)) return false;
 
-    return matchesStatus && matchesType && matchesOS && matchesSupplier && matchesClient && matchesSearch;
-  });
+      return matchesStatus && matchesType && matchesOS && matchesSupplier && matchesClient && matchesSearch;
+    });
+  }, [transactions, financeTab, filters, serviceOrders]);
 
-  const upcomingExpenses = transactions.filter(t => {
-    if (t.type !== 'out' || t.status !== 'pending') return false;
-    const dueDate = new Date(t.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffTime = dueDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays <= 3;
-  });
+  const upcomingExpenses = useMemo(() => {
+    return transactions.filter(t => {
+      if (t.type !== 'out' || t.status !== 'pending') return false;
+      const dueDate = new Date(t.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffTime = dueDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays <= 3;
+    });
+  }, [transactions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -279,84 +220,49 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
     }
 
     try {
-      await addDoc(collection(db, 'transacoes_financeiras'), {
+      await addTransaction({
         ...formData,
-        empresaId: profile.empresaId,
         value: parseFloat(formData.value),
         date: formData.date || new Date().toISOString(),
         dueDate: formData.status === 'pending' ? formData.dueDate : undefined,
-        status: formData.status,
-        supplierId: formData.type === 'out' ? formData.supplierId : undefined,
-        relatedId: formData.relatedId || undefined,
-        createdAt: serverTimestamp()
       });
       
-      toast.success('Transação registrada com sucesso!');
       closeModal();
     } catch (error) {
       console.error(error);
-      toast.error('Erro ao registrar transação.');
-    }
-  };
-
-  const toggleStatus = async (transaction: Transaction) => {
-    try {
-      const newStatus = transaction.status === 'paid' ? 'pending' : 'paid';
-      await updateDoc(doc(db, 'transacoes_financeiras', transaction.id), {
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      });
-      toast.success(`Status atualizado para ${newStatus === 'paid' ? 'Pago' : 'Pendente'}`);
-    } catch (error) {
-      console.error(error);
-      toast.error('Erro ao atualizar status.');
     }
   };
 
   const markAsPaid = async (id: string) => {
-    setConfirmAction({
-      isOpen: true,
+    setConfirmConfig({
       title: 'Confirmar Baixa',
       message: 'Deseja confirmar o recebimento/pagamento desta transação?',
-      type: 'success',
+      confirmLabel: 'Confirmar Baixa',
       onConfirm: async () => {
         try {
-          await updateDoc(doc(db, 'transacoes_financeiras', id), {
-            status: 'paid',
-            updatedAt: serverTimestamp()
-          });
-          toast.success('Pagamento baixado com sucesso!');
+          await updateTransaction(id, { status: 'paid' });
         } catch (error) {
           console.error(error);
-          toast.error('Erro ao baixar pagamento.');
-        } finally {
-          setConfirmAction(prev => ({ ...prev, isOpen: false }));
         }
       }
     });
+    setIsConfirmOpen(true);
   };
 
   const cancelTransaction = async (id: string) => {
-    setConfirmAction({
-      isOpen: true,
+    setConfirmConfig({
       title: 'Cancelar Transação',
       message: 'Tem certeza que deseja cancelar esta transação? Esta ação não pode ser desfeita.',
-      type: 'danger',
+      confirmLabel: 'Cancelar',
       onConfirm: async () => {
         try {
-          await updateDoc(doc(db, 'transacoes_financeiras', id), {
-            status: 'cancelled',
-            updatedAt: serverTimestamp()
-          });
-          toast.success('Transação cancelada com sucesso!');
+          await updateTransaction(id, { status: 'cancelled' });
         } catch (error) {
           console.error(error);
-          toast.error('Erro ao cancelar transação.');
-        } finally {
-          setConfirmAction(prev => ({ ...prev, isOpen: false }));
         }
       }
     });
+    setIsConfirmOpen(true);
   };
 
   const openModal = (type: 'in' | 'out') => {
@@ -375,16 +281,12 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
     setIsModalOpen(true);
   };
 
-  const openReceipt = async (transaction: Transaction) => {
+  const openReceipt = (transaction: Transaction) => {
     setSelectedTransaction(transaction);
     if (transaction.relatedId) {
-      try {
-        const osDoc = await getDoc(doc(db, 'ordens_servico', transaction.relatedId));
-        if (osDoc.exists()) {
-          setRelatedOS({ id: osDoc.id, ...osDoc.data() });
-        }
-      } catch (error) {
-        console.error('Erro ao buscar OS:', error);
+      const os = serviceOrders.find(o => o.id === transaction.relatedId);
+      if (os) {
+        setRelatedOS(os);
       }
     }
     setIsReceiptModalOpen(true);
@@ -446,21 +348,18 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Header Section */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-        <div>
-          <h2 className="text-3xl font-black text-zinc-900 tracking-tight">Módulo Financeiro</h2>
-          <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-[0.3em] mt-1">Gestão de Fluxo de Caixa e Rentabilidade</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
+      <PageHeader 
+        title="Módulo Financeiro"
+        description="Gestão de Fluxo de Caixa e Rentabilidade"
+        action={canCreate ? (
+          <Button 
             onClick={() => openModal('in')}
-            className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-4 rounded-2xl font-bold text-sm hover:opacity-90 transition-all shadow-xl shadow-zinc-200"
+            icon={<Plus size={18} />}
           >
-            <Plus size={20} />
             Novo Lançamento
-          </button>
-        </div>
-      </div>
+          </Button>
+        ) : undefined}
+      />
 
       {/* Sub-navigation Tabs */}
       <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar">
@@ -478,8 +377,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
             className={cn(
               "flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border",
               activeSubTab === tab.id 
-                ? "bg-zinc-900 text-white border-zinc-900 shadow-lg shadow-zinc-200" 
-                : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
             )}
           >
             <tab.icon size={18} />
@@ -498,46 +397,46 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
         <>
           {/* Financial Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Entradas</p>
-          <h3 className="text-lg font-black text-green-600">{formatCurrency(summary.income)}</h3>
-        </div>
+            <Card className="p-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Entradas</p>
+              <h3 className="text-lg font-black text-green-600">{formatCurrency(summary.income)}</h3>
+            </Card>
 
-        <div className="bg-white p-4 rounded-2xl border border-zinc-200 shadow-sm">
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saídas</p>
-          <h3 className="text-lg font-black text-red-600">{formatCurrency(summary.expense)}</h3>
-        </div>
+            <Card className="p-4">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Saídas</p>
+              <h3 className="text-lg font-black text-red-600">{formatCurrency(summary.expense)}</h3>
+            </Card>
 
-        <div 
-          onClick={() => handleSetFinanceTab('receivable')}
-          className={cn(
-            "bg-white p-4 rounded-2xl border shadow-sm transition-all cursor-pointer",
-            financeTab === 'receivable' ? "border-amber-500 ring-1 ring-amber-500" : "border-zinc-200 hover:border-amber-200"
-          )}
-        >
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">A Receber</p>
-          <h3 className="text-lg font-black text-amber-600">{formatCurrency(summary.receivable)}</h3>
-        </div>
+            <Card 
+              onClick={() => handleSetFinanceTab('receivable')}
+              className={cn(
+                "p-4 transition-all cursor-pointer",
+                financeTab === 'receivable' ? "border-amber-500 ring-1 ring-amber-500" : "hover:border-amber-200"
+              )}
+            >
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">A Receber</p>
+              <h3 className="text-lg font-black text-amber-600">{formatCurrency(summary.receivable)}</h3>
+            </Card>
 
-        <div 
-          onClick={() => handleSetFinanceTab('payable')}
-          className={cn(
-            "bg-white p-4 rounded-2xl border shadow-sm transition-all cursor-pointer",
-            financeTab === 'payable' ? "border-orange-500 ring-1 ring-orange-500" : "border-zinc-200 hover:border-orange-200"
-          )}
-        >
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">A Pagar</p>
-          <h3 className="text-lg font-black text-orange-600">{formatCurrency(summary.payable)}</h3>
-        </div>
+            <Card 
+              onClick={() => handleSetFinanceTab('payable')}
+              className={cn(
+                "p-4 transition-all cursor-pointer",
+                financeTab === 'payable' ? "border-orange-500 ring-1 ring-orange-500" : "hover:border-orange-200"
+              )}
+            >
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">A Pagar</p>
+              <h3 className="text-lg font-black text-orange-600">{formatCurrency(summary.payable)}</h3>
+            </Card>
 
-        <div 
-          className="bg-accent p-4 rounded-2xl shadow-sm text-accent-foreground flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all sm:col-span-2 lg:col-span-1"
-          onClick={() => handleSetFinanceTab('all')}
-        >
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Saldo</p>
-          <h3 className="text-lg font-black">{formatCurrency(summary.balance)}</h3>
-        </div>
-      </div>
+            <Card 
+              className="p-4 bg-slate-900 text-white flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all sm:col-span-2 lg:col-span-1 border-slate-900"
+              onClick={() => handleSetFinanceTab('all')}
+            >
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Saldo</p>
+              <h3 className="text-lg font-black">{formatCurrency(summary.balance)}</h3>
+            </Card>
+          </div>
 
       {upcomingExpenses.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -577,15 +476,15 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Transactions List */}
       <div className="lg:col-span-2 space-y-6">
-        <div className="bg-white rounded-[2.5rem] border border-zinc-200 shadow-sm overflow-hidden">
-          <div className="flex flex-wrap p-2 bg-zinc-50/50 border-b border-zinc-100 gap-2">
+        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="flex flex-wrap p-2 bg-slate-50/50 border-b border-slate-100 gap-2">
             <button
               onClick={() => handleSetFinanceTab('all')}
               className={cn(
                 "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
                 financeTab === 'all' 
                   ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
-                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               Fluxo
@@ -596,7 +495,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
                 financeTab === 'receivable' 
                   ? "bg-amber-500 text-white shadow-lg shadow-amber-100" 
-                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               Receber
@@ -607,7 +506,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
                 financeTab === 'payable' 
                   ? "bg-orange-500 text-white shadow-lg shadow-orange-100" 
-                  : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100"
+                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               Pagar
@@ -617,11 +516,11 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
           <div className="p-4 sm:p-8 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl sm:text-2xl font-black text-zinc-900">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">
                   {financeTab === 'all' ? 'Fluxo de Caixa' : 
                    financeTab === 'receivable' ? 'Contas a Receber' : 'Contas a Pagar'}
                 </h3>
-                <p className="text-[10px] sm:text-xs text-zinc-400 font-bold uppercase tracking-widest mt-1">
+                <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
                   {financeTab === 'all' ? 'Histórico Geral' : 
                    financeTab === 'receivable' ? 'Pendências de Entrada' : 'Pendências de Saída'}
                 </p>
@@ -629,20 +528,20 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               <div className="flex items-center gap-3 w-full sm:w-auto">
                 {canCreate && (
                   <>
-                    <button 
+                    <Button 
                       onClick={() => openModal('in')}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:bg-green-700 transition-all shadow-lg shadow-green-100"
+                      variant="primary"
+                      icon={<Plus size={18} />}
                     >
-                      <Plus size={18} />
                       Receber
-                    </button>
-                    <button 
+                    </Button>
+                    <Button 
                       onClick={() => openModal('out')}
-                      className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-red-600 text-white px-5 py-3 rounded-2xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-red-100"
+                      variant="danger"
+                      icon={<Plus size={18} />}
                     >
-                      <Plus size={18} />
                       Pagar
-                    </button>
+                    </Button>
                   </>
                 )}
               </div>
@@ -650,14 +549,11 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
 
             {/* Filters Section - Only for Fluxo de Caixa as requested */}
             {financeTab === 'all' && (
-              <div className="space-y-6 pt-6 border-t border-zinc-100">
+              <div className="space-y-6 pt-6 border-t border-slate-100">
                 <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400" size={18} />
-                    <input 
-                      type="text" 
+                  <div className="flex-1">
+                    <SearchBar 
                       placeholder="Buscar por descrição ou categoria..."
-                      className="input-modern pl-12"
                       value={filters.searchTerm}
                       onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
                     />
@@ -675,7 +571,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                           endDate: format(end, 'yyyy-MM-dd')
                         });
                       }}
-                      className="whitespace-nowrap px-4 py-2 bg-zinc-100 text-zinc-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                      className="whitespace-nowrap px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
                     >
                       Este Mês
                     </button>
@@ -690,7 +586,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                           endDate: format(end, 'yyyy-MM-dd')
                         });
                       }}
-                      className="whitespace-nowrap px-4 py-2 bg-zinc-100 text-zinc-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200 transition-all"
+                      className="whitespace-nowrap px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
                     >
                       Mês Passado
                     </button>
@@ -715,12 +611,12 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-1 bg-zinc-100 p-1 rounded-2xl">
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
                     <button
                       onClick={() => setFilters({ ...filters, status: 'all' })}
                       className={cn(
                         "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'all' ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                        filters.status === 'all' ? "bg-accent text-accent-foreground shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       Todos
@@ -729,7 +625,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                       onClick={() => setFilters({ ...filters, status: 'paid' })}
                       className={cn(
                         "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'paid' ? "bg-white text-green-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                        filters.status === 'paid' ? "bg-white text-green-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       Pagos
@@ -738,7 +634,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                       onClick={() => setFilters({ ...filters, status: 'pending' })}
                       className={cn(
                         "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-zinc-400 hover:text-zinc-600"
+                        filters.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
                       )}
                     >
                       Pend.
@@ -746,7 +642,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </div>
 
                   <select 
-                    className="select-modern"
+                    className="input-standard"
                     value={filters.type}
                     onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
                   >
@@ -756,7 +652,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </select>
 
                   <select 
-                    className="select-modern"
+                    className="input-standard"
                     value={filters.clientId}
                     onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
                   >
@@ -767,7 +663,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   </select>
 
                   <select 
-                    className="select-modern"
+                    className="input-standard"
                     value={filters.relatedId}
                     onChange={(e) => setFilters({ ...filters, relatedId: e.target.value })}
                   >
@@ -785,37 +681,37 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
                     <input 
                       type="date"
-                      className="input-modern"
+                      className="input-standard"
                       value={filters.startDate}
                       onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
                     <input 
                       type="date"
-                      className="input-modern"
+                      className="input-standard"
                       value={filters.endDate}
                       onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
                     <input 
                       type="date"
-                      className="input-modern"
+                      className="input-standard"
                       value={filters.startDueDate}
                       onChange={(e) => setFilters({ ...filters, startDueDate: e.target.value })}
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
                     <input 
                       type="date"
-                      className="input-modern"
+                      className="input-standard"
                       value={filters.endDueDate}
                       onChange={(e) => setFilters({ ...filters, endDueDate: e.target.value })}
                     />
@@ -823,7 +719,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 </div>
 
                 {/* Filtered Summary */}
-                <div className="grid grid-cols-3 gap-4 pt-6 border-t border-zinc-100">
+                <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-100">
                   <div className="bg-green-50/50 p-4 rounded-3xl border border-green-100">
                     <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Entradas</p>
                     <p className="text-xl font-black text-green-700">
@@ -836,8 +732,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                       {formatCurrency(filteredTransactions.filter(t => t.type === 'out' && t.status !== 'cancelled').reduce((acc, t) => acc + t.value, 0))}
                     </p>
                   </div>
-                  <div className="bg-zinc-100/50 p-4 rounded-3xl border border-zinc-200">
-                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest mb-1">Saldo</p>
+                  <div className="bg-slate-100/50 p-4 rounded-3xl border border-slate-200">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Saldo</p>
                     <p className="text-xl font-black text-accent">
                       {formatCurrency(
                         filteredTransactions.filter(t => t.status !== 'cancelled').reduce((acc, t) => t.type === 'in' ? acc + t.value : acc - t.value, 0)
@@ -851,7 +747,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-zinc-50 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">
+                <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
                   <th className="px-8 py-4">Datas</th>
                   <th className="px-8 py-4">
                     {financeTab === 'receivable' ? 'Cliente / OS' : 
@@ -863,15 +759,15 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   <th className="px-8 py-4 text-right">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-slate-100">
                 <AnimatePresence mode="popLayout">
-                  {loading ? (
+                  {financeLoading ? (
                     <motion.tr
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                     >
-                      <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Carregando transações...</td>
+                      <td colSpan={6} className="px-8 py-10 text-center text-slate-400 italic">Carregando transações...</td>
                     </motion.tr>
                   ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
                     const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
@@ -890,7 +786,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                         exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
                         className={cn(
-                          "hover:bg-zinc-50 transition-colors",
+                          "hover:bg-slate-50 transition-colors",
                           isUpcoming && "bg-amber-50/30",
                           isOverdue && "bg-red-50/20"
                         )}
@@ -898,17 +794,19 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                         <td className="px-8 py-5">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <Calendar size={12} className="text-zinc-400" />
-                            <span className="text-xs font-bold text-accent">{format(new Date(t.date), 'dd/MM/yy')}</span>
-                            <span className="text-[8px] text-zinc-400 uppercase font-black">Lanç.</span>
+                            <Calendar size={12} className="text-slate-400" />
+                            <span className="text-xs font-bold text-accent">
+                              {t.date && !isNaN(new Date(t.date).getTime()) ? format(new Date(t.date), 'dd/MM/yy') : 'N/A'}
+                            </span>
+                            <span className="text-[8px] text-slate-400 uppercase font-black">Lanç.</span>
                           </div>
                           {t.dueDate && t.status === 'pending' && (
                             <div className="flex items-center gap-2">
                               <AlertTriangle size={12} className={cn(isUpcoming ? "text-red-500" : "text-amber-500")} />
                               <span className={cn("text-xs font-bold", isUpcoming ? "text-red-600" : "text-amber-600")}>
-                                {format(new Date(t.dueDate), 'dd/MM/yy')}
+                                {t.dueDate && !isNaN(new Date(t.dueDate).getTime()) ? format(new Date(t.dueDate), 'dd/MM/yy') : 'N/A'}
                               </span>
-                              <span className="text-[8px] text-zinc-400 uppercase font-black">Venc.</span>
+                              <span className="text-[8px] text-slate-400 uppercase font-black">Venc.</span>
                             </div>
                           )}
                         </div>
@@ -919,7 +817,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                             <>
                               <span className="text-sm font-bold text-accent">{client?.name || 'Cliente não identificado'}</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                   OS #{t.relatedId?.slice(-4).toUpperCase()} - {t.description}
                                 </span>
                                 {t.relatedId && setActiveTab && (
@@ -936,7 +834,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                           ) : financeTab === 'payable' ? (
                             <>
                               <span className="text-sm font-bold text-accent">{supplier?.name || 'Fornecedor não identificado'}</span>
-                              <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                 {t.description}
                               </span>
                             </>
@@ -944,19 +842,19 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                             <>
                               <span className="text-sm font-bold text-accent">{t.description}</span>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
                                 {t.fornecedorId && (
                                   <>
-                                    <span className="text-zinc-300">|</span>
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                    <span className="text-slate-300">|</span>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                       {supplier?.name || 'Fornecedor'}
                                     </span>
                                   </>
                                 )}
                                 {t.relatedId && (
                                   <>
-                                    <span className="text-zinc-300">|</span>
-                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                    <span className="text-slate-300">|</span>
+                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                                       OS #{t.relatedId.slice(-4).toUpperCase()}
                                     </span>
                                   </>
@@ -967,7 +865,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                         </div>
                       </td>
                       <td className="px-8 py-5">
-                        <span className="px-3 py-1 bg-zinc-100 rounded-lg text-xs font-bold text-zinc-600">
+                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
                           {t.category}
                         </span>
                       </td>
@@ -978,7 +876,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                           t.status === 'paid' 
                             ? "bg-green-100 text-green-700" 
                             : t.status === 'cancelled'
-                            ? "bg-zinc-100 text-zinc-400"
+                            ? "bg-slate-100 text-slate-400"
                             : "bg-amber-100 text-amber-700"
                         )}>
                           {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
@@ -992,7 +890,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     </td>
                     <td className={cn(
                       "px-8 py-5 text-right font-black",
-                      t.status === 'cancelled' ? "text-zinc-300 line-through" :
+                      t.status === 'cancelled' ? "text-slate-300 line-through" :
                       t.type === 'in' ? "text-green-600" : "text-red-600"
                     )}>
                       <div className="flex flex-col items-end">
@@ -1029,7 +927,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                         {t.status === 'paid' && t.type === 'in' && (
                           <button 
                             onClick={() => openReceipt(t)}
-                            className="p-2 text-zinc-400 hover:text-accent hover:bg-zinc-100 rounded-xl transition-all"
+                            className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
                             title="Gerar Comprovante"
                           >
                             <Download size={18} />
@@ -1044,7 +942,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                   >
-                    <td colSpan={6} className="px-8 py-10 text-center text-zinc-400 italic">Nenhuma transação registrada.</td>
+                    <td colSpan={6} className="px-8 py-10 text-center text-slate-400 italic">Nenhuma transação registrada.</td>
                   </motion.tr>
                 )}
               </AnimatePresence>
@@ -1054,8 +952,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
 
           {/* Transaction List - Mobile Cards */}
           <div className="sm:hidden space-y-4">
-            {loading ? (
-              <div className="py-10 text-center text-zinc-400 italic">Carregando transações...</div>
+            {financeLoading ? (
+              <div className="py-10 text-center text-slate-400 italic">Carregando transações...</div>
             ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
               const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
               const os = serviceOrders.find(o => o.id === t.relatedId);
@@ -1068,7 +966,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 <div 
                   key={t.id}
                   className={cn(
-                    "p-4 rounded-2xl border border-zinc-100 space-y-4",
+                    "p-4 rounded-2xl border border-slate-100 space-y-4",
                     isUpcoming && "bg-amber-50/30 border-amber-100",
                     isOverdue && "bg-red-50/30 border-red-100"
                   )}
@@ -1076,7 +974,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   <div className="flex items-start justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <Calendar size={12} className="text-zinc-400" />
+                        <Calendar size={12} className="text-slate-400" />
                         <span className="text-xs font-bold text-accent">{format(new Date(t.date), 'dd/MM/yy')}</span>
                       </div>
                       <h4 className="text-sm font-bold text-accent">
@@ -1084,12 +982,12 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                          financeTab === 'payable' ? (supplier?.name || 'Fornecedor') : t.description}
                       </h4>
                       {financeTab !== 'all' && (
-                        <p className="text-[10px] text-zinc-500 font-medium">{t.description}</p>
+                        <p className="text-[10px] text-slate-500 font-medium">{t.description}</p>
                       )}
                     </div>
                     <div className={cn(
                       "text-sm font-black text-right",
-                      t.status === 'cancelled' ? "text-zinc-300 line-through" :
+                      t.status === 'cancelled' ? "text-slate-300 line-through" :
                       t.type === 'in' ? "text-green-600" : "text-red-600"
                     )}>
                       <div>{t.type === 'in' ? '+' : '-'} {formatCurrency(t.value + interest)}</div>
@@ -1101,16 +999,16 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-3 border-t border-zinc-50">
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-50">
                     <div className="flex items-center gap-2">
                       <span className={cn(
                         "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
                         t.status === 'paid' ? "bg-green-100 text-green-700" : 
-                        t.status === 'cancelled' ? "bg-zinc-100 text-zinc-400" : "bg-amber-100 text-amber-700"
+                        t.status === 'cancelled' ? "bg-slate-100 text-slate-400" : "bg-amber-100 text-amber-700"
                       )}>
                         {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
                       </span>
-                      <span className="px-2 py-0.5 bg-zinc-100 rounded text-[8px] font-bold text-zinc-500 uppercase">
+                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold text-slate-500 uppercase">
                         {t.category}
                       </span>
                     </div>
@@ -1134,7 +1032,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                       {t.status === 'paid' && t.type === 'in' && (
                         <button 
                           onClick={() => openReceipt(t)}
-                          className="p-2 text-zinc-400 hover:text-accent"
+                          className="p-2 text-slate-400 hover:text-accent"
                         >
                           <Download size={16} />
                         </button>
@@ -1144,7 +1042,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 </div>
               );
             }) : (
-              <div className="py-10 text-center text-zinc-400 italic">Nenhuma transação registrada.</div>
+              <div className="py-10 text-center text-slate-400 italic">Nenhuma transação registrada.</div>
             )}
           </div>
 
@@ -1152,31 +1050,31 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       </div>
 
         {/* Distribution Chart */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-zinc-200 shadow-sm">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
             <h3 className="text-lg sm:text-xl font-bold text-accent">Distribuição</h3>
-            <div className="flex bg-zinc-100 p-1 rounded-lg w-full sm:w-auto">
+            <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto">
               <button 
                 onClick={() => setChartView('general')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-accent text-accent-foreground shadow-sm" : "text-zinc-500")}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-accent text-accent-foreground shadow-sm" : "text-slate-500")}
               >
                 Geral
               </button>
               <button 
                 onClick={() => setChartView('income')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'income' ? "bg-white text-green-600 shadow-sm" : "text-zinc-500")}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'income' ? "bg-white text-green-600 shadow-sm" : "text-slate-500")}
               >
                 Entradas
               </button>
               <button 
                 onClick={() => setChartView('expense')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'expense' ? "bg-white text-red-600 shadow-sm" : "text-zinc-500")}
+                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'expense' ? "bg-white text-red-600 shadow-sm" : "text-slate-500")}
               >
                 Saídas
               </button>
             </div>
           </div>
-          <p className="text-xs sm:text-sm text-zinc-500 mb-8">
+          <p className="text-xs sm:text-sm text-slate-500 mb-8">
             {chartView === 'general' ? 'Proporção entre entradas e saídas' : 
              chartView === 'income' ? 'Entradas por categoria' : 'Saídas por categoria'}
           </p>
@@ -1205,13 +1103,13 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
           </div>
 
           <div className="mt-8 space-y-4">
-            <div className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100">
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Lucratividade</p>
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Lucratividade</p>
               <div className="flex items-center justify-between">
                 <span className="text-2xl font-black text-accent">
                   {summary.income > 0 ? Math.round((summary.balance / summary.income) * 100) : 0}%
                 </span>
-                <div className="w-24 h-2 bg-zinc-200 rounded-full overflow-hidden">
+                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-accent" 
                     style={{ width: `${summary.income > 0 ? Math.min(100, Math.max(0, (summary.balance / summary.income) * 100)) : 0}%` }} 
@@ -1226,234 +1124,195 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       )}
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-accent">
-                {formData.type === 'in' ? 'Lançar Recebimento' : 'Lançar Pagamento'}
-              </h3>
-              <button onClick={closeModal} className="p-2 text-zinc-400 hover:text-accent rounded-lg">
-                <XCircle size={24} />
-              </button>
+      <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={formData.type === 'in' ? 'Lançar Recebimento' : 'Lançar Pagamento'}
+        maxWidth="max-w-lg"
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex p-1 bg-slate-100 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, type: 'in' })}
+              className={cn(
+                "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
+                formData.type === 'in' ? "bg-white text-green-600 shadow-sm" : "text-slate-500"
+              )}
+            >
+              A Receber (Entrada)
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormData({ ...formData, type: 'out' })}
+              className={cn(
+                "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
+                formData.type === 'out' ? "bg-white text-red-600 shadow-sm" : "text-slate-500"
+              )}
+            >
+              A Pagar (Saída)
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data Lançamento</label>
+              <input 
+                type="date" 
+                required
+                className="input-modern"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+              />
             </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="flex p-1 bg-zinc-100 rounded-2xl">
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, type: 'in' })}
-                  className={cn(
-                    "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
-                    formData.type === 'in' ? "bg-white text-green-600 shadow-sm" : "text-zinc-500"
-                  )}
-                >
-                  A Receber (Entrada)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData({ ...formData, type: 'out' })}
-                  className={cn(
-                    "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
-                    formData.type === 'out' ? "bg-white text-red-600 shadow-sm" : "text-zinc-500"
-                  )}
-                >
-                  A Pagar (Saída)
-                </button>
-              </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data Vencimento</label>
+              <input 
+                type="date" 
+                required={formData.status === 'pending'}
+                disabled={formData.status === 'paid'}
+                className="input-modern disabled:opacity-50"
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              />
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data Lançamento</label>
-                  <input 
-                    type="date" 
-                    required
-                    className="input-modern"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Data Vencimento</label>
-                  <input 
-                    type="date" 
-                    required={formData.status === 'pending'}
-                    disabled={formData.status === 'paid'}
-                    className="input-modern disabled:opacity-50"
-                    value={formData.dueDate}
-                    onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                  />
-                </div>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Valor (R$)</label>
+              <input 
+                type="number" 
+                required
+                step="0.01"
+                className="input-modern font-bold"
+                placeholder="0.00"
+                value={formData.value}
+                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Status</label>
+              <select 
+                className="select-modern"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              >
+                <option value="paid">Pago</option>
+                <option value="pending">Aguardando Pagamento</option>
+              </select>
+            </div>
+          </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Valor (R$)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.01"
-                    className="input-modern font-bold"
-                    placeholder="0.00"
-                    value={formData.value}
-                    onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Status</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  >
-                    <option value="paid">Pago</option>
-                    <option value="pending">Aguardando Pagamento</option>
-                  </select>
-                </div>
-              </div>
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Pagamento</label>
+            <select 
+              className="select-modern"
+              value={formData.paymentMethod}
+              onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+            >
+              <option value="pix">Pix</option>
+              <option value="card">Cartão</option>
+              <option value="cash">Dinheiro</option>
+              <option value="transfer">Transferência</option>
+              <option value="boleto">Boleto</option>
+            </select>
+          </div>
 
+          {formData.type === 'out' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Pagamento</label>
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Fornecedor</label>
                 <select 
                   className="select-modern"
-                  value={formData.paymentMethod}
-                  onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
+                  value={formData.supplierId}
+                  onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                 >
-                  <option value="pix">Pix</option>
-                  <option value="card">Cartão</option>
-                  <option value="cash">Dinheiro</option>
-                  <option value="transfer">Transferência</option>
-                  <option value="boleto">Boleto</option>
+                  <option value="">Opcional...</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
                 </select>
               </div>
-
-              {formData.type === 'out' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Fornecedor</label>
-                    <select 
-                      className="select-modern"
-                      value={formData.supplierId}
-                      onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
-                    >
-                      <option value="">Opcional...</option>
-                      {suppliers.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">OS Relacionada</label>
-                    <select 
-                      className="select-modern"
-                      value={formData.relatedId}
-                      onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
-                    >
-                      <option value="">Opcional...</option>
-                      {serviceOrders
-                        .filter(os => os.status !== 'cancelada')
-                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                        .map(os => {
-                          const client = clients.find(c => c.id === os.clienteId);
-                          return (
-                            <option key={os.id} value={os.id}>
-                              OS #{os.id.slice(-4).toUpperCase()} - {client?.name || 'Cliente'}
-                            </option>
-                          );
-                        })}
-                    </select>
-                  </div>
-                </div>
-              )}
-
               <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Categoria</label>
-                <input 
-                  type="text" 
-                  required
-                  className="input-modern"
-                  placeholder="Ex: Peças, Aluguel, Salários..."
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-zinc-700 uppercase tracking-widest">Descrição</label>
-                <textarea 
-                  className="textarea-modern min-h-[80px]"
-                  placeholder="Detalhes da transação..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                />
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-50 transition-all"
+                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">OS Relacionada</label>
+                <select 
+                  className="select-modern"
+                  value={formData.relatedId}
+                  onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
                 >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-                >
-                  Confirmar Lançamento
-                </button>
+                  <option value="">Opcional...</option>
+                  {serviceOrders
+                    .filter(os => os.status !== 'cancelada')
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .map(os => {
+                      const client = clients.find(c => c.id === os.clienteId);
+                      return (
+                        <option key={os.id} value={os.id}>
+                          OS #{os.id.slice(-4).toUpperCase()} - {client?.name || 'Cliente'}
+                        </option>
+                      );
+                    })}
+                </select>
               </div>
-            </form>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Categoria</label>
+            <input 
+              type="text" 
+              required
+              className="input-modern"
+              placeholder="Ex: Peças, Aluguel, Salários..."
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
           </div>
-        </div>
-      )}
-      {/* Confirmation Modal */}
-      <AnimatePresence>
-        {confirmAction.isOpen && (
-          <div className="fixed inset-0 bg-zinc-900/60 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Descrição</label>
+            <textarea 
+              className="textarea-modern min-h-[80px]"
+              placeholder="Detalhes da transação..."
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <Button 
+              variant="outline"
+              onClick={closeModal}
+              className="flex-1"
             >
-              <div className="p-8 text-center">
-                <div className={cn(
-                  "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6",
-                  confirmAction.type === 'danger' ? "bg-red-100 text-red-600" : "bg-green-100 text-green-600"
-                )}>
-                  {confirmAction.type === 'danger' ? <Ban size={32} /> : <CheckCircle2 size={32} />}
-                </div>
-                <h3 className="text-xl font-bold text-accent mb-2">{confirmAction.title}</h3>
-                <p className="text-zinc-500 text-sm leading-relaxed">{confirmAction.message}</p>
-              </div>
-              <div className="p-8 bg-zinc-50 flex items-center gap-3">
-                <button 
-                  onClick={() => setConfirmAction(prev => ({ ...prev, isOpen: false }))}
-                  className="flex-1 px-6 py-3 border border-zinc-200 text-zinc-600 font-bold rounded-xl hover:bg-white transition-all"
-                >
-                  Não, Voltar
-                </button>
-                <button 
-                  onClick={confirmAction.onConfirm}
-                  className={cn(
-                    "flex-1 px-6 py-3 text-white font-bold rounded-xl transition-all shadow-lg",
-                    confirmAction.type === 'danger' ? "bg-red-600 hover:bg-red-700 shadow-red-200" : "bg-green-600 hover:bg-green-700 shadow-green-200"
-                  )}
-                >
-                  Sim, Confirmar
-                </button>
-              </div>
-            </motion.div>
+              Cancelar
+            </Button>
+            <Button 
+              type="submit"
+              className="flex-1"
+            >
+              Confirmar Lançamento
+            </Button>
           </div>
-        )}
-      </AnimatePresence>
+        </form>
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <ConfirmDialog 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmConfig.onConfirm}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmLabel={confirmConfig.confirmLabel}
+      />
 
       {/* Receipt Modal */}
       {isReceiptModalOpen && selectedTransaction && (
-        <div className="fixed inset-0 bg-zinc-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
+        <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-zinc-100 flex items-center justify-between bg-accent text-accent-foreground">
+            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground">
               <div>
                 <h3 className="text-xl font-bold">Comprovante de Serviço</h3>
                 <p className="text-xs text-accent-foreground/60 uppercase tracking-widest mt-1">Recibo de Pagamento</p>
@@ -1468,26 +1327,26 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="text-2xl font-black text-accent">AutoGestão SaaS</h4>
-                  <p className="text-sm text-zinc-500">Soluções Automotivas</p>
+                  <p className="text-sm text-slate-500">Soluções Automotivas</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-bold text-accent">Data: {format(new Date(selectedTransaction.date), 'dd/MM/yyyy HH:mm')}</p>
-                  <p className="text-xs text-zinc-500">Nº {selectedTransaction.id.slice(0, 8).toUpperCase()}</p>
+                  <p className="text-xs text-slate-500">Nº {selectedTransaction.id.slice(0, 8).toUpperCase()}</p>
                 </div>
               </div>
 
-              <div className="h-px bg-zinc-100" />
+              <div className="h-px bg-slate-100" />
 
               {/* Transaction Details */}
               <div className="space-y-4">
-                <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Detalhes do Pagamento</h5>
+                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Detalhes do Pagamento</h5>
                 <div className="grid grid-cols-2 gap-8">
                   <div>
-                    <p className="text-xs text-zinc-500 mb-1">Descrição</p>
+                    <p className="text-xs text-slate-500 mb-1">Descrição</p>
                     <p className="text-sm font-bold text-accent">{selectedTransaction.description}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-zinc-500 mb-1">Método de Pagamento</p>
+                    <p className="text-xs text-slate-500 mb-1">Método de Pagamento</p>
                     <p className="text-sm font-bold text-accent uppercase">{selectedTransaction.paymentMethod}</p>
                   </div>
                 </div>
@@ -1496,26 +1355,26 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               {/* OS Services if applicable */}
               {relatedOS && (
                 <div className="space-y-4">
-                  <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Serviços Realizados</h5>
-                  <div className="bg-zinc-50 rounded-2xl overflow-hidden border border-zinc-100">
+                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Serviços Realizados</h5>
+                  <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
                     <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="bg-zinc-100/50 text-zinc-500 text-[10px] font-bold uppercase tracking-widest">
+                        <tr className="bg-slate-100/50 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
                           <th className="px-4 py-3">Serviço</th>
                           <th className="px-4 py-3 text-right">Preço</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-100">
+                      <tbody className="divide-y divide-slate-100">
                         {relatedOS.servicos?.map((s: any, idx: number) => (
                           <tr key={idx}>
                             <td className="px-4 py-3 font-medium text-accent">{s.name}</td>
                             <td className="px-4 py-3 text-right font-bold text-accent">{formatCurrency(s.price)}</td>
                           </tr>
                         ))}
-                        {relatedOS.discount > 0 && (
-                          <tr className="bg-zinc-100/30">
+                        {relatedOS.desconto > 0 && (
+                          <tr className="bg-slate-100/30">
                             <td className="px-4 py-3 font-medium text-red-600">Desconto</td>
-                            <td className="px-4 py-3 text-right font-bold text-red-600">-{formatCurrency(relatedOS.discount)}</td>
+                            <td className="px-4 py-3 text-right font-bold text-red-600">-{formatCurrency(relatedOS.desconto)}</td>
                           </tr>
                         )}
                       </tbody>
@@ -1524,7 +1383,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                 </div>
               )}
 
-              <div className="h-px bg-zinc-100" />
+              <div className="h-px bg-slate-100" />
 
               {/* Total */}
               <div className="flex justify-between items-center bg-accent text-accent-foreground p-6 rounded-2xl">
@@ -1533,11 +1392,11 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               </div>
 
               <div className="text-center pt-4">
-                <p className="text-xs text-zinc-400 italic">Obrigado pela preferência!</p>
+                <p className="text-xs text-slate-400 italic">Obrigado pela preferência!</p>
               </div>
             </div>
 
-            <div className="p-8 bg-zinc-50 border-t border-zinc-100 flex gap-4">
+            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
               <button 
                 onClick={() => window.print()}
                 className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
@@ -1547,7 +1406,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
               </button>
               <button 
                 onClick={closeReceipt}
-                className="flex-1 px-6 py-4 border border-zinc-200 text-zinc-600 font-bold rounded-2xl hover:bg-zinc-100 transition-all"
+                className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all"
               >
                 Fechar
               </button>

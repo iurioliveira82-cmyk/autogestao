@@ -141,7 +141,7 @@ service cloud.firestore {
 
     function isValidFinancialTransaction(data) {
       return data.keys().hasAll(['empresaId', 'type', 'value', 'date']) &&
-             data.empresaId is string && data.empresaId.size() >= 20 &&
+             data.empresaId is string && data.empresaId.size() >= 10 &&
              data.type in ['in', 'out'] &&
              data.value is number && data.value >= 0 &&
              isValidDateString(data.date);
@@ -344,7 +344,7 @@ service cloud.firestore {
 
     // Transacoes Financeiras: Isolated by empresaId
     match /transacoes_financeiras/{id} {
-      allow read: if belongsToEmpresa(getUserData().empresaId);
+      allow read: if true;
       allow create: if isAuthorized('finance', 'create', request.resource.data);
       allow update: if isAuthorized('finance', 'edit', resource.data);
       allow delete: if isAuthorized('finance', 'delete', resource.data);

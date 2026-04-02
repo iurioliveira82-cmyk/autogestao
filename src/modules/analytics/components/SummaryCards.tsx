@@ -67,7 +67,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics }) => {
       {cards.map((card, i) => (
         <div 
           key={i} 
-          className="bg-white border border-zinc-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-zinc-100 transition-all group"
+          className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group"
         >
           <div className="flex items-center justify-between mb-6">
             <div className={`p-4 ${card.bg} ${card.color} rounded-2xl group-hover:scale-110 transition-transform`}>
@@ -80,8 +80,8 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics }) => {
               {card.trend}
             </div>
           </div>
-          <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] mb-2">{card.label}</p>
-          <h3 className="text-2xl font-black text-zinc-900 tracking-tight">{card.value}</h3>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{card.label}</p>
+          <h3 className="text-2xl font-black text-slate-900 tracking-tight">{card.value}</h3>
         </div>
       ))}
     </div>
