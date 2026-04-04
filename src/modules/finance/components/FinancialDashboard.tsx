@@ -347,9 +347,14 @@ const FinancialDashboard: React.FC = () => {
           data={serviceOrders
             .filter(os => os.status === 'finalizada')
             .sort((a, b) => {
-              const dateA = (a.updatedAt || a.createdAt)?.seconds ? (a.updatedAt || a.createdAt).seconds * 1000 : new Date(a.updatedAt || a.createdAt).getTime();
-              const dateB = (b.updatedAt || b.createdAt)?.seconds ? (b.updatedAt || b.createdAt).seconds * 1000 : new Date(b.updatedAt || b.createdAt).getTime();
-              return (dateB || 0) - (dateA || 0);
+              const getTime = (val: any) => {
+                if (!val) return 0;
+                if (val.seconds) return val.seconds * 1000;
+                return new Date(val).getTime();
+              };
+              const dateA = getTime(a.updatedAt || a.createdAt);
+              const dateB = getTime(b.updatedAt || b.createdAt);
+              return dateB - dateA;
             })
             .slice(0, 5)}
           emptyMessage="Nenhuma OS finalizada encontrada."

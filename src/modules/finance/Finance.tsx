@@ -629,9 +629,12 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                   {serviceOrders
                     .filter(os => transactions.some(t => t.relatedId === os.id))
                     .sort((a, b) => {
-                      const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
-                      const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
-                      return (dateB || 0) - (dateA || 0);
+                      const getTime = (val: any) => {
+                        if (!val) return 0;
+                        if (val.seconds) return val.seconds * 1000;
+                        return new Date(val).getTime();
+                      };
+                      return getTime(b.createdAt) - getTime(a.createdAt);
                     })
                     .map(os => (
                       <option key={os.id} value={os.id}>
