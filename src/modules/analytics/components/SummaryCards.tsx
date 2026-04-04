@@ -1,15 +1,14 @@
 import React from 'react';
 import { 
   TrendingUp, 
-  TrendingDown, 
   DollarSign, 
   Target, 
   Zap, 
-  Users2,
   ArrowUpRight,
   ArrowDownRight
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface SummaryCardsProps {
   metrics: {
@@ -65,9 +64,9 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {cards.map((card, i) => (
-        <div 
+        <AppCard 
           key={i} 
-          className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-xl hover:shadow-slate-100 transition-all group"
+          className="p-8 hover:shadow-xl hover:shadow-slate-100 transition-all group"
         >
           <div className="flex items-center justify-between mb-6">
             <div className={`p-4 ${card.bg} ${card.color} rounded-2xl group-hover:scale-110 transition-transform`}>
@@ -82,7 +81,7 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics }) => {
           </div>
           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">{card.label}</p>
           <h3 className="text-2xl font-black text-slate-900 tracking-tight">{card.value}</h3>
-        </div>
+        </AppCard>
       ))}
     </div>
   );

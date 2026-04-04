@@ -20,7 +20,13 @@ import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { formatCurrency, cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppCard } from '../../components/ui/AppCard';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { SearchBar } from '../../components/ui/SearchBar';
 
 const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
   const { profile } = useAuth();
@@ -213,24 +219,20 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
-            placeholder="Buscar por nome do serviço..." 
-            className="input-modern pl-12"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+        <SearchBar 
+          placeholder="Buscar por nome do serviço..." 
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          onClear={() => setSearchTerm('')}
+        />
         {canCreate && (
-          <button 
+          <AppButton 
             onClick={() => openModal()}
-            className="flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
+            variant="primary"
           >
-            <Plus size={20} />
+            <Plus size={20} className="mr-2" />
             Novo Serviço
-          </button>
+          </AppButton>
         )}
       </div>
 
@@ -239,7 +241,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
         {loading ? (
           <div className="col-span-full py-20 text-center text-slate-400 italic">Carregando serviços...</div>
         ) : filteredServices.length > 0 ? filteredServices.map((service) => (
-          <div key={service.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+          <AppCard key={service.id} className="p-6 group">
             <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-200">
@@ -257,7 +259,7 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 {canEdit && (
                   <button 
                     onClick={() => openModal(service)}
-                    className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-lg transition-all"
+                    className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-lg transition-all"
                   >
                     <Edit2 size={18} />
                   </button>
@@ -310,187 +312,159 @@ const Services: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Preço Sugerido</span>
               </div>
             </div>
-          </div>
+          </AppCard>
         )) : (
           <div className="col-span-full py-20 text-center text-slate-400 italic">Nenhum serviço encontrado.</div>
         )}
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900">
-                {editingService ? 'Editar Serviço' : 'Novo Serviço'}
-              </h3>
-              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-accent rounded-lg">
-                <XCircle size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Nome do Serviço</label>
-                <input 
-                  type="text" 
-                  required
-                  className="input-modern"
-                  placeholder="Ex: Lavagem Completa"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Preço de Venda (R$)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.01"
-                    className="input-modern font-bold text-lg"
-                    placeholder="0.00"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Tempo Médio (min)</label>
-                  <input 
-                    type="number" 
-                    className="input-modern"
-                    placeholder="60"
-                    value={formData.tempoMedio}
-                    onChange={(e) => setFormData({ ...formData, tempoMedio: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Composição de Custo</h4>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Mão de Obra (R$)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      className="input-modern !bg-white"
-                      placeholder="0.00"
-                      value={formData.laborCost}
-                      onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Custo de Produtos (R$)</label>
-                    <div className="w-full px-4 py-2 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 font-medium">
-                      {formatCurrency(formData.produtos.reduce((acc, p) => {
-                        const item = inventory.find(i => i.id === p.itemInventarioId);
-                        return acc + (item ? item.precoVenda * p.quantidade : 0);
-                      }, 0))}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
-                  <span className="text-sm font-bold text-slate-900 uppercase tracking-widest">Custo Total</span>
-                  <span className="text-xl font-black text-slate-900">{formatCurrency(parseFloat(formData.precoCusto))}</span>
-                </div>
-              </div>
-
-              {/* Products Selection */}
-              <div className="space-y-4">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
-                  <Package size={16} /> Produtos Utilizados
-                </label>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {inventory.map(item => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => addProductToService(item)}
-                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-accent hover:text-accent-foreground hover:border-accent transition-all"
-                    >
-                      + {item.name}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200">
-                        <th className="px-4 py-2">Produto</th>
-                        <th className="px-4 py-2">Quantidade</th>
-                        <th className="px-4 py-2 text-right">Ações</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200">
-                      {formData.produtos?.map((p, i) => (
-                        <tr key={i} className="text-sm">
-                          <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <button 
-                                type="button"
-                                onClick={() => updateProductQuantity(i, p.quantidade - 1)}
-                                className="p-1 bg-white border border-slate-200 rounded hover:bg-slate-100"
-                              >
-                                <Minus size={12} />
-                              </button>
-                              <span className="w-8 text-center font-bold">{p.quantidade}</span>
-                              <button 
-                                type="button"
-                                onClick={() => updateProductQuantity(i, p.quantidade + 1)}
-                                className="p-1 bg-white border border-slate-200 rounded hover:bg-slate-100"
-                              >
-                                <Plus size={12} />
-                              </button>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button 
-                              type="button"
-                              onClick={() => removeProductFromService(i)}
-                              className="text-red-500 hover:text-red-700 p-1"
-                            >
-                              <XCircle size={18} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                      {formData.produtos.length === 0 && (
-                        <tr>
-                          <td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">Nenhum produto selecionado.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-                >
-                  {editingService ? 'Salvar Alterações' : 'Cadastrar Serviço'}
-                </button>
-              </div>
-            </form>
+      <AppDialog 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+        title={editingService ? 'Editar Serviço' : 'Novo Serviço'}
+        footer={
+          <div className="flex items-center gap-4 w-full">
+            <AppButton onClick={closeModal} variant="secondary" className="flex-1">
+              Cancelar
+            </AppButton>
+            <AppButton onClick={() => document.getElementById('service-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))} variant="primary" className="flex-1">
+              {editingService ? 'Salvar Alterações' : 'Cadastrar Serviço'}
+            </AppButton>
           </div>
-        </div>
-      )}
+        }
+      >
+        <form id="service-form" onSubmit={handleSubmit} className="space-y-6">
+          <AppInput 
+            label="Nome do Serviço"
+            required
+            placeholder="Ex: Lavagem Completa"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Preço de Venda (R$)"
+              type="number"
+              required
+              step="0.01"
+              placeholder="0.00"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+            />
+            <AppInput 
+              label="Tempo Médio (min)"
+              type="number"
+              placeholder="60"
+              value={formData.tempoMedio}
+              onChange={(e) => setFormData({ ...formData, tempoMedio: e.target.value })}
+            />
+          </div>
+
+          <div className="p-6 bg-slate-50 rounded-3xl border border-slate-200 space-y-4">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Composição de Custo</h4>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <AppInput 
+                label="Mão de Obra (R$)"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.laborCost}
+                onChange={(e) => setFormData({ ...formData, laborCost: e.target.value })}
+              />
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Custo de Produtos (R$)</label>
+                <div className="w-full px-4 py-3 bg-slate-100 border border-slate-200 rounded-xl text-slate-600 font-medium text-sm">
+                  {formatCurrency(formData.produtos.reduce((acc, p) => {
+                    const item = inventory.find(i => i.id === p.itemInventarioId);
+                    return acc + (item ? item.precoVenda * p.quantidade : 0);
+                  }, 0))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-200 flex items-center justify-between">
+              <span className="text-sm font-bold text-slate-900 uppercase tracking-widest">Custo Total</span>
+              <span className="text-xl font-black text-slate-900">{formatCurrency(parseFloat(formData.precoCusto))}</span>
+            </div>
+          </div>
+
+          {/* Products Selection */}
+          <div className="space-y-4">
+            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+              <Package size={16} /> Produtos Utilizados
+            </label>
+            <div className="flex flex-wrap gap-2 mb-4">
+              {inventory.map(item => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => addProductToService(item)}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-primary hover:text-white hover:border-primary transition-all"
+                >
+                  + {item.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl border border-slate-200 overflow-hidden">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200">
+                    <th className="px-4 py-2">Produto</th>
+                    <th className="px-4 py-2">Quantidade</th>
+                    <th className="px-4 py-2 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {formData.produtos?.map((p, i) => (
+                    <tr key={i} className="text-sm">
+                      <td className="px-4 py-3 font-bold text-slate-900">{p.name}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <button 
+                            type="button"
+                            onClick={() => updateProductQuantity(i, p.quantidade - 1)}
+                            className="p-1 bg-white border border-slate-200 rounded hover:bg-slate-100"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className="w-8 text-center font-bold">{p.quantidade}</span>
+                          <button 
+                            type="button"
+                            onClick={() => updateProductQuantity(i, p.quantidade + 1)}
+                            className="p-1 bg-white border border-slate-200 rounded hover:bg-slate-100"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button 
+                          type="button"
+                          onClick={() => removeProductFromService(i)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          <XCircle size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {formData.produtos.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className="px-4 py-6 text-center text-slate-400 italic">Nenhum produto selecionado.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </form>
+      </AppDialog>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}

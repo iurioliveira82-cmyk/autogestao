@@ -1,15 +1,11 @@
 import React from 'react';
 import { 
   Users, 
-  TrendingUp, 
-  PieChart, 
-  UserPlus, 
   UserCheck,
-  Zap,
-  Target,
   BarChart3
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface ClientAnalyticsProps {
   recurring: { id: string; name: string; visitCount: number; totalSpent: number }[];
@@ -23,7 +19,7 @@ interface ClientAnalyticsProps {
 
 export const ClientAnalytics: React.FC<ClientAnalyticsProps> = ({ recurring, abc, metrics }) => {
   return (
-    <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">
+    <AppCard className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Inteligência de Clientes</h3>
@@ -120,6 +116,6 @@ export const ClientAnalytics: React.FC<ClientAnalyticsProps> = ({ recurring, abc
           </div>
         </div>
       </div>
-    </div>
+    </AppCard>
   );
 };

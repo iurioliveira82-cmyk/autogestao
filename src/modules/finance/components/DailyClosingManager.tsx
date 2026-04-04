@@ -14,12 +14,15 @@ import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTim
 import { db } from '../../../firebase';
 import { DailyClosing, OperationType, FinancialTransaction, ServiceOrder } from '../../../types';
 import { useAuth } from '../../auth/Auth';
-import { formatCurrency, cn, handleFirestoreError } from '../../../utils';
+import { formatCurrency, cn, handleFirestoreError, formatSafeDate } from '../../../utils';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { Button } from '../../../components/ui/Button';
-import { Card } from '../../../components/ui/Card';
+import { AppButton } from '../../../components/ui/AppButton';
+import { AppCard } from '../../../components/ui/AppCard';
+import SectionCard from '../../../components/layout/SectionCard';
+import { DataTable } from '../../../components/ui/DataTable';
+import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { usePermissions } from '../../../hooks/usePermissions';
 
@@ -110,7 +113,7 @@ const DailyClosingManager: React.FC = () => {
   }, [profile]);
 
   const handleCloseDay = async () => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayStr = formatSafeDate(new Date(), 'yyyy-MM-dd');
     const alreadyClosed = closings.some(c => c.date === todayStr);
     
     if (alreadyClosed) return toast.error('O dia de hoje já foi fechado!');
@@ -118,7 +121,7 @@ const DailyClosingManager: React.FC = () => {
   };
 
   const confirmCloseDay = async () => {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const todayStr = formatSafeDate(new Date(), 'yyyy-MM-dd');
     try {
       await addDoc(collection(db, 'fechamentos_diarios'), {
         empresaId: profile.empresaId,
@@ -150,29 +153,23 @@ const DailyClosingManager: React.FC = () => {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Conciliação de Movimentações</p>
         </div>
         {canCreate && (
-          <Button 
+          <AppButton 
             onClick={handleCloseDay}
             icon={<Lock size={18} />}
             className="shadow-lg shadow-slate-200"
           >
             Fechar Dia Hoje
-          </Button>
+          </AppButton>
         )}
       </div>
 
       {/* Today's Live Preview */}
-      <Card className="p-8">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="p-3 bg-accent/10 text-accent rounded-2xl">
-            <Unlock size={24} />
-          </div>
-          <div>
-            <h4 className="text-lg font-black text-slate-900">Resumo de Hoje (Aberto)</h4>
-            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{format(new Date(), "dd 'de' MMMM", { locale: ptBR })}</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <SectionCard 
+        title="Resumo de Hoje (Aberto)" 
+        subtitle={formatSafeDate(new Date(), "dd 'de' MMMM")}
+        icon={<Unlock size={20} className="text-accent" />}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-4">
           <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Entradas (Caixa)</p>
             <p className="text-2xl font-black text-green-600">{formatCurrency(todayStats.totalEntradas)}</p>
@@ -190,53 +187,49 @@ const DailyClosingManager: React.FC = () => {
             <p className="text-2xl font-black text-accent">{formatCurrency(todayStats.ticketMedio)}</p>
           </div>
         </div>
-      </Card>
+      </SectionCard>
 
       {/* History Table */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-100">
-          <h4 className="text-lg font-black text-slate-900">Histórico de Fechamentos</h4>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Últimos 30 dias</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                <th className="px-8 py-4">Data</th>
-                <th className="px-8 py-4 text-right">Entradas</th>
-                <th className="px-8 py-4 text-right">Saídas</th>
-                <th className="px-8 py-4 text-right">Saldo</th>
-                <th className="px-8 py-4 text-center">OS</th>
-                <th className="px-8 py-4 text-right">Ticket Médio</th>
-                <th className="px-8 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {closings.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-all group">
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-2">
-                      <Calendar size={14} className="text-slate-400" />
-                      <span className="text-sm font-bold text-slate-900">{format(new Date(c.date + 'T12:00:00'), 'dd/MM/yyyy')}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-right text-sm font-black text-green-600">{formatCurrency(c.totalEntradas)}</td>
-                  <td className="px-8 py-4 text-right text-sm font-black text-red-600">{formatCurrency(c.totalSaidas)}</td>
-                  <td className="px-8 py-4 text-right text-sm font-black text-slate-900">{formatCurrency(c.saldoFinal)}</td>
-                  <td className="px-8 py-4 text-center text-sm font-bold text-slate-600">{c.osFinalizadas}</td>
-                  <td className="px-8 py-4 text-right text-sm font-bold text-accent">{formatCurrency(c.ticketMedio)}</td>
-                  <td className="px-8 py-4">
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-black uppercase tracking-widest">
-                      <Lock size={12} />
-                      Fechado
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SectionCard 
+        title="Histórico de Fechamentos" 
+        subtitle="Últimos 30 dias"
+      >
+        <DataTable
+          isLoading={loading}
+          columns={[
+            { header: 'Data', accessor: (c) => (
+              <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-slate-400" />
+                <span className="text-sm font-bold text-slate-900">{formatSafeDate(c.date + 'T12:00:00', 'dd/MM/yyyy')}</span>
+              </div>
+            )},
+            { header: 'Entradas', className: 'text-right', accessor: (c) => (
+              <span className="text-sm font-black text-green-600">{formatCurrency(c.totalEntradas)}</span>
+            )},
+            { header: 'Saídas', className: 'text-right', accessor: (c) => (
+              <span className="text-sm font-black text-red-600">{formatCurrency(c.totalSaidas)}</span>
+            )},
+            { header: 'Saldo', className: 'text-right', accessor: (c) => (
+              <span className="text-sm font-black text-slate-900">{formatCurrency(c.saldoFinal)}</span>
+            )},
+            { header: 'OS', className: 'text-center', accessor: (c) => (
+              <span className="text-sm font-bold text-slate-600">{c.osFinalizadas}</span>
+            )},
+            { header: 'Ticket Médio', className: 'text-right', accessor: (c) => (
+              <span className="text-sm font-bold text-accent">{formatCurrency(c.ticketMedio)}</span>
+            )},
+            { header: 'Status', accessor: (c) => (
+              <StatusBadge 
+                status="closed" 
+                label="Fechado"
+                icon={<Lock size={12} />}
+              />
+            )}
+          ]}
+          data={closings}
+          emptyMessage="Nenhum fechamento encontrado."
+        />
+      </SectionCard>
 
       <ConfirmDialog
         isOpen={isConfirmOpen}

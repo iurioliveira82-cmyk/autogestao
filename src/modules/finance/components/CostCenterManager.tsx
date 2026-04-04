@@ -5,7 +5,8 @@ import {
   Trash2, 
   CheckCircle2, 
   XCircle,
-  FolderOpen
+  FolderOpen,
+  Search
 } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../firebase';
@@ -13,9 +14,10 @@ import { CostCenter, OperationType } from '../../../types';
 import { useAuth } from '../../auth/Auth';
 import { cn, handleFirestoreError } from '../../../utils';
 import { toast } from 'sonner';
-import { Button } from '../../../components/ui/Button';
-import { SearchBar } from '../../../components/ui/SearchBar';
-import { Modal } from '../../../components/ui/Card';
+import { AppButton } from '../../../components/ui/AppButton';
+import { AppInput } from '../../../components/ui/AppInput';
+import { AppCard } from '../../../components/ui/AppCard';
+import { AppDialog } from '../../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { usePermissions } from '../../../hooks/usePermissions';
 
@@ -139,24 +141,25 @@ const CostCenterManager: React.FC = () => {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Gestão de Categorias Financeiras</p>
         </div>
         {canCreate && (
-          <Button 
+          <AppButton 
             onClick={() => openModal()}
             icon={<Plus size={18} />}
           >
             Novo Centro de Custo
-          </Button>
+          </AppButton>
         )}
       </div>
 
-      <SearchBar 
+      <AppInput 
         placeholder="Buscar centros de custo..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+        icon={<Search size={18} />}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((cc) => (
-          <div key={cc.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+          <AppCard key={cc.id} className="p-6 group">
             <div className="flex items-start justify-between mb-4">
               <div className={cn(
                 "p-3 rounded-2xl",
@@ -166,20 +169,24 @@ const CostCenterManager: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
                 {canEdit && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => openModal(cc)}
-                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+                    className="h-8 w-8 p-0"
                   >
                     <Edit2 size={16} />
-                  </button>
+                  </AppButton>
                 )}
                 {canDelete && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleDelete(cc.id!)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    className="h-8 w-8 p-0 hover:text-red-600 hover:bg-red-50"
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </AppButton>
                 )}
               </div>
             </div>
@@ -210,32 +217,45 @@ const CostCenterManager: React.FC = () => {
                 )}
               </div>
             </div>
-          </div>
+          </AppCard>
         ))}
       </div>
 
-      <Modal
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Centro' : 'Novo Centro'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Nome</label>
-            <input 
-              type="text"
-              required
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-              placeholder="Ex: Aluguel, Peças, Salários"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            />
+        footer={
+          <div className="flex gap-3 w-full">
+            <AppButton 
+              variant="outline"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </AppButton>
+            <AppButton 
+              onClick={handleSubmit}
+              className="flex-1"
+            >
+              Salvar
+            </AppButton>
           </div>
+        }
+      >
+        <div className="space-y-6">
+          <AppInput 
+            label="Nome"
+            required
+            placeholder="Ex: Aluguel, Peças, Salários"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          />
 
           <div className="space-y-2">
             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
             <textarea 
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all resize-none h-32"
+              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary transition-all resize-none h-32"
               placeholder="Detalhes sobre este centro de custo..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -246,30 +266,14 @@ const CostCenterManager: React.FC = () => {
             <input 
               type="checkbox"
               id="active"
-              className="w-5 h-5 rounded-lg border-slate-300 text-accent focus:ring-accent"
+              className="w-5 h-5 rounded-lg border-slate-300 text-primary focus:ring-primary"
               checked={formData.active}
               onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
             />
             <label htmlFor="active" className="text-sm font-bold text-slate-700 cursor-pointer">Centro de Custo Ativo</label>
           </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button 
-              variant="outline"
-              onClick={closeModal}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit"
-              className="flex-1"
-            >
-              Salvar
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      </AppDialog>
 
       <ConfirmDialog
         isOpen={isConfirmOpen}

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   Calendar, 
   AlertCircle,
-  LayoutDashboard,
   Sparkles
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -13,6 +12,7 @@ import { ServiceOrder, OSStatus } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../../contexts/AuthContext';
 import { OSService } from '../../services/os';
+import { formatSafeDate } from '../../utils';
 
 // Layout Components
 import PageContainer from '../../components/layout/PageContainer';
@@ -44,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
   const empresaId = profile?.empresaId || '';
   const osService = new OSService(empresaId);
 
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [selectedDate, setSelectedDate] = useState(formatSafeDate(new Date(), 'yyyy-MM-dd'));
 
   const {
     stats,
@@ -88,22 +88,34 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
 
   return (
     <PageContainer>
-      <PageHeader 
-        title="Dashboard"
-        subtitle="Bem-vindo de volta ao seu painel de controle."
-        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Dashboard' }]}
-        actions={
-          <div className="flex items-center gap-4">
-            <AIAnalysis stats={stats} />
-            <div className="px-5 py-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl flex items-center gap-3 shadow-sm">
-              <Calendar size={18} className="text-slate-400" />
-              <span className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                {format(new Date(), "dd 'de' MMMM", { locale: ptBR })}
-              </span>
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+              <span>AutoGestão</span>
+              <span className="text-slate-300">/</span>
+              <span className="text-primary">Dashboard</span>
+            </nav>
+            <h1 className="text-3xl font-black text-slate-900 dark:text-white tracking-tighter font-display">
+              Olá, {profile?.name?.split(' ')[0] || 'Usuário'}! 👋
+            </h1>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+              Aqui está o que está acontecendo na sua oficina hoje.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center gap-3 shadow-sm">
+              <Calendar size={18} className="text-primary" />
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Hoje</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-widest">
+                  {formatSafeDate(new Date(), "dd 'de' MMMM")}
+                </span>
+              </div>
             </div>
           </div>
-        }
-      />
+        </div>
+      </div>
 
       <div className="space-y-8">
         {/* Low Stock Alert */}
@@ -116,22 +128,23 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
         {/* KPI Grid */}
         <KPIs stats={stats} setActiveTab={setActiveTab} />
 
-        {/* Revenue Chart Section */}
-        {isAdmin && (
-          <SectionCard title="Visão Geral de Receita" subtitle="Acompanhamento mensal de faturamento">
-            <RevenueChart data={revenueData} />
-          </SectionCard>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-8 space-y-8">
+            {/* Revenue Chart Section */}
+            {isAdmin && (
+              <SectionCard 
+                title="Visão Geral de Receita" 
+                subtitle="Acompanhamento mensal de faturamento"
+                className="overflow-hidden"
+              >
+                <div className="h-[300px]">
+                  <RevenueChart data={revenueData} />
+                </div>
+              </SectionCard>
+            )}
 
-        {/* Sales Opportunities Widget */}
-        <SalesOpportunities 
-          hotLeads={stats.hotLeads} 
-          proposalsInProgress={stats.proposalsInProgress} 
-        />
-
-        {/* Agenda Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+            {/* Agenda Section */}
             <DailyAgenda 
               appointments={todayAppointmentsList} 
               clients={clients} 
@@ -139,29 +152,48 @@ const Dashboard: React.FC<DashboardProps> = ({ setActiveTab }) => {
               services={services} 
               setActiveTab={setActiveTab} 
             />
+
+            {/* Recent Activity */}
+            <SectionCard title="Atividade Recente" subtitle="Últimas ordens de serviço e movimentações">
+              <RecentOS 
+                recentOS={recentOS} 
+                clients={clients} 
+                selectedDate={selectedDate} 
+                setSelectedDate={setSelectedDate} 
+                handleUpdateStatus={handleUpdateStatus} 
+                setActiveTab={setActiveTab} 
+              />
+            </SectionCard>
           </div>
 
-          <div className="space-y-8">
+          {/* Sidebar Area */}
+          <div className="lg:col-span-4 space-y-8">
+            {/* AI Analysis Card */}
+            <SectionCard 
+              title="Inteligência Artificial" 
+              subtitle="Insights automáticos do seu negócio"
+              icon={<Sparkles size={18} className="text-amber-500" />}
+            >
+              <AIAnalysis stats={stats} />
+            </SectionCard>
+
+            {/* Quick Actions */}
+            <QuickActions setActiveTab={setActiveTab} />
+
+            {/* Quick Stats */}
             <QuickStats 
               totalClients={stats.totalClients} 
               totalVehicles={stats.totalVehicles} 
               salesLast7Days={stats.salesLast7Days} 
             />
-            <QuickActions setActiveTab={setActiveTab} />
+
+            {/* Sales Opportunities Widget */}
+            <SalesOpportunities 
+              hotLeads={stats.hotLeads} 
+              proposalsInProgress={stats.proposalsInProgress} 
+            />
           </div>
         </div>
-
-        {/* Recent Activity */}
-        <SectionCard title="Atividade Recente" subtitle="Últimas ordens de serviço e movimentações">
-          <RecentOS 
-            recentOS={recentOS} 
-            clients={clients} 
-            selectedDate={selectedDate} 
-            setSelectedDate={setSelectedDate} 
-            handleUpdateStatus={handleUpdateStatus} 
-            setActiveTab={setActiveTab} 
-          />
-        </SectionCard>
       </div>
     </PageContainer>
   );

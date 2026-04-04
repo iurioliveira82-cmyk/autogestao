@@ -19,15 +19,15 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 }) => {
   return (
     <div className={cn(
-      "flex flex-col items-center justify-center py-24 px-8 text-center bg-slate-50 dark:bg-slate-900 rounded-[3rem] border border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-700",
+      "flex flex-col items-center justify-center py-20 px-8 text-center bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-500",
       className
     )}>
-      <div className="w-24 h-24 bg-white dark:bg-slate-950 rounded-[2rem] flex items-center justify-center text-slate-300 dark:text-slate-700 shadow-sm mb-8 rotate-3 group-hover:rotate-0 transition-all duration-700 ease-out">
-        <Icon size={40} className="group-hover:scale-110 transition-transform duration-700" />
+      <div className="w-20 h-20 bg-slate-50 dark:bg-slate-950 rounded-2xl flex items-center justify-center text-slate-300 dark:text-slate-700 mb-6">
+        <Icon size={32} />
       </div>
       
-      <div className="space-y-2 max-w-sm mb-10">
-        <h3 className="text-2xl font-black text-slate-900 dark:text-white tracking-tighter">
+      <div className="space-y-1.5 max-w-sm mb-8">
+        <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tighter font-display">
           {title}
         </h3>
         {description && (

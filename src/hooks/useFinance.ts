@@ -11,7 +11,7 @@ export const useFinance = (filters: any = {}) => {
     setLoading(true);
     try {
       const data = await financeService.getTransactions(filters);
-      setTransactions(data);
+      setTransactions(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err: any) {
       setError(err.message);

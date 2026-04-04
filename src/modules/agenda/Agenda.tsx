@@ -16,15 +16,17 @@ import { db } from '../../firebase';
 import { Appointment, Client, Vehicle, Service, OperationType } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { cn, handleFirestoreError } from '../../utils';
+import { cn, handleFirestoreError, formatSafeDate } from '../../utils';
 import { format, startOfDay, endOfDay, addDays, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Card';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
-import { SearchBar } from '../../components/ui/SearchBar';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
 
 interface AgendaProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -225,8 +227,8 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
       clienteId: '',
       veiculoId: '',
       servicoIds: [],
-      startTime: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
-      endTime: format(selectedDate, "yyyy-MM-dd'T'HH:mm"),
+      startTime: formatSafeDate(selectedDate, "yyyy-MM-dd'T'HH:mm"),
+      endTime: formatSafeDate(selectedDate, "yyyy-MM-dd'T'HH:mm"),
       status: 'scheduled'
     });
     setServiceSearchTerm('');
@@ -249,52 +251,54 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
   };
 
   const statusMap = {
-    scheduled: { label: 'Agendado', color: 'bg-blue-50 text-blue-600', icon: Clock },
-    confirmed: { label: 'Confirmado', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
-    cancelled: { label: 'Cancelado', color: 'bg-red-50 text-red-600', icon: XCircle },
+    scheduled: { label: 'Agendado', status: 'pending' as const },
+    confirmed: { label: 'Confirmado', status: 'paid' as const },
+    cancelled: { label: 'Cancelado', status: 'cancelled' as const },
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader 
         title="Agenda" 
-        description="Gerencie seus agendamentos e compromissos."
-        action={canCreate && (
-          <Button onClick={openModal} variant="primary" icon={<Plus size={18} />}>
+        subtitle="Gerencie seus agendamentos e compromissos."
+        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Agenda' }]}
+        actions={canCreate && (
+          <AppButton onClick={openModal} icon={<Plus size={18} />}>
             Agendar Horário
-          </Button>
+          </AppButton>
         )}
       />
 
       {/* Calendar Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => setSelectedDate(subDays(selectedDate, 1))}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-900"
             >
               <ChevronLeft size={24} />
             </button>
             <div className="text-center min-w-[180px]">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white capitalize">
-                {format(selectedDate, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+              <h3 className="text-xl font-bold text-slate-900 capitalize">
+                {formatSafeDate(selectedDate, "EEEE, dd 'de' MMMM")}
               </h3>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Agenda Diária</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Agenda Diária</p>
             </div>
             <button 
               onClick={() => setSelectedDate(addDays(selectedDate, 1))}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-900"
             >
               <ChevronRight size={24} />
             </button>
           </div>
-          <button 
+          <AppButton 
+            variant="secondary"
+            size="sm"
             onClick={() => setSelectedDate(new Date())}
-            className="px-4 py-2 text-xs font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all"
           >
             Hoje
-          </button>
+          </AppButton>
         </div>
       </div>
 
@@ -303,36 +307,36 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
         {loading ? (
           <div className="py-20 text-center text-slate-400 italic">Carregando agenda...</div>
         ) : appointments.length > 0 ? appointments.map((app) => {
-          const status = statusMap[app.status];
+          const status = statusMap[app.status as keyof typeof statusMap];
           return (
-            <div key={app.id} className="modern-card p-6 flex flex-col sm:flex-row sm:items-center gap-6 group">
-              <div className="flex flex-col items-center justify-center sm:border-r border-slate-100 dark:border-slate-800 sm:pr-8 min-w-[100px]">
-                <span className="text-2xl font-black text-slate-900 dark:text-white">{format(new Date(app.startTime), 'HH:mm')}</span>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Início</span>
+            <div key={app.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-6 group hover:shadow-md transition-all">
+              <div className="flex flex-col items-center justify-center sm:border-r border-slate-100 sm:pr-8 min-w-[100px]">
+                <span className="text-2xl font-black text-slate-900">{formatSafeDate(app.startTime, 'HH:mm')}</span>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Início</span>
               </div>
 
               <div className="flex-1">
                 <div className="flex items-center gap-3 mb-2">
-                  <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider", status.color)}>
-                    <status.icon size={12} />
-                    {status.label}
-                  </span>
+                  <StatusBadge 
+                    status={status.status} 
+                    label={status.label}
+                  />
                   <span className="text-xs font-bold text-slate-400 flex items-center gap-1">
                     <Clock size={12} />
-                    Até {format(new Date(app.endTime), 'HH:mm')}
+                    Até {formatSafeDate(app.endTime, 'HH:mm')}
                   </span>
                 </div>
-                <h4 className="text-lg font-bold text-slate-900 dark:text-white mb-1">{getClientName(app.clienteId)}</h4>
+                <h4 className="text-lg font-bold text-slate-900 mb-1">{getClientName(app.clienteId)}</h4>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-slate-500">
                   <span className="flex items-center gap-1.5"><Car size={14} /> {getVehicleInfo(app.veiculoId || '')}</span>
-                  <span className="flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-300">
+                  <span className="flex items-center gap-1.5 font-bold text-slate-900">
                     <AlertCircle size={14} className="text-slate-400" /> 
                     {getServiceNames(app.servicoIds)}
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 sm:border-l border-slate-100 dark:border-slate-800 sm:pl-8 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2 sm:border-l border-slate-100 sm:pl-8 opacity-0 group-hover:opacity-100 transition-opacity">
                 {app.status === 'scheduled' && canEdit && (
                   <>
                     <button 
@@ -363,12 +367,12 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
             </div>
           );
         }) : (
-          <div className="py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 text-center">
-            <CalendarIcon size={48} className="mx-auto text-slate-200 dark:text-slate-800 mb-4" />
+          <div className="py-20 bg-white rounded-2xl border border-dashed border-slate-200 text-center">
+            <CalendarIcon size={48} className="mx-auto text-slate-200 mb-4" />
             <p className="text-slate-400 font-medium">Nenhum agendamento para este dia.</p>
             <button 
               onClick={openModal}
-              className="mt-4 text-sm font-bold text-accent hover:underline"
+              className="mt-4 text-sm font-bold text-primary hover:underline"
             >
               Agendar agora
             </button>
@@ -376,10 +380,11 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
         )}
       </div>
 
-      <Modal
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
         title="Novo Agendamento"
+        subtitle="Preencha os dados do compromisso"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
@@ -416,18 +421,16 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                 <span>Serviços</span>
                 <span className="text-[10px] text-slate-400">{formData.servicoIds.length} selecionados</span>
               </label>
-              <SearchBar 
+              <AppInput 
                 placeholder="Buscar serviço..." 
-                className="py-2 text-xs"
                 value={serviceSearchTerm}
                 onChange={(e) => setServiceSearchTerm(e.target.value)}
-                onClear={() => setServiceSearchTerm('')}
               />
             </div>
           </div>
 
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-3 bg-slate-50 rounded-2xl border border-slate-100">
               {services
                 .filter(s => s.name.toLowerCase().includes(serviceSearchTerm.toLowerCase()))
                 .map(s => {
@@ -447,8 +450,8 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
                         isSelected 
-                          ? "bg-accent text-accent-foreground border-accent" 
-                          : "bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-400"
+                          ? "bg-primary text-white border-primary" 
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
                       )}
                     >
                       {isSelected ? '✓ ' : '+ '} {s.name}
@@ -459,47 +462,39 @@ const Agenda: React.FC<AgendaProps> = ({ setActiveTab }) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Início</label>
-              <input 
-                type="datetime-local" 
-                required
-                className="input-modern"
-                value={formData.startTime}
-                onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fim</label>
-              <input 
-                type="datetime-local" 
-                required
-                className="input-modern"
-                value={formData.endTime}
-                onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Início"
+              type="datetime-local" 
+              required
+              value={formData.startTime}
+              onChange={(e) => setFormData({ ...formData, startTime: e.target.value })}
+            />
+            <AppInput 
+              label="Fim"
+              type="datetime-local" 
+              required
+              value={formData.endTime}
+              onChange={(e) => setFormData({ ...formData, endTime: e.target.value })}
+            />
           </div>
 
           <div className="pt-4 flex items-center gap-4">
-            <Button 
-              type="button"
-              variant="outline"
+            <AppButton 
+              variant="secondary"
               onClick={closeModal}
               className="flex-1"
             >
               Cancelar
-            </Button>
-            <Button 
+            </AppButton>
+            <AppButton 
               type="submit"
-              variant="primary"
               className="flex-1"
             >
               Confirmar Agendamento
-            </Button>
+            </AppButton>
           </div>
         </form>
-      </Modal>
+      </AppDialog>
 
       <ConfirmDialog
         isOpen={isDeleteModalOpen}

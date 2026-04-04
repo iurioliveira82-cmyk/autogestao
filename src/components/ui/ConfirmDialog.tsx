@@ -1,6 +1,6 @@
 import React from 'react';
 import StandardDialog from '../layout/StandardDialog';
-import { Button } from './Button';
+import { AppButton } from './AppButton';
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -10,6 +10,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  variant?: 'danger' | 'warning' | 'info' | 'success';
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
@@ -19,8 +20,19 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   title,
   message,
   confirmLabel = 'Confirmar',
-  cancelLabel = 'Cancelar'
+  cancelLabel = 'Cancelar',
+  variant = 'danger'
 }) => {
+  const getButtonVariant = () => {
+    switch (variant) {
+      case 'danger': return 'danger';
+      case 'warning': return 'primary'; // Or another suitable mapping
+      case 'info': return 'primary';
+      case 'success': return 'primary';
+      default: return 'danger';
+    }
+  };
+
   return (
     <StandardDialog 
       isOpen={isOpen} 
@@ -29,8 +41,8 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       maxWidth="max-w-md"
       footer={
         <div className="flex justify-end gap-4">
-          <Button variant="outline" onClick={onClose}>{cancelLabel}</Button>
-          <Button variant="danger" onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+          <AppButton variant="outline" onClick={onClose}>{cancelLabel}</AppButton>
+          <AppButton variant={getButtonVariant()} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</AppButton>
         </div>
       }
     >

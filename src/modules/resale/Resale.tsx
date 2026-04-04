@@ -21,7 +21,14 @@ import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { formatCurrency, cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
 
 interface ResaleProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -158,6 +165,7 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
       toast.error('Erro ao excluir veículo.');
     } finally {
       setVehicleToDelete(null);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -196,234 +204,214 @@ const Resale: React.FC<ResaleProps> = ({ setActiveTab }) => {
     v.model.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const statusMap = {
-    available: { label: 'Disponível', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
-    reserved: { label: 'Reservado', color: 'bg-yellow-50 text-yellow-600', icon: Clock },
-    sold: { label: 'Vendido', color: 'bg-slate-100 text-slate-600', icon: ShoppingBag },
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'available': return <StatusBadge label="Disponível" variant="success" icon={<CheckCircle2 size={12} />} />;
+      case 'reserved': return <StatusBadge label="Reservado" variant="warning" icon={<Clock size={12} />} />;
+      case 'sold': return <StatusBadge label="Vendido" variant="neutral" icon={<ShoppingBag size={12} />} />;
+      default: return <StatusBadge label={status} variant="neutral" />;
+    }
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
+    <PageContainer>
+      <PageHeader 
+        title="Revenda de Veículos"
+        subtitle="Gestão de estoque de veículos para compra e venda."
+        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Revenda' }]}
+        actions={
+          canCreate && (
+            <AppButton onClick={() => openModal()} icon={<Plus size={18} />}>
+              Novo Veículo
+            </AppButton>
+          )
+        }
+      />
+
+      <div className="space-y-6">
+        {/* Search */}
+        <div className="relative max-w-xl">
+          <AppInput 
             placeholder="Buscar por marca ou modelo..." 
-            className="input-modern pl-12"
+            icon={<Search size={18} />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        {canCreate && (
-          <button 
-            onClick={() => openModal()}
-            className="flex items-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-          >
-            <Plus size={20} />
-            Novo Veículo
-          </button>
-        )}
-      </div>
 
-      {/* Resale Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {loading ? (
-          <div className="col-span-full py-20 text-center text-slate-400 italic">Carregando veículos...</div>
-        ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => {
-          const status = statusMap[vehicle.status];
-          const profit = vehicle.precoVenda ? vehicle.precoVenda - vehicle.precoCompra : 0;
-          
-          return (
-            <div key={vehicle.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
-              <div className="flex items-start justify-between mb-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-200">
-                    <Car size={24} />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-900">{vehicle.brand} {vehicle.model}</h3>
-                    <div className="flex items-center gap-2 text-xs font-bold text-slate-400 uppercase tracking-widest">
-                      <Tag size={12} />
-                      {vehicle.year || 'N/A'}
+        {/* Resale Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {loading ? (
+            <div className="col-span-full py-20 text-center text-slate-400 italic">Carregando veículos...</div>
+          ) : filteredVehicles.length > 0 ? filteredVehicles.map((vehicle) => {
+            const profit = vehicle.precoVenda ? vehicle.precoVenda - vehicle.precoCompra : 0;
+            
+            return (
+              <SectionCard key={vehicle.id} className="group hover:scale-[1.02] transition-all duration-300">
+                <div className="flex items-start justify-between mb-6">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-200">
+                      <Car size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-slate-900 font-display">{vehicle.brand} {vehicle.model}</h3>
+                      <div className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        <Tag size={12} />
+                        {vehicle.year || 'N/A'}
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {canEdit && (
-                    <button 
-                      onClick={() => openModal(vehicle)}
-                      className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-lg transition-all"
-                    >
-                      <Edit2 size={18} />
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button 
-                      onClick={() => handleDelete(vehicle.id)}
-                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider", status.color)}>
-                  <status.icon size={12} />
-                  {status.label}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Compra</p>
-                  <p className="text-sm font-bold text-slate-700">{formatCurrency(vehicle.precoCompra)}</p>
-                </div>
-                <div className="p-3 bg-accent rounded-2xl text-accent-foreground">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Venda</p>
-                  <p className="text-sm font-bold">{vehicle.precoVenda ? formatCurrency(vehicle.precoVenda) : 'Sob consulta'}</p>
-                </div>
-              </div>
-
-              {vehicle.precoVenda && (
-                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-green-600">
-                    <TrendingUp size={16} />
-                    <span className="text-sm font-black">Lucro: {formatCurrency(profit)}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    {canEdit && (
+                      <AppButton 
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openModal(vehicle)}
+                        className="w-8 h-8 !p-0"
+                      >
+                        <Edit2 size={16} />
+                      </AppButton>
+                    )}
+                    {canDelete && (
+                      <AppButton 
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(vehicle.id)}
+                        className="w-8 h-8 !p-0 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 size={16} />
+                      </AppButton>
+                    )}
                   </div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                    {Math.round((profit / vehicle.precoCompra) * 100)}% margem
-                  </span>
                 </div>
-              )}
-            </div>
-          );
-        }) : (
-          <div className="col-span-full py-20 text-center text-slate-400 italic">Nenhum veículo encontrado.</div>
-        )}
+
+                <div className="mb-6">
+                  {getStatusBadge(vehicle.status)}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Compra</p>
+                    <p className="text-sm font-black text-slate-700">{formatCurrency(vehicle.precoCompra)}</p>
+                  </div>
+                  <div className="p-3 bg-primary/10 rounded-2xl border border-primary/20">
+                    <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Venda</p>
+                    <p className="text-sm font-black text-primary">{vehicle.precoVenda ? formatCurrency(vehicle.precoVenda) : 'Sob consulta'}</p>
+                  </div>
+                </div>
+
+                {vehicle.precoVenda && (
+                  <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-600">
+                      <TrendingUp size={16} />
+                      <span className="text-xs font-black uppercase tracking-widest">Lucro: {formatCurrency(profit)}</span>
+                    </div>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      {Math.round((profit / vehicle.precoCompra) * 100)}% margem
+                    </span>
+                  </div>
+                )}
+              </SectionCard>
+            );
+          }) : (
+            <div className="col-span-full py-20 text-center text-slate-400 italic">Nenhum veículo encontrado.</div>
+          )}
+        </div>
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-slate-900">
-                {editingVehicle ? 'Editar Veículo' : 'Novo Veículo para Revenda'}
-              </h3>
-              <button onClick={closeModal} className="p-2 text-slate-400 hover:text-accent rounded-lg">
-                <XCircle size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Marca</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="input-modern"
-                    placeholder="Ex: Toyota"
-                    value={formData.brand}
-                    onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Modelo</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="input-modern"
-                    placeholder="Ex: Corolla"
-                    value={formData.model}
-                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Ano</label>
-                  <input 
-                    type="number" 
-                    className="input-modern"
-                    placeholder="2024"
-                    value={formData.year}
-                    onChange={(e) => setFormData({ ...formData, year: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Status</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  >
-                    <option value="available">Disponível</option>
-                    <option value="reserved">Reservado</option>
-                    <option value="sold">Vendido</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Preço de Compra (R$)</label>
-                  <input 
-                    type="number" 
-                    required
-                    step="0.01"
-                    className="input-modern"
-                    placeholder="0.00"
-                    value={formData.precoCompra}
-                    onChange={(e) => setFormData({ ...formData, precoCompra: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Preço de Venda (R$)</label>
-                  <input 
-                    type="number" 
-                    step="0.01"
-                    className="input-modern font-bold"
-                    placeholder="0.00"
-                    value={formData.precoVenda}
-                    onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center gap-4">
-                <button 
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-                >
-                  {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
-                </button>
-              </div>
-            </form>
+      <AppDialog
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingVehicle ? 'Editar Veículo' : 'Novo Veículo para Revenda'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Marca"
+              required
+              placeholder="Ex: Toyota"
+              value={formData.brand}
+              onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+            />
+            <AppInput 
+              label="Modelo"
+              required
+              placeholder="Ex: Corolla"
+              value={formData.model}
+              onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+            />
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Ano"
+              type="number"
+              placeholder="2024"
+              value={formData.year}
+              onChange={(e) => setFormData({ ...formData, year: e.target.value })}
+            />
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+              <select 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              >
+                <option value="available">Disponível</option>
+                <option value="reserved">Reservado</option>
+                <option value="sold">Vendido</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Preço de Compra (R$)"
+              type="number"
+              required
+              step="0.01"
+              placeholder="0.00"
+              value={formData.precoCompra}
+              onChange={(e) => setFormData({ ...formData, precoCompra: e.target.value })}
+            />
+            <AppInput 
+              label="Preço de Venda (R$)"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.precoVenda}
+              onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
+            />
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <AppButton 
+              type="button"
+              variant="secondary"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </AppButton>
+            <AppButton 
+              type="submit"
+              className="flex-1"
+            >
+              {editingVehicle ? 'Salvar Alterações' : 'Cadastrar Veículo'}
+            </AppButton>
+          </div>
+        </form>
+      </AppDialog>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Veículo?"
         message="Tem certeza que deseja excluir este veículo? Esta ação não pode ser desfeita."
       />
-    </div>
+    </PageContainer>
   );
 };
 

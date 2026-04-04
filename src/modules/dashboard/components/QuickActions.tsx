@@ -1,8 +1,8 @@
 import React from 'react';
 import { Plus, UserPlus, DollarSign, Package } from 'lucide-react';
+import SectionCard from '../../../components/layout/SectionCard';
 import { cn } from '../../../utils';
-import { Card } from '../../../components/ui/Card';
-import { Button } from '../../../components/ui/Button';
+import { AppButton } from '../../../components/ui/AppButton';
 
 interface QuickActionsProps {
   setActiveTab?: (tab: string) => void;
@@ -11,30 +11,41 @@ interface QuickActionsProps {
 export const QuickActions: React.FC<QuickActionsProps> = ({ setActiveTab }) => {
   const actions = [
     { label: 'Nova OS', icon: Plus, link: 'os', variant: 'primary' as const },
-    { label: 'Novo Lead', icon: UserPlus, link: 'leads', variant: 'outline' as const },
-    { label: 'Financeiro', icon: DollarSign, link: 'finance', variant: 'outline' as const },
-    { label: 'Estoque', icon: Package, link: 'inventory', variant: 'outline' as const },
+    { label: 'Novo Lead', icon: UserPlus, link: 'leads', variant: 'secondary' as const },
+    { label: 'Financeiro', icon: DollarSign, link: 'finance', variant: 'secondary' as const },
+    { label: 'Estoque', icon: Package, link: 'inventory', variant: 'secondary' as const },
   ];
 
   return (
-    <Card className="!p-10 group">
-      <h3 className="text-xl font-black text-slate-900 dark:text-white mb-8 font-display">Atalhos Rápidos</h3>
-      <div className="grid grid-cols-2 gap-5">
+    <SectionCard title="Atalhos Rápidos" subtitle="Ações frequentes do sistema">
+      <div className="grid grid-cols-2 gap-4">
         {actions.map((action, i) => (
-          <Button
+          <button
             key={i}
-            variant={action.variant}
             onClick={() => setActiveTab?.(action.link)}
-            className="flex-col !py-8 gap-4 h-auto rounded-3xl"
+            className={cn(
+              "flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-300 group relative overflow-hidden border-2",
+              action.variant === 'primary' 
+                ? "bg-primary border-primary text-white hover:bg-primary/90" 
+                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-primary/30"
+            )}
           >
-            <div className="p-3 bg-current/10 rounded-xl">
-              <action.icon size={24} />
+            <div className={cn(
+              "p-3 rounded-xl mb-3 transition-transform duration-500 group-hover:scale-110",
+              action.variant === 'primary' ? "bg-white/20" : "bg-slate-50 dark:bg-slate-800"
+            )}>
+              <action.icon size={20} className={action.variant === 'primary' ? "text-white" : "text-slate-600 dark:text-slate-400"} />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{action.label}</span>
-          </Button>
+            <span className={cn(
+              "text-[10px] font-black uppercase tracking-widest",
+              action.variant === 'primary' ? "text-white" : "text-slate-500 dark:text-slate-400"
+            )}>
+              {action.label}
+            </span>
+          </button>
         ))}
       </div>
-    </Card>
+    </SectionCard>
   );
 };
 

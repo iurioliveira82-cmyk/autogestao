@@ -15,6 +15,7 @@ import {
   differenceInDays
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatSafeDate } from '../../../utils';
 import { db } from '../../../firebase';
 import { 
   ServiceOrder, 
@@ -102,9 +103,9 @@ export const useAnalyticsData = (empresaId: string, period: '7d' | '30d' | '90d'
         transList.forEach(t => {
           if (t.type === 'in' && t.status === 'paid') {
             const date = parseISO(t.date);
-            const dKey = format(date, 'yyyy-MM-dd');
-            const mKey = format(date, 'yyyy-MM');
-            const yKey = format(date, 'yyyy');
+            const dKey = formatSafeDate(date, 'yyyy-MM-dd');
+            const mKey = formatSafeDate(date, 'yyyy-MM');
+            const yKey = formatSafeDate(date, 'yyyy');
 
             dailyMap.set(dKey, (dailyMap.get(dKey) || 0) + t.value);
             monthlyMap.set(mKey, (monthlyMap.get(mKey) || 0) + t.value);

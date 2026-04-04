@@ -20,10 +20,18 @@ import { db, auth } from '../../firebase';
 import { FiscalRecord, OperationType, Client } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { formatCurrency, cn, handleFirestoreError } from '../../utils';
+import { formatCurrency, cn, handleFirestoreError, formatSafeDate } from '../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { ConfirmationModal } from '../../components/modals/ConfirmationModal';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { DataTable } from '../../components/ui/DataTable';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
 
 interface FiscalProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: any) => void;
@@ -48,7 +56,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
     type: 'nfse' as 'nfe' | 'nfse' | 'cupom',
     number: '',
     serie: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
+    date: formatSafeDate(new Date(), 'yyyy-MM-dd'),
     value: '',
     valorImposto: '',
     status: 'emitida' as 'emitida' | 'cancelada' | 'pendente',
@@ -58,7 +66,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
     relatedId: '',
     observacoes: '',
     createTransaction: false,
-    dueDate: format(new Date(), 'yyyy-MM-dd')
+    dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
   });
 
   useEffect(() => {
@@ -208,6 +216,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
       handleFirestoreError(error, OperationType.DELETE, `registros_fiscais/${recordToDelete}`);
     } finally {
       setRecordToDelete(null);
+      setIsDeleteModalOpen(false);
     }
   };
 
@@ -218,7 +227,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         type: record.type,
         number: record.number,
         serie: record.serie || '',
-        date: format(new Date(record.date), 'yyyy-MM-dd'),
+        date: formatSafeDate(record.date, 'yyyy-MM-dd'),
         value: record.value.toString(),
         valorImposto: record.valorImposto?.toString() || '',
         status: record.status as any,
@@ -228,7 +237,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         relatedId: record.relatedId || '',
         observacoes: record.observacoes || '',
         createTransaction: false,
-        dueDate: format(new Date(), 'yyyy-MM-dd')
+        dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
       });
     } else {
       setEditingRecord(null);
@@ -236,7 +245,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         type: 'nfse',
         number: '',
         serie: '',
-        date: format(new Date(), 'yyyy-MM-dd'),
+        date: formatSafeDate(new Date(), 'yyyy-MM-dd'),
         value: '',
         valorImposto: '',
         status: 'emitida',
@@ -246,7 +255,7 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
         relatedId: '',
         observacoes: '',
         createTransaction: false,
-        dueDate: format(new Date(), 'yyyy-MM-dd')
+        dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
       });
     }
     setIsModalOpen(true);
@@ -266,431 +275,383 @@ const Fiscal: React.FC<FiscalProps> = ({ setActiveTab }) => {
   const totalValue = filteredRecords.reduce((acc, curr) => acc + curr.value, 0);
   const totalTax = filteredRecords.reduce((acc, curr) => acc + (curr.valorImposto || 0), 0);
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'emitida': return <StatusBadge label="Emitida" variant="success" />;
+      case 'cancelada': return <StatusBadge label="Cancelada" variant="danger" />;
+      case 'pendente': return <StatusBadge label="Pendente" variant="warning" />;
+      default: return <StatusBadge label={status} variant="neutral" />;
+    }
+  };
+
   if (!canView) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-        <XCircle size={48} className="mb-4" />
-        <p className="text-lg font-medium">Acesso restrito.</p>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <XCircle size={48} className="mb-4" />
+          <p className="text-lg font-medium">Acesso restrito.</p>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10">
-        <div className="modern-card !p-8 group hover:scale-[1.02] transition-all duration-500">
-          <div className="flex items-center gap-5 mb-4">
-            <div className="p-4 bg-blue-50 text-blue-600 rounded-2xl group-hover:rotate-12 transition-transform">
-              <FileText size={24} />
-            </div>
-            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Total de Notas</span>
+    <PageContainer>
+      <PageHeader 
+        title="Gestão Fiscal"
+        subtitle="Controle de notas fiscais emitidas e recebidas."
+        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Fiscal' }]}
+        actions={
+          <div className="flex items-center gap-3">
+            <AppButton variant="outline" icon={<Download size={18} />}>
+              Exportar
+            </AppButton>
+            {canCreate && (
+              <AppButton onClick={() => openModal()} icon={<Plus size={18} />}>
+                Emitir Nota
+              </AppButton>
+            )}
           </div>
-          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{filteredRecords.length}</h3>
-        </div>
-        <div className="modern-card !p-8 group hover:scale-[1.02] transition-all duration-500">
-          <div className="flex items-center gap-5 mb-4">
-            <div className="p-4 bg-green-50 text-green-600 rounded-2xl group-hover:rotate-12 transition-transform">
-              <DollarSign size={24} />
-            </div>
-            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Valor Total</span>
-          </div>
-          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{formatCurrency(totalValue)}</h3>
-        </div>
-        <div className="modern-card !p-8 group hover:scale-[1.02] transition-all duration-500">
-          <div className="flex items-center gap-5 mb-4">
-            <div className="p-4 bg-orange-50 text-orange-600 rounded-2xl group-hover:rotate-12 transition-transform">
-              <TrendingUp size={24} />
-            </div>
-            <span className="text-xs font-black text-slate-400 uppercase tracking-[0.2em]">Total Impostos</span>
-          </div>
-          <h3 className="text-4xl font-black text-slate-900 font-display tracking-tighter">{formatCurrency(totalTax)}</h3>
-        </div>
-      </div>
+        }
+      />
 
-      {/* Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8">
-        <div className="relative flex-1 max-w-xl">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={22} />
-          <input 
-            type="text" 
+      <div className="space-y-6">
+        {/* Stats Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <SectionCard className="group hover:scale-[1.02] transition-all duration-300">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                <FileText size={20} />
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total de Notas</span>
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 font-display">{filteredRecords.length}</h3>
+          </SectionCard>
+          <SectionCard className="group hover:scale-[1.02] transition-all duration-300">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                <DollarSign size={20} />
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Total</span>
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 font-display">{formatCurrency(totalValue)}</h3>
+          </SectionCard>
+          <SectionCard className="group hover:scale-[1.02] transition-all duration-300">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="p-3 bg-orange-50 text-orange-600 rounded-xl">
+                <TrendingUp size={20} />
+              </div>
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Impostos</span>
+            </div>
+            <h3 className="text-3xl font-black text-slate-900 font-display">{formatCurrency(totalTax)}</h3>
+          </SectionCard>
+        </div>
+
+        {/* Search */}
+        <div className="relative max-w-xl">
+          <AppInput 
             placeholder="Buscar por número ou cliente..." 
-            className="input-modern pl-16"
+            icon={<Search size={18} />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
-        <div className="flex items-center gap-4">
-          <button className="p-4 bg-white border border-slate-100 rounded-2xl text-slate-500 hover:bg-slate-50 hover:text-accent transition-all shadow-sm">
-            <Download size={22} />
-          </button>
-          {canCreate && (
-            <button 
-              onClick={() => openModal()}
-              className="flex items-center justify-center gap-3 bg-slate-900 text-white px-10 py-4 rounded-[2rem] text-xs font-black uppercase tracking-[0.2em] hover:bg-accent hover:text-accent-foreground active:scale-95 transition-all shadow-xl shadow-slate-900/10"
-            >
-              <Plus size={20} />
-              Emitir Nota
-            </button>
-          )}
-        </div>
-      </div>
 
-      {/* Records Table */}
-      <div className="modern-card !p-0 overflow-hidden group">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/50 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em]">
-                <th className="px-10 py-8">Tipo / Número</th>
-                <th className="px-10 py-8">Entidade</th>
-                <th className="px-10 py-8">Data</th>
-                <th className="px-10 py-8">Valor</th>
-                <th className="px-10 py-8">Imposto</th>
-                <th className="px-10 py-8">Status</th>
-                <th className="px-10 py-8 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-10 py-20 text-center text-slate-400 italic font-medium">Carregando registros fiscais...</td>
-                </tr>
-              ) : filteredRecords.length > 0 ? filteredRecords.map((record) => (
-                <tr key={record.id} className="group/row hover:bg-slate-50/80 transition-all duration-300">
-                  <td className="px-10 py-8">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 font-black text-[10px] uppercase group-hover/row:bg-white transition-colors">
-                        {record.type}
-                      </div>
-                      <div>
-                        <span className="text-base font-black text-slate-900 block group-hover/row:text-accent transition-colors">{record.number}</span>
-                        <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Série: {record.serie || '0'}</span>
-                      </div>
+        {/* Records Table */}
+        <SectionCard className="!p-0 overflow-hidden">
+          <DataTable 
+            headers={['Tipo / Número', 'Entidade', 'Data', 'Valor', 'Imposto', 'Status', 'Ações']}
+            data={filteredRecords}
+            renderRow={(record) => (
+              <>
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 font-black text-[10px] uppercase">
+                      {record.type}
                     </div>
-                  </td>
-                  <td className="px-10 py-8">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm font-black text-slate-900 truncate block max-w-[200px]">
-                        {record.clienteId ? clients[record.clienteId] : suppliers[record.fornecedorId || ''] || 'Entidade não encontrada'}
-                      </span>
-                      <span className={cn(
-                        "text-[10px] font-black uppercase tracking-[0.2em]",
-                        record.direction === 'in' ? "text-blue-600" : "text-slate-400"
-                      )}>
-                        {record.direction === 'in' ? 'Entrada (Compra)' : 'Saída (Venda)'}
-                      </span>
-                      {record.relatedId && (
-                        <button
-                          onClick={() => setActiveTab('os', record.relatedId)}
-                          className="text-[10px] text-slate-400 hover:text-accent flex items-center gap-2 uppercase font-black tracking-widest transition-colors mt-1"
-                        >
-                          {serviceOrders[record.relatedId] || 'OS não encontrada'}
-                          <ExternalLink className="w-3 h-3" />
-                        </button>
-                      )}
+                    <div>
+                      <span className="text-sm font-black text-slate-900 block">{record.number}</span>
+                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Série: {record.serie || '0'}</span>
                     </div>
-                  </td>
-                  <td className="px-10 py-8 text-sm font-bold text-slate-500">
-                    {format(new Date(record.date), 'dd/MM/yyyy')}
-                  </td>
-                  <td className="px-10 py-8 font-black text-slate-900 font-display text-lg">
-                    {formatCurrency(record.value)}
-                  </td>
-                  <td className="px-10 py-8 text-sm font-bold text-slate-500">
-                    {formatCurrency(record.valorImposto || 0)}
-                  </td>
-                  <td className="px-10 py-8">
-                    <span className={cn(
-                      "inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.2em] shadow-sm border",
-                      record.status === 'emitida' ? "bg-green-50 text-green-600 border-green-100" :
-                      record.status === 'cancelada' ? "bg-red-50 text-red-600 border-red-100" :
-                      "bg-orange-50 text-orange-600 border-orange-100"
-                    )}>
-                      {record.status === 'emitida' ? <CheckCircle2 size={12} /> : 
-                       record.status === 'cancelada' ? <XCircle size={12} /> : <Clock size={12} />}
-                      {record.status === 'emitida' ? 'Emitida' : 
-                       record.status === 'cancelada' ? 'Cancelada' : 'Pendente'}
+                  </div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-black text-slate-900 truncate block max-w-[200px]">
+                      {record.clienteId ? clients[record.clienteId] : suppliers[record.fornecedorId || ''] || 'Entidade não encontrada'}
                     </span>
-                  </td>
-                  <td className="px-10 py-8 text-right">
-                    <div className="flex items-center justify-end gap-3 opacity-0 group-hover/row:opacity-100 transition-all duration-300">
-                      <button 
-                        onClick={() => openModal(record)}
-                        className="p-3 text-slate-400 hover:text-accent hover:bg-white rounded-xl transition-all shadow-sm"
+                    <span className={cn(
+                      "text-[10px] font-black uppercase tracking-widest",
+                      record.direction === 'in' ? "text-blue-600" : "text-slate-400"
+                    )}>
+                      {record.direction === 'in' ? 'Entrada (Compra)' : 'Saída (Venda)'}
+                    </span>
+                    {record.relatedId && (
+                      <button
+                        onClick={() => setActiveTab('os', record.relatedId)}
+                        className="text-[10px] text-slate-400 hover:text-primary flex items-center gap-2 uppercase font-black tracking-widest transition-colors mt-1"
                       >
-                        <Edit2 size={18} />
+                        {serviceOrders[record.relatedId] || 'OS não encontrada'}
+                        <ExternalLink className="w-3 h-3" />
                       </button>
-                      <button 
-                        onClick={() => handleDelete(record.id)}
-                        className="p-3 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all shadow-sm"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={7} className="px-10 py-20 text-center text-slate-400 italic font-medium">Nenhum registro fiscal encontrado.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm font-bold text-slate-500">
+                  {formatSafeDate(record.date)}
+                </td>
+                <td className="px-6 py-4 font-black text-slate-900 font-display">
+                  {formatCurrency(record.value)}
+                </td>
+                <td className="px-6 py-4 text-sm font-bold text-slate-500">
+                  {formatCurrency(record.valorImposto || 0)}
+                </td>
+                <td className="px-6 py-4">
+                  {getStatusBadge(record.status)}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-end gap-1">
+                    <AppButton 
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openModal(record)}
+                      className="w-8 h-8 !p-0"
+                      title="Editar"
+                    >
+                      <Edit2 size={16} />
+                    </AppButton>
+                    <AppButton 
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDelete(record.id)}
+                      className="w-8 h-8 !p-0 text-red-600 hover:bg-red-50"
+                      title="Excluir"
+                    >
+                      <Trash2 size={16} />
+                    </AppButton>
+                  </div>
+                </td>
+              </>
+            )}
+          />
+        </SectionCard>
       </div>
 
       {/* Modal Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-10 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900 font-display">
-                  {editingRecord ? 'Editar Registro Fiscal' : 'Novo Registro Fiscal'}
-                </h3>
-                <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mt-1">Preencha os dados da nota</p>
-              </div>
-              <button onClick={closeModal} className="p-3 text-slate-400 hover:text-accent hover:bg-white rounded-2xl transition-all shadow-sm">
-                <XCircle size={28} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-10 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Direção</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, direction: 'out', fornecedorId: '' })}
-                      className={cn(
-                        "flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border",
-                        formData.direction === 'out' 
-                          ? "bg-accent text-accent-foreground border-accent shadow-lg shadow-accent/20" 
-                          : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
-                      )}
-                    >
-                      Saída (Venda)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, direction: 'in', clienteId: '' })}
-                      className={cn(
-                        "flex items-center justify-center gap-2 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border",
-                        formData.direction === 'in' 
-                          ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20" 
-                          : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
-                      )}
-                    >
-                      Entrada (Compra)
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Tipo de Nota</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
-                  >
-                    <option value="nfse">NFS-e (Serviço)</option>
-                    <option value="nfe">NF-e (Produto)</option>
-                    <option value="cupom">Cupom Fiscal</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Número</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="input-modern"
-                    value={formData.number}
-                    onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Série</label>
-                  <input 
-                    type="text" 
-                    className="input-modern"
-                    value={formData.serie}
-                    onChange={(e) => setFormData({ ...formData, serie: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
-                    {formData.direction === 'out' ? 'Cliente' : 'Fornecedor'}
-                  </label>
-                  {formData.direction === 'out' ? (
-                    <select 
-                      required
-                      className="select-modern"
-                      value={formData.clienteId}
-                      onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
-                    >
-                      <option value="">Selecione um cliente</option>
-                      {Object.entries(clients).map(([id, name]) => (
-                        <option key={id} value={id}>{name}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <select 
-                      required
-                      className="select-modern"
-                      value={formData.fornecedorId}
-                      onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
-                    >
-                      <option value="">Selecione um fornecedor</option>
-                      {Object.entries(suppliers).map(([id, name]) => (
-                        <option key={id} value={id}>{name}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">OS Relacionada (Opcional)</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.relatedId}
-                    onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
-                  >
-                    <option value="">Nenhuma</option>
-                    {Object.entries(serviceOrders).map(([id, label]) => (
-                      <option key={id} value={id}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Data de Emissão</label>
-                  <input 
-                    type="date" 
-                    required
-                    className="input-modern"
-                    value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Status</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  >
-                    <option value="emitida">Emitida</option>
-                    <option value="pendente">Pendente</option>
-                    <option value="cancelada">Cancelada</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Valor Total</label>
-                  <div className="relative">
-                    <DollarSign className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      required
-                      className="input-modern pl-14"
-                      value={formData.value}
-                      onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Valor Imposto</label>
-                  <div className="relative">
-                    <TrendingUp className="absolute left-6 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      className="input-modern pl-14"
-                      value={formData.valorImposto}
-                      onChange={(e) => setFormData({ ...formData, valorImposto: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-6 p-8 bg-slate-50 rounded-[2rem] border border-slate-100">
-                <div className="flex items-center gap-4">
-                  <input 
-                    type="checkbox" 
-                    id="createTransactionFiscal"
-                    className="w-6 h-6 rounded-lg border-slate-200 text-accent focus:ring-accent transition-all cursor-pointer"
-                    checked={formData.createTransaction}
-                    onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
-                  />
-                  <label htmlFor="createTransactionFiscal" className="text-sm font-black text-slate-700 uppercase tracking-widest cursor-pointer">
-                    Lançar no Financeiro ({formData.direction === 'in' ? 'Contas a Pagar' : 'Contas a Receber'})
-                  </label>
-                </div>
-
-                {formData.createTransaction && (
-                  <div className="space-y-3 animate-in slide-in-from-top-2 duration-300">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Data de Vencimento</label>
-                    <input 
-                      type="date" 
-                      required
-                      className="input-modern"
-                      value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Observações</label>
-                <textarea 
-                  className="textarea-modern"
-                  rows={4}
-                  value={formData.observacoes}
-                  onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                />
-              </div>
-
-              <div className="pt-8 flex items-center gap-6">
-                <button 
+      <AppDialog
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title={editingRecord ? 'Editar Registro Fiscal' : 'Novo Registro Fiscal'}
+      >
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Direção</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
                   type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-8 py-5 border border-slate-100 text-slate-500 font-black uppercase tracking-widest rounded-2xl hover:bg-slate-50 transition-all"
+                  onClick={() => setFormData({ ...formData, direction: 'out', fornecedorId: '' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border",
+                    formData.direction === 'out' 
+                      ? "bg-primary text-white border-primary shadow-lg shadow-primary/20" 
+                      : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
+                  )}
                 >
-                  Cancelar
+                  Saída
                 </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-8 py-5 bg-slate-900 text-white font-black uppercase tracking-widest rounded-2xl hover:bg-accent hover:text-accent-foreground transition-all shadow-xl shadow-slate-900/10 active:scale-95"
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, direction: 'in', clienteId: '' })}
+                  className={cn(
+                    "flex items-center justify-center gap-2 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all border",
+                    formData.direction === 'in' 
+                      ? "bg-blue-600 text-white border-blue-600 shadow-lg shadow-blue-600/20" 
+                      : "bg-white text-slate-400 border-slate-100 hover:border-slate-200"
+                  )}
                 >
-                  {editingRecord ? 'Salvar Alterações' : 'Registrar Nota'}
+                  Entrada
                 </button>
               </div>
-            </form>
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Nota</label>
+              <select 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value as any })}
+              >
+                <option value="nfse">NFS-e (Serviço)</option>
+                <option value="nfe">NF-e (Produto)</option>
+                <option value="cupom">Cupom Fiscal</option>
+              </select>
+            </div>
           </div>
-        </div>
-      )}
 
-      <ConfirmationModal
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Número"
+              required
+              value={formData.number}
+              onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+            />
+            <AppInput 
+              label="Série"
+              value={formData.serie}
+              onChange={(e) => setFormData({ ...formData, serie: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                {formData.direction === 'out' ? 'Cliente' : 'Fornecedor'}
+              </label>
+              {formData.direction === 'out' ? (
+                <select 
+                  required
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                  value={formData.clienteId}
+                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
+                >
+                  <option value="">Selecione um cliente</option>
+                  {Object.entries(clients).map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              ) : (
+                <select 
+                  required
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                  value={formData.fornecedorId}
+                  onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
+                >
+                  <option value="">Selecione um fornecedor</option>
+                  {Object.entries(suppliers).map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">OS Relacionada (Opcional)</label>
+              <select 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                value={formData.relatedId}
+                onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
+              >
+                <option value="">Nenhuma</option>
+                {Object.entries(serviceOrders).map(([id, label]) => (
+                  <option key={id} value={id}>{label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Data de Emissão"
+              type="date"
+              required
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            />
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+              <select 
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+              >
+                <option value="emitida">Emitida</option>
+                <option value="pendente">Pendente</option>
+                <option value="cancelada">Cancelada</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <AppInput 
+              label="Valor Total"
+              type="number"
+              step="0.01"
+              required
+              icon={<DollarSign size={16} />}
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+            />
+            <AppInput 
+              label="Valor Imposto"
+              type="number"
+              step="0.01"
+              icon={<TrendingUp size={16} />}
+              value={formData.valorImposto}
+              onChange={(e) => setFormData({ ...formData, valorImposto: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-3">
+              <input 
+                type="checkbox" 
+                id="createTransactionFiscal"
+                className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                checked={formData.createTransaction}
+                onChange={(e) => setFormData({ ...formData, createTransaction: e.target.checked })}
+              />
+              <label htmlFor="createTransactionFiscal" className="text-xs font-black text-slate-700 uppercase tracking-widest cursor-pointer">
+                Lançar no Financeiro ({formData.direction === 'in' ? 'Contas a Pagar' : 'Contas a Receber'})
+              </label>
+            </div>
+
+            {formData.createTransaction && (
+              <AppInput 
+                label="Data de Vencimento"
+                type="date"
+                required
+                value={formData.dueDate}
+                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              />
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações</label>
+            <textarea 
+              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary transition-all text-sm min-h-[100px]"
+              rows={4}
+              value={formData.observacoes}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+            />
+          </div>
+
+          <div className="pt-4 flex items-center gap-4">
+            <AppButton 
+              type="button"
+              variant="secondary"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </AppButton>
+            <AppButton 
+              type="submit"
+              className="flex-1"
+            >
+              {editingRecord ? 'Salvar Alterações' : 'Registrar Nota'}
+            </AppButton>
+          </div>
+        </form>
+      </AppDialog>
+
+      <ConfirmDialog
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
         title="Excluir Registro Fiscal?"
         message="Tem certeza que deseja excluir este registro fiscal? Esta ação não pode ser desfeita."
       />
-    </div>
+    </PageContainer>
   );
 };
 

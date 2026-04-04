@@ -24,12 +24,11 @@ const PageContainer: React.FC<PageContainerProps> = ({
 
   return (
     <div className={cn(
-      "flex-1 overflow-y-auto p-6 sm:p-8 lg:p-10 custom-scrollbar animate-in fade-in duration-500",
+      "flex-1 w-full mx-auto space-y-6 animate-in fade-in duration-500",
+      maxWidthClasses[maxWidth],
       className
     )}>
-      <div className={cn("mx-auto w-full", maxWidthClasses[maxWidth])}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 };

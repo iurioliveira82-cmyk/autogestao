@@ -36,6 +36,8 @@ import SectionCard from '../../components/layout/SectionCard';
 import EmptyState from '../../components/layout/EmptyState';
 import LoadingSkeleton from '../../components/layout/LoadingSkeleton';
 
+import { AppButton } from '../../components/ui/AppButton';
+
 const Analytics: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiveTab }) => {
   const { profile } = useAuth();
   const { canView } = usePermissions('analytics');
@@ -65,7 +67,7 @@ const Analytics: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiv
         breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Relatórios' }]}
         actions={
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl p-1 shadow-sm">
+            <div className="flex items-center bg-white border border-slate-100 rounded-2xl p-1 shadow-sm">
               {[
                 { id: '7d', label: '7 dias' },
                 { id: '30d', label: '30 dias' },
@@ -78,8 +80,8 @@ const Analytics: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiv
                   onClick={() => setPeriod(p.id as any)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
                     period === p.id 
-                      ? 'bg-slate-900 dark:bg-accent text-white shadow-lg' 
-                      : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'
+                      ? 'bg-slate-900 text-white shadow-lg' 
+                      : 'text-slate-500 hover:bg-slate-50'
                   }`}
                 >
                   {p.label}
@@ -87,9 +89,9 @@ const Analytics: React.FC<{ setActiveTab: (tab: string) => void }> = ({ setActiv
               ))}
             </div>
 
-            <button className="p-3 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm">
+            <AppButton variant="secondary" size="sm" className="p-3">
               <Download size={20} />
-            </button>
+            </AppButton>
           </div>
         }
       />

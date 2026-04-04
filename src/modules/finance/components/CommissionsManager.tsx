@@ -3,18 +3,21 @@ import {
   Users, 
   CheckCircle2, 
   Clock,
-  Download
+  Download,
+  Search
 } from 'lucide-react';
 import { collection, query, where, onSnapshot, updateDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { Commission, OperationType, UserProfile } from '../../../types';
 import { useAuth } from '../../auth/Auth';
-import { formatCurrency, cn, handleFirestoreError } from '../../../utils';
+import { formatCurrency, cn, handleFirestoreError, formatSafeDate } from '../../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
-import { Button } from '../../../components/ui/Button';
-import { SearchBar } from '../../../components/ui/SearchBar';
-import { Card } from '../../../components/ui/Card';
+import { AppButton } from '../../../components/ui/AppButton';
+import { AppInput } from '../../../components/ui/AppInput';
+import { AppCard } from '../../../components/ui/AppCard';
+import { DataTable } from '../../../components/ui/DataTable';
+import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
 import { usePermissions } from '../../../hooks/usePermissions';
 
@@ -110,45 +113,46 @@ const CommissionsManager: React.FC = () => {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Acompanhamento de Produtividade</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
+          <AppButton 
             variant="outline"
             icon={<Download size={18} />}
           >
             Exportar
-          </Button>
+          </AppButton>
         </div>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-6">
+        <AppCard className="p-6">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Filtrado</p>
           <h3 className="text-2xl font-black text-slate-900">{formatCurrency(summary.total)}</h3>
-        </Card>
-        <Card className="p-6 bg-amber-50 border-amber-100">
+        </AppCard>
+        <AppCard className="p-6 bg-amber-50 border-amber-100">
           <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">Pendente</p>
           <h3 className="text-2xl font-black text-amber-700">{formatCurrency(summary.pending)}</h3>
-        </Card>
-        <Card className="p-6 bg-green-50 border-green-100">
+        </AppCard>
+        <AppCard className="p-6 bg-green-50 border-green-100">
           <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest mb-1">Pago</p>
           <h3 className="text-2xl font-black text-green-700">{formatCurrency(summary.paid)}</h3>
-        </Card>
+        </AppCard>
       </div>
 
       {/* Filters */}
-      <Card className="p-6 space-y-4">
+      <AppCard className="p-6 space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
           <div className="flex-1">
-            <SearchBar 
+            <AppInput 
               placeholder="Buscar por OS ou serviço..."
               value={filters.searchTerm}
               onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+              icon={<Search size={18} />}
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-4">
             <select 
-              className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+              className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               value={filters.tecnicoId}
               onChange={(e) => setFilters({ ...filters, tecnicoId: e.target.value })}
             >
@@ -189,85 +193,66 @@ const CommissionsManager: React.FC = () => {
             </div>
           </div>
         </div>
-      </Card>
+      </AppCard>
 
       {/* Table */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                <th className="px-8 py-4">Data</th>
-                <th className="px-8 py-4">Técnico</th>
-                <th className="px-8 py-4">OS / Serviço</th>
-                <th className="px-8 py-4 text-right">Valor Serv.</th>
-                <th className="px-8 py-4 text-right">Comissão (%)</th>
-                <th className="px-8 py-4 text-right">Valor Comis.</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-all group">
-                  <td className="px-8 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-900">{format(new Date(c.timestamp), 'dd/MM/yyyy')}</span>
-                      <span className="text-[10px] text-slate-400 font-medium">{format(new Date(c.timestamp), 'HH:mm')}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center text-accent font-black text-xs">
-                        {technicians.find(t => t.uid === c.tecnicoId)?.name?.charAt(0) || 'T'}
-                      </div>
-                      <span className="text-sm font-bold text-slate-900">
-                        {technicians.find(t => t.uid === c.tecnicoId)?.name || 'N/A'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-black text-slate-900">OS #{c.osNumero}</span>
-                      <span className="text-xs text-slate-500 font-medium">{c.servicoNome}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-right text-sm font-medium text-slate-600">
-                    {formatCurrency(c.valorServico)}
-                  </td>
-                  <td className="px-8 py-4 text-right text-sm font-black text-slate-400">
-                    {c.percentualComissao}%
-                  </td>
-                  <td className="px-8 py-4 text-right text-sm font-black text-slate-900">
-                    {formatCurrency(c.valorComissao)}
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className={cn(
-                      "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                      c.status === 'paid' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                    )}>
-                      {c.status === 'paid' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
-                      {c.status === 'paid' ? 'Pago' : 'Pendente'}
-                    </div>
-                  </td>
-                  <td className="px-8 py-4 text-right">
-                    {c.status === 'pending' && canEdit && (
-                      <Button 
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleMarkAsPaid(c.id!)}
-                        icon={<CheckCircle2 size={18} />}
-                        className="text-slate-400 hover:text-green-600 hover:bg-green-50"
-                        title="Marcar como Pago"
-                      />
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        isLoading={loading}
+        columns={[
+          { header: 'Data', accessor: (c) => (
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-slate-900">{formatSafeDate(c.timestamp, 'dd/MM/yyyy')}</span>
+              <span className="text-[10px] text-slate-400 font-medium">{formatSafeDate(c.timestamp, 'HH:mm')}</span>
+            </div>
+          )},
+          { header: 'Técnico', accessor: (c) => (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-black text-xs">
+                {technicians.find(t => t.uid === c.tecnicoId)?.name?.charAt(0) || 'T'}
+              </div>
+              <span className="text-sm font-bold text-slate-900">
+                {technicians.find(t => t.uid === c.tecnicoId)?.name || 'N/A'}
+              </span>
+            </div>
+          )},
+          { header: 'OS / Serviço', accessor: (c) => (
+            <div className="flex flex-col">
+              <span className="text-sm font-black text-slate-900">OS #{c.osNumero}</span>
+              <span className="text-xs text-slate-500 font-medium">{c.servicoNome}</span>
+            </div>
+          )},
+          { header: 'Valor Serv.', className: 'text-right', accessor: (c) => (
+            <span className="text-sm font-medium text-slate-600">{formatCurrency(c.valorServico)}</span>
+          )},
+          { header: 'Comissão (%)', className: 'text-right', accessor: (c) => (
+            <span className="text-sm font-black text-slate-400">{c.percentualComissao}%</span>
+          )},
+          { header: 'Valor Comis.', className: 'text-right', accessor: (c) => (
+            <span className="text-sm font-black text-slate-900">{formatCurrency(c.valorComissao)}</span>
+          )},
+          { header: 'Status', accessor: (c) => (
+            <StatusBadge 
+              status={c.status === 'paid' ? 'paid' : 'pending'} 
+              label={c.status === 'paid' ? 'Pago' : 'Pendente'}
+              icon={c.status === 'paid' ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+            />
+          )},
+          { header: 'Ações', className: 'text-right', accessor: (c) => (
+            c.status === 'pending' && canEdit && (
+              <AppButton 
+                size="sm"
+                variant="ghost"
+                onClick={() => handleMarkAsPaid(c.id!)}
+                icon={<CheckCircle2 size={18} />}
+                className="text-slate-400 hover:text-green-600 hover:bg-green-50"
+                title="Marcar como Pago"
+              />
+            )
+          )}
+        ]}
+        data={filtered}
+        emptyMessage="Nenhuma comissão encontrada."
+      />
 
       <ConfirmDialog
         isOpen={isConfirmOpen}

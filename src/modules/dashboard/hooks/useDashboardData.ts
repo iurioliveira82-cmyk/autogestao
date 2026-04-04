@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { startOfDay, endOfDay, subDays, format } from 'date-fns';
+import { startOfDay, endOfDay, subDays } from 'date-fns';
 import { db } from '../../../firebase';
 import { ServiceOrder, Client, Vehicle, Appointment, Lead, InventoryItem, FinancialTransaction, OSStatus, OperationType } from '../../../types';
 import { FirestoreService } from '../../../services/firestore';
-import { handleFirestoreError } from '../../../utils';
+import { handleFirestoreError, formatSafeDate } from '../../../utils';
 import { ptBR } from 'date-fns/locale';
 
 export const useDashboardData = (empresaId: string, isAdmin: boolean, selectedDate: string) => {
@@ -159,11 +159,11 @@ export const useDashboardData = (empresaId: string, isAdmin: boolean, selectedDa
         // Initialize last 7 days
         for (let i = 6; i >= 0; i--) {
           const d = subDays(new Date(), i);
-          const key = format(d, 'yyyy-MM-dd');
+          const key = formatSafeDate(d, 'yyyy-MM-dd');
           days[key] = {
             revenue: 0,
             expense: 0,
-            name: format(d, 'EEE', { locale: ptBR })
+            name: formatSafeDate(d, 'EEE')
           };
         }
 

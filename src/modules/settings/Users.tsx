@@ -16,13 +16,73 @@ import {
   Trash2,
   AlertTriangle
 } from 'lucide-react';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, setDoc, deleteDoc, serverTimestamp, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
-import { UserProfile, UserPermissions, ModulePermissions, OperationType, UserRole } from '../../types';
-import { useAuth } from '../../contexts/AuthContext';
-import { defaultPermissions, adminPermissions, getPermissionsByRole } from '../auth/permissions';
-import { cn, handleFirestoreError } from '../../utils';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import SectionCard from '../../components/layout/SectionCard';
+import { 
+  collection, 
+  query, 
+  where, 
+  orderBy, 
+  onSnapshot, 
+  doc, 
+  updateDoc, 
+  deleteDoc, 
+  setDoc, 
+  getDocs,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { db } from '../../firebase';
+import { useAuth } from '../auth/Auth';
+import { UserProfile, UserPermissions, UserRole, ModulePermissions, OperationType } from '../../types';
+import { handleFirestoreError, cn } from '../../utils';
 import { toast } from 'sonner';
+
+const adminPermissions: UserPermissions = {
+  dashboard: { view: true, create: true, edit: true, delete: true },
+  clients: { view: true, create: true, edit: true, delete: true },
+  vehicles: { view: true, create: true, edit: true, delete: true },
+  os: { view: true, create: true, edit: true, delete: true },
+  finance: { view: true, create: true, edit: true, delete: true },
+  inventory: { view: true, create: true, edit: true, delete: true },
+  resale: { view: true, create: true, edit: true, delete: true },
+  analytics: { view: true, create: true, edit: true, delete: true },
+  agenda: { view: true, create: true, edit: true, delete: true },
+  leads: { view: true, create: true, edit: true, delete: true },
+  services: { view: true, create: true, edit: true, delete: true },
+  suppliers: { view: true, create: true, edit: true, delete: true },
+  stock: { view: true, create: true, edit: true, delete: true },
+  users: { view: true, create: true, edit: true, delete: true },
+  fiscal: { view: true, create: true, edit: true, delete: true },
+  automations: { view: true, create: true, edit: true, delete: true }
+};
+
+const defaultPermissions: UserPermissions = {
+  dashboard: { view: true, create: false, edit: false, delete: false },
+  clients: { view: true, create: true, edit: true, delete: false },
+  vehicles: { view: true, create: true, edit: true, delete: false },
+  os: { view: true, create: true, edit: true, delete: false },
+  finance: { view: false, create: false, edit: false, delete: false },
+  inventory: { view: true, create: false, edit: false, delete: false },
+  resale: { view: false, create: false, edit: false, delete: false },
+  analytics: { view: false, create: false, edit: false, delete: false },
+  agenda: { view: true, create: true, edit: true, delete: true },
+  leads: { view: true, create: true, edit: true, delete: true },
+  services: { view: true, create: false, edit: false, delete: false },
+  suppliers: { view: true, create: false, edit: false, delete: false },
+  stock: { view: true, create: false, edit: false, delete: false },
+  users: { view: false, create: false, edit: false, delete: false },
+  fiscal: { view: false, create: false, edit: false, delete: false },
+  automations: { view: false, create: false, edit: false, delete: false }
+};
+
+const getPermissionsByRole = (role: UserRole): UserPermissions => {
+  if (role === 'admin') return adminPermissions;
+  return defaultPermissions;
+};
 
 const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }> = ({ setActiveTab }) => {
   const { profile } = useAuth();
@@ -168,23 +228,6 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
     }
   };
 
-  const handleUpdateRole = async (newRole: UserRole) => {
-    if (!selectedUser) return;
-
-    try {
-      const newPermissions = getPermissionsByRole(newRole);
-      await updateDoc(doc(db, 'usuarios', selectedUser.uid), {
-        role: newRole,
-        permissions: newPermissions,
-        updatedAt: serverTimestamp()
-      });
-      toast.success('Cargo atualizado com sucesso!');
-      setSelectedUser({ ...selectedUser, role: newRole, permissions: newPermissions });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `usuarios/${selectedUser.uid}`);
-    }
-  };
-
   const handleDeleteUser = async () => {
     if (!selectedUser) return;
 
@@ -274,88 +317,86 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 glass-card p-4 rounded-3xl">
+    <div className="space-y-6">
+      {/* Header Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
+          <AppInput 
             placeholder="Buscar usuários..." 
-            className="w-full pl-12 pr-4 py-3 bg-slate-50/50 border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-accent transition-all text-sm text-slate-900 dark:text-slate-100 dark:bg-slate-900/50"
+            icon={<Search size={18} />}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <button 
+        <AppButton 
           onClick={() => setIsAddModalOpen(true)}
-          className="flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-3 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
+          icon={<UserPlus size={18} />}
         >
-          <UserPlus size={20} />
           Novo Usuário
-        </button>
+        </AppButton>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Users List */}
-        <div className="lg:col-span-1 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden h-fit">
-          <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-            <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 uppercase tracking-widest">
-              <UsersIcon size={18} className="text-slate-400" />
-              Usuários
-            </h3>
-          </div>
-          <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto custom-scrollbar">
-            {loading ? (
-              <div className="p-8 text-center">
-                <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-slate-400 text-xs italic">Carregando...</p>
-              </div>
-            ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
-              <button
-                key={user.uid}
-                onClick={() => handleEditPermissions(user)}
-                className={cn(
-                  "w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-all text-left group",
-                  selectedUser?.uid === user.uid && "bg-slate-50 border-l-4 border-accent"
-                )}
-              >
-                <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 font-black border border-slate-200 group-hover:scale-105 transition-transform">
-                  {user.name.slice(0, 2).toUpperCase()}
+        <div className="lg:col-span-1">
+          <SectionCard 
+            title="Usuários" 
+            subtitle="Lista de acessos"
+            icon={<UsersIcon size={18} className="text-slate-400" />}
+            className="p-0 overflow-hidden"
+          >
+            <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto custom-scrollbar">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-slate-400 text-xs italic">Carregando...</p>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-black text-slate-900 truncate">{user.name}</p>
-                  <div className="flex items-center gap-2">
-                    <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{user.email}</p>
-                    {user.status && (
-                      <span className={cn(
-                        "w-1.5 h-1.5 rounded-full",
-                        user.status === 'active' ? "bg-green-500" : user.status === 'pending' ? "bg-yellow-500" : "bg-red-500"
-                      )} />
-                    )}
+              ) : filteredUsers.length > 0 ? filteredUsers.map((user) => (
+                <button
+                  key={user.uid}
+                  onClick={() => handleEditPermissions(user)}
+                  className={cn(
+                    "w-full p-5 flex items-center gap-4 hover:bg-slate-50 transition-all text-left group",
+                    selectedUser?.uid === user.uid && "bg-slate-50 border-l-4 border-primary"
+                  )}
+                >
+                  <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-600 font-black border border-slate-200 group-hover:scale-105 transition-transform">
+                    {user.name.slice(0, 2).toUpperCase()}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-black text-slate-900 truncate">{user.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-[10px] font-bold text-slate-400 truncate uppercase tracking-widest">{user.email}</p>
+                      {user.status && (
+                        <span className={cn(
+                          "w-1.5 h-1.5 rounded-full",
+                          user.status === 'active' ? "bg-green-500" : user.status === 'pending' ? "bg-yellow-500" : "bg-red-500"
+                        )} />
+                      )}
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "p-2 rounded-xl shadow-sm",
+                    user.role === 'admin' ? "bg-primary text-white" : "bg-slate-100 text-slate-400"
+                  )}>
+                    {user.role === 'admin' ? <ShieldCheck size={16} /> : <Shield size={16} />}
+                  </div>
+                </button>
+              )) : (
+                <div className="p-12 text-center">
+                  <UsersIcon size={32} className="mx-auto text-slate-200 mb-2" />
+                  <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhum usuário</p>
                 </div>
-                <div className={cn(
-                  "p-2 rounded-xl shadow-sm",
-                  user.role === 'admin' ? "bg-accent text-accent-foreground" : "bg-slate-100 text-slate-400"
-                )}>
-                  {user.role === 'admin' ? <ShieldCheck size={16} /> : <Shield size={16} />}
-                </div>
-              </button>
-            )) : (
-              <div className="p-12 text-center">
-                <UsersIcon size={32} className="mx-auto text-slate-200 mb-2" />
-                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Nenhum usuário</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          </SectionCard>
         </div>
 
         {/* Permissions Section */}
         <div className="lg:col-span-2 space-y-6">
           {selectedUser ? (
             <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground relative overflow-hidden">
+              <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-primary text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl" />
                 <div className="flex items-center gap-6 relative z-10">
                   <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black border border-white/10 shadow-xl">
@@ -377,21 +418,24 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                             onChange={(e) => setBasicInfoForm({ ...basicInfoForm, role: e.target.value as UserRole })}
                           >
                             {roles.map(role => (
-                              <option key={role.id} value={role.id} className="bg-accent">{role.label}</option>
+                              <option key={role.id} value={role.id} className="bg-primary">{role.label}</option>
                             ))}
                           </select>
-                          <button
+                          <AppButton
+                            size="sm"
                             onClick={handleSaveBasicInfo}
-                            className="text-[10px] bg-white text-accent px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-lg"
+                            className="bg-white text-primary hover:bg-slate-100"
                           >
                             Salvar
-                          </button>
-                          <button
+                          </AppButton>
+                          <AppButton
+                            size="sm"
+                            variant="secondary"
                             onClick={() => setIsEditingBasicInfo(false)}
-                            className="text-[10px] bg-white/10 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest hover:bg-white/20 transition-all"
+                            className="bg-white/10 text-white border-transparent hover:bg-white/20"
                           >
                             Cancelar
-                          </button>
+                          </AppButton>
                         </div>
                       </div>
                     ) : (
@@ -400,29 +444,25 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                           {selectedUser.name}
                           <button 
                             onClick={startEditingBasicInfo}
-                            className="p-2 hover:bg-white/10 rounded-xl transition-colors text-slate-400"
+                            className="p-2 hover:bg-white/10 rounded-xl transition-colors text-white/60"
                           >
                             <Edit2 size={16} />
                           </button>
                         </h3>
                         <div className="flex items-center gap-3 mt-1">
-                          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-black px-2 py-1 bg-white/5 rounded-lg border border-white/5">
+                          <span className="text-[10px] text-white/80 uppercase tracking-widest font-black px-2 py-1 bg-white/5 rounded-lg border border-white/5">
                             {roles.find(r => r.id === selectedUser.role)?.label || selectedUser.role}
                           </span>
                           {selectedUser.status && (
-                            <span className={cn(
-                              "text-[10px] uppercase tracking-widest font-black px-2 py-1 rounded-lg border",
-                              selectedUser.status === 'active' ? "bg-green-500/10 text-green-400 border-green-500/20" : 
-                              selectedUser.status === 'pending' ? "bg-yellow-500/10 text-yellow-400 border-yellow-500/20" : 
-                              "bg-red-500/10 text-red-400 border-red-500/20"
-                            )}>
-                              {selectedUser.status === 'active' ? 'Ativo' : selectedUser.status === 'pending' ? 'Pendente' : 'Inativo'}
-                            </span>
+                            <StatusBadge 
+                              status={selectedUser.status === 'active' ? 'paid' : selectedUser.status === 'pending' ? 'pending' : 'cancelled'} 
+                              label={selectedUser.status === 'active' ? 'Ativo' : selectedUser.status === 'pending' ? 'Pendente' : 'Inativo'}
+                            />
                           )}
                           <span className="text-white/20">•</span>
                           <button
                             onClick={() => setIsDeleteModalOpen(true)}
-                            className="text-[10px] text-red-400 hover:text-red-300 font-black uppercase tracking-widest transition-colors"
+                            className="text-[10px] text-red-300 hover:text-red-200 font-black uppercase tracking-widest transition-colors"
                           >
                             Excluir Usuário
                           </button>
@@ -436,26 +476,27 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                     <>
                       <button 
                         onClick={() => setIsEditingPermissions(false)}
-                        className="p-3 hover:bg-white/10 rounded-2xl transition-colors text-slate-400"
+                        className="p-3 hover:bg-white/10 rounded-2xl transition-colors text-white/60"
                       >
                         <X size={24} />
                       </button>
-                      <button 
+                      <AppButton 
                         onClick={handleSavePermissions}
-                        className="flex items-center gap-2 bg-white text-accent px-6 py-3 rounded-2xl font-black hover:bg-slate-100 transition-all shadow-xl"
+                        className="bg-white text-primary hover:bg-slate-100"
+                        icon={<Save size={20} />}
                       >
-                        <Save size={20} />
                         Salvar
-                      </button>
+                      </AppButton>
                     </>
                   ) : (
-                    <button 
+                    <AppButton 
                       onClick={startEditing}
-                      className="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-6 py-3 rounded-2xl font-black transition-all border border-white/10"
+                      variant="secondary"
+                      className="bg-white/10 hover:bg-white/20 text-white border-white/10"
+                      icon={<Edit2 size={20} />}
                     >
-                      <Edit2 size={20} />
                       Permissões
-                    </button>
+                    </AppButton>
                   )}
                 </div>
               </div>
@@ -502,7 +543,7 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                                   className={cn(
                                     "p-2.5 rounded-2xl transition-all shadow-sm",
                                     isAllowed 
-                                      ? "text-accent-foreground bg-accent/10 hover:bg-accent/20" 
+                                      ? "text-primary bg-primary/10 hover:bg-primary/20" 
                                       : "text-slate-300 bg-slate-50 hover:bg-slate-100",
                                     (!isEditingPermissions || selectedUser.role === 'admin') && "cursor-default opacity-80 shadow-none"
                                   )}
@@ -519,14 +560,14 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
                 </div>
 
                 {selectedUser.role === 'admin' && (
-                  <div className="mt-8 p-6 bg-accent text-accent-foreground rounded-[2rem] flex items-center gap-4 shadow-xl shadow-accent/20 relative overflow-hidden">
+                  <div className="mt-8 p-6 bg-primary text-white rounded-[2rem] flex items-center gap-4 shadow-xl shadow-primary/20 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-16 -mt-16 blur-2xl" />
                     <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-white relative z-10">
                       <Lock size={24} />
                     </div>
                     <div className="relative z-10">
                       <p className="text-xs font-black uppercase tracking-widest">Acesso Irrestrito</p>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Administradores possuem controle total sobre todos os módulos.</p>
+                      <p className="text-[10px] text-white/60 font-bold uppercase tracking-widest mt-1">Administradores possuem controle total sobre todos os módulos.</p>
                     </div>
                   </div>
                 )}
@@ -547,108 +588,69 @@ const Users: React.FC<{ setActiveTab?: (tab: string, itemId?: string) => void }>
       </div>
 
       {/* Add User Modal */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[60] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h3 className="text-xl font-black text-slate-900">Novo Usuário</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Acesso ao Sistema</p>
-              </div>
-              <button 
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleAddUser} className="p-8 space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                <input 
-                  type="text" 
-                  required
-                  className="input-modern"
-                  value={newUserFormData.name}
-                  onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
-                />
-              </div>
+      <AppDialog
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="Novo Usuário"
+        subtitle="Acesso ao Sistema"
+      >
+        <form onSubmit={handleAddUser} className="space-y-6">
+          <AppInput 
+            label="Nome Completo"
+            required
+            value={newUserFormData.name}
+            onChange={(e) => setNewUserFormData({ ...newUserFormData, name: e.target.value })}
+          />
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email</label>
-                <input 
-                  type="email" 
-                  required
-                  className="input-modern"
-                  value={newUserFormData.email}
-                  onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
-                />
-              </div>
+          <AppInput 
+            label="Email"
+            type="email" 
+            required
+            value={newUserFormData.email}
+            onChange={(e) => setNewUserFormData({ ...newUserFormData, email: e.target.value })}
+          />
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cargo / Função</label>
-                <select 
-                  className="select-modern"
-                  value={newUserFormData.role}
-                  onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as any })}
-                >
-                  {roles.map(role => (
-                    <option key={role.id} value={role.id}>{role.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="pt-4 flex gap-4">
-                <button 
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 px-6 py-4 bg-accent text-accent-foreground rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
-                >
-                  Adicionar
-                </button>
-              </div>
-            </form>
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Cargo / Função</label>
+            <select 
+              className="select-modern"
+              value={newUserFormData.role}
+              onChange={(e) => setNewUserFormData({ ...newUserFormData, role: e.target.value as any })}
+            >
+              {roles.map(role => (
+                <option key={role.id} value={role.id}>{role.label}</option>
+              ))}
+            </select>
           </div>
-        </div>
-      )}
+
+          <div className="pt-4 flex gap-4">
+            <AppButton 
+              variant="secondary"
+              onClick={() => setIsAddModalOpen(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </AppButton>
+            <AppButton 
+              type="submit"
+              className="flex-1"
+            >
+              Adicionar
+            </AppButton>
+          </div>
+        </form>
+      </AppDialog>
 
       {/* Delete Confirmation Modal */}
-      {isDeleteModalOpen && selectedUser && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-            <div className="p-8 text-center">
-              <div className="w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center text-red-600 mx-auto mb-6 shadow-xl shadow-red-100/50">
-                <AlertTriangle size={40} />
-              </div>
-              <h3 className="text-2xl font-black text-slate-900 mb-2">Excluir Usuário?</h3>
-              <p className="text-sm text-slate-500 mb-8">
-                Tem certeza que deseja excluir <span className="font-black text-slate-900">{selectedUser.name}</span>? Esta ação removerá permanentemente o acesso deste usuário ao sistema.
-              </p>
-              <div className="flex gap-4">
-                <button 
-                  onClick={() => setIsDeleteModalOpen(false)}
-                  className="flex-1 px-6 py-4 border border-slate-200 rounded-2xl font-bold text-slate-600 hover:bg-slate-50 transition-all text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleDeleteUser}
-                  className="flex-1 px-6 py-4 bg-red-600 text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-red-200 text-sm"
-                >
-                  Excluir
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteUser}
+        title="Excluir Usuário?"
+        message={`Tem certeza que deseja excluir ${selectedUser?.name}? Esta ação removerá permanentemente o acesso deste usuário ao sistema.`}
+        confirmLabel="Excluir"
+        variant="danger"
+      />
     </div>
   );
 };

@@ -7,7 +7,8 @@ import {
   Calendar,
   DollarSign,
   ArrowUpRight,
-  ArrowDownRight
+  ArrowDownRight,
+  Search
 } from 'lucide-react';
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../firebase';
@@ -15,10 +16,12 @@ import { RecurringTransaction, CostCenter, OperationType } from '../../../types'
 import { useAuth } from '../../auth/Auth';
 import { formatCurrency, cn, handleFirestoreError } from '../../../utils';
 import { toast } from 'sonner';
-import { Button } from '../../../components/ui/Button';
-import { SearchBar } from '../../../components/ui/SearchBar';
-import { Modal } from '../../../components/ui/Card';
+import { AppButton } from '../../../components/ui/AppButton';
+import { AppInput } from '../../../components/ui/AppInput';
+import { AppCard } from '../../../components/ui/AppCard';
+import { AppDialog } from '../../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { StatusBadge } from '../../../components/ui/StatusBadge';
 import { usePermissions } from '../../../hooks/usePermissions';
 
 const RecurringTransactions: React.FC = () => {
@@ -173,24 +176,25 @@ const RecurringTransactions: React.FC = () => {
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Automação de Lançamentos</p>
         </div>
         {canCreate && (
-          <Button 
+          <AppButton 
             onClick={() => openModal()}
             icon={<Plus size={18} />}
           >
             Nova Recorrência
-          </Button>
+          </AppButton>
         )}
       </div>
 
-      <SearchBar 
+      <AppInput 
         placeholder="Buscar recorrências..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
+        icon={<Search size={18} />}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((rt) => (
-          <div key={rt.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all group">
+          <AppCard key={rt.id} className="p-6 group">
             <div className="flex items-start justify-between mb-4">
               <div className={cn(
                 "p-3 rounded-2xl",
@@ -200,20 +204,24 @@ const RecurringTransactions: React.FC = () => {
               </div>
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
                 {canEdit && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => openModal(rt)}
-                    className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-xl transition-all"
+                    className="h-8 w-8 p-0"
                   >
                     <Edit2 size={16} />
-                  </button>
+                  </AppButton>
                 )}
                 {canDelete && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleDelete(rt.id!)}
-                    className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                    className="h-8 w-8 p-0 hover:text-red-600 hover:bg-red-50"
                   >
                     <Trash2 size={16} />
-                  </button>
+                  </AppButton>
                 )}
               </div>
             </div>
@@ -221,12 +229,10 @@ const RecurringTransactions: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2">
                 <h4 className="font-black text-slate-900">{rt.category}</h4>
-                <span className={cn(
-                  "px-2 py-0.5 text-[8px] font-black uppercase tracking-widest rounded-full",
-                  rt.active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"
-                )}>
-                  {rt.active ? 'Ativa' : 'Pausada'}
-                </span>
+                <StatusBadge 
+                  status={rt.active ? 'active' : 'inactive'} 
+                  label={rt.active ? 'Ativa' : 'Pausada'}
+                />
               </div>
               <p className="text-xs text-slate-500 font-medium line-clamp-1">{rt.description || 'Sem descrição'}</p>
               <p className="text-lg font-black text-slate-900 mt-2">{formatCurrency(rt.value)}</p>
@@ -259,16 +265,33 @@ const RecurringTransactions: React.FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </AppCard>
         ))}
       </div>
 
-      <Modal
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Recorrência' : 'Nova Recorrência'}
+        footer={
+          <div className="flex gap-3 w-full">
+            <AppButton 
+              variant="outline"
+              onClick={closeModal}
+              className="flex-1"
+            >
+              Cancelar
+            </AppButton>
+            <AppButton 
+              onClick={handleSubmit}
+              className="flex-1"
+            >
+              Salvar
+            </AppButton>
+          </div>
+        }
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo</label>
@@ -296,39 +319,30 @@ const RecurringTransactions: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Valor</label>
-              <div className="relative">
-                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="number"
-                  step="0.01"
-                  required
-                  className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                  placeholder="0,00"
-                  value={formData.value}
-                  onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-                />
-              </div>
-            </div>
+            <AppInput 
+              label="Valor"
+              type="number"
+              step="0.01"
+              required
+              placeholder="0,00"
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+              icon={<DollarSign size={18} />}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
-              <input 
-                type="text"
-                required
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                placeholder="Ex: Aluguel, Software"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Categoria"
+              required
+              placeholder="Ex: Aluguel, Software"
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Centro de Custo</label>
               <select 
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 value={formData.costCenterId}
                 onChange={(e) => setFormData({ ...formData, costCenterId: e.target.value })}
               >
@@ -340,22 +354,18 @@ const RecurringTransactions: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Descrição</label>
-            <input 
-              type="text"
-              className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-              placeholder="Detalhes da transação..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
+          <AppInput 
+            label="Descrição"
+            placeholder="Detalhes da transação..."
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Frequência</label>
               <select 
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
+                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 value={formData.frequency}
                 onChange={(e) => setFormData({ ...formData, frequency: e.target.value as any })}
               >
@@ -365,47 +375,28 @@ const RecurringTransactions: React.FC = () => {
                 <option value="yearly">Anual</option>
               </select>
             </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Dia do Mês</label>
-              <input 
-                type="number"
-                min="1"
-                max="31"
-                className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-accent transition-all"
-                value={formData.dayOfMonth}
-                onChange={(e) => setFormData({ ...formData, dayOfMonth: parseInt(e.target.value) })}
-              />
-            </div>
+            <AppInput 
+              label="Dia do Mês"
+              type="number"
+              min="1"
+              max="31"
+              value={formData.dayOfMonth.toString()}
+              onChange={(e) => setFormData({ ...formData, dayOfMonth: parseInt(e.target.value) })}
+            />
           </div>
 
           <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
             <input 
               type="checkbox"
               id="active"
-              className="w-5 h-5 rounded-lg border-slate-300 text-accent focus:ring-accent"
+              className="w-5 h-5 rounded-lg border-slate-300 text-primary focus:ring-primary"
               checked={formData.active}
               onChange={(e) => setFormData({ ...formData, active: e.target.checked })}
             />
             <label htmlFor="active" className="text-sm font-bold text-slate-700 cursor-pointer">Recorrência Ativa</label>
           </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button 
-              variant="outline"
-              onClick={closeModal}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="submit"
-              className="flex-1"
-            >
-              Salvar
-            </Button>
-          </div>
-        </form>
-      </Modal>
+        </div>
+      </AppDialog>
 
       <ConfirmDialog
         isOpen={isConfirmOpen}

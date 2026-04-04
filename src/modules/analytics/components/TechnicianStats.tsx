@@ -1,16 +1,7 @@
 import React from 'react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  Cell 
-} from 'recharts';
 import { formatCurrency } from '../../../utils';
 import { UserCircle, Zap, ClipboardList } from 'lucide-react';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface TechnicianStatsProps {
   data: {
@@ -23,10 +14,8 @@ interface TechnicianStatsProps {
 }
 
 export const TechnicianStats: React.FC<TechnicianStatsProps> = ({ data }) => {
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444'];
-
   return (
-    <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">
+    <AppCard className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Produtividade por Técnico</h3>
@@ -35,7 +24,7 @@ export const TechnicianStats: React.FC<TechnicianStatsProps> = ({ data }) => {
       </div>
 
       <div className="space-y-6">
-        {data.map((tech, i) => (
+        {data.map((tech) => (
           <div key={tech.id} className="p-6 bg-slate-50 rounded-3xl border border-slate-100 hover:bg-white hover:shadow-xl hover:shadow-slate-100 transition-all group">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-4">
@@ -82,6 +71,6 @@ export const TechnicianStats: React.FC<TechnicianStatsProps> = ({ data }) => {
           <p className="text-slate-500 font-medium">Nenhum dado de técnico disponível.</p>
         </div>
       )}
-    </div>
+    </AppCard>
   );
 };

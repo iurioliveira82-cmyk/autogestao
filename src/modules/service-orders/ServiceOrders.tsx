@@ -6,7 +6,6 @@ import {
   CheckCircle2, 
   XCircle, 
   AlertCircle,
-  MoreVertical,
   Edit2,
   Trash2,
   Printer,
@@ -26,7 +25,9 @@ import {
   List as ListIcon,
   History,
   FileText,
-  Search
+  Search,
+  Eye,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -60,7 +61,7 @@ import {
 } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { formatCurrency, cn } from '../../utils';
+import { formatCurrency, cn, formatSafeDate } from '../../utils';
 import { OSService } from '../../services/os';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -68,15 +69,17 @@ import { toast } from 'sonner';
 import PageHeader from '../../components/layout/PageHeader';
 import PageContainer from '../../components/layout/PageContainer';
 import FiltersToolbar from '../../components/layout/FiltersToolbar';
-import StandardTable from '../../components/layout/StandardTable';
-import StandardDialog from '../../components/layout/StandardDialog';
+import { DataTable } from '../../components/ui/DataTable';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import EmptyState from '../../components/layout/EmptyState';
 import LoadingSkeleton from '../../components/layout/LoadingSkeleton';
 import { generateAIResponse } from '../../services/gemini';
 import { SignatureModal } from './components/SignatureModal';
 import { SearchableSelect } from '../../components/ui/SearchableSelect';
-import { Button } from '../../components/ui/Button';
 
 interface ServiceOrdersProps {
   setActiveTab: (tab: string, itemId?: string, supplierId?: string, itemStatus?: OSStatus) => void;
@@ -86,20 +89,20 @@ interface ServiceOrdersProps {
 
 const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, initialStatus }) => {
   const { profile } = useAuth();
-  const statusMap: Record<OSStatus, { label: string; color: string; icon: any }> = {
-    recepcao: { label: 'Recepção', color: 'bg-slate-100 text-slate-600', icon: Clock },
-    diagnostico: { label: 'Diagnóstico', color: 'bg-blue-50 text-blue-600', icon: Wrench },
-    orcamento: { label: 'Orçamento', color: 'bg-amber-50 text-amber-600', icon: Clock },
-    aguardando_aprovacao: { label: 'Aguardando Aprovação', color: 'bg-orange-50 text-orange-600', icon: Clock },
-    aprovada: { label: 'Aprovada', color: 'bg-purple-50 text-purple-600', icon: CheckCircle2 },
-    em_execucao: { label: 'Em Execução', color: 'bg-blue-50 text-blue-600', icon: Wrench },
-    aguardando_peca: { label: 'Aguardando Peça', color: 'bg-yellow-50 text-yellow-600', icon: Clock },
-    lavagem: { label: 'Lavagem', color: 'bg-cyan-50 text-cyan-600', icon: Wrench },
-    finalizada: { label: 'Finalizada', color: 'bg-green-50 text-green-600', icon: CheckCircle2 },
-    entregue: { label: 'Entregue', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle2 },
-    pos_venda: { label: 'Pós-venda', color: 'bg-indigo-50 text-indigo-600', icon: MessageSquare },
-    cancelada: { label: 'Cancelada', color: 'bg-red-50 text-red-600', icon: XCircle },
-    garantia: { label: 'Garantia', color: 'bg-rose-50 text-rose-600', icon: AlertCircle },
+  const statusMap: Record<OSStatus, { label: string; color: string; variant: any; icon: any }> = {
+    recepcao: { label: 'Recepção', color: 'bg-slate-100 text-slate-600', variant: 'secondary', icon: Clock },
+    diagnostico: { label: 'Diagnóstico', color: 'bg-blue-50 text-blue-600', variant: 'info', icon: Wrench },
+    orcamento: { label: 'Orçamento', color: 'bg-amber-50 text-amber-600', variant: 'warning', icon: Clock },
+    aguardando_aprovacao: { label: 'Aguardando Aprovação', color: 'bg-orange-50 text-orange-600', variant: 'warning', icon: Clock },
+    aprovada: { label: 'Aprovada', color: 'bg-purple-50 text-purple-600', variant: 'info', icon: CheckCircle2 },
+    em_execucao: { label: 'Em Execução', color: 'bg-blue-50 text-blue-600', variant: 'info', icon: Wrench },
+    aguardando_peca: { label: 'Aguardando Peça', color: 'bg-yellow-50 text-yellow-600', variant: 'warning', icon: Clock },
+    lavagem: { label: 'Lavagem', color: 'bg-cyan-50 text-cyan-600', variant: 'info', icon: Wrench },
+    finalizada: { label: 'Finalizada', color: 'bg-green-50 text-green-600', variant: 'success', icon: CheckCircle2 },
+    entregue: { label: 'Entregue', color: 'bg-emerald-50 text-emerald-600', variant: 'success', icon: CheckCircle2 },
+    pos_venda: { label: 'Pós-venda', color: 'bg-indigo-50 text-indigo-600', variant: 'info', icon: MessageSquare },
+    cancelada: { label: 'Cancelada', color: 'bg-red-50 text-red-600', variant: 'danger', icon: XCircle },
+    garantia: { label: 'Garantia', color: 'bg-rose-50 text-rose-600', variant: 'danger', icon: AlertCircle },
   };
   const [osList, setOsList] = useState<ServiceOrder[]>([]);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -132,7 +135,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
     internalObservations: '',
     paymentMethod: 'pix' as 'cash' | 'pix' | 'card' | 'transfer',
     paymentType: 'cash' as 'cash' | 'deferred',
-    dueDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+    dueDate: formatSafeDate(addDays(new Date(), 30), 'yyyy-MM-dd'),
     checklist: [] as { item: string; status: 'ok' | 'not_ok' | 'na'; notes?: string }[],
     fotosAntes: [] as string[],
     fotosDepois: [] as string[],
@@ -253,7 +256,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
             internalObservations: os.internalObservations || '',
             paymentMethod: os.paymentMethod || 'pix',
             paymentType: os.paymentType || 'cash',
-            dueDate: os.dueDate || format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+            dueDate: os.dueDate || formatSafeDate(addDays(new Date(), 30), 'yyyy-MM-dd'),
             checklist: os.checklist || [],
             fotosAntes: os.fotosAntes || [],
             fotosDepois: os.fotosDepois || [],
@@ -413,7 +416,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
         internalObservations: '',
         paymentMethod: 'pix',
         paymentType: 'cash',
-        dueDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+        dueDate: formatSafeDate(addDays(new Date(), 30), 'yyyy-MM-dd'),
         checklist: [
           { item: 'Nível de Óleo', status: 'na' },
           { item: 'Líquido de Arrefecimento', status: 'na' },
@@ -660,10 +663,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:border-accent/20 transition-all cursor-pointer group"
                 >
                   <div className="flex items-center justify-between mb-4">
-                    <span className="text-[10px] font-mono font-bold text-slate-400">#{os.id.slice(0, 6).toUpperCase()}</span>
+                    <span className="text-[10px] font-mono font-bold text-slate-400">#{os.numeroOS || os.id.slice(0, 6).toUpperCase()}</span>
                     <span className="text-xs font-black text-slate-900 font-display">{formatCurrency(os.valorTotal)}</span>
                   </div>
-                  <h4 className="text-sm font-black text-slate-900 mb-2 group-hover:text-accent transition-colors">{getClientName(os.clienteId)}</h4>
+                  <h4 className="text-sm font-black text-slate-900 mb-2 group-hover:text-primary transition-colors">{getClientName(os.clienteId)}</h4>
                   <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold">
                     <CarIcon size={12} className="text-slate-300" />
                     {getVehicleInfo(os.veiculoId)}
@@ -674,7 +677,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                         {getClientName(os.clienteId).slice(0, 1)}
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-400 font-bold">{format(new Date(os.createdAt), 'dd/MM')}</span>
+                    <span className="text-[10px] text-slate-400 font-bold">{formatSafeDate(os.createdAt, 'dd/MM')}</span>
                   </div>
                 </motion.div>
               ))}
@@ -714,9 +717,9 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
               </button>
             </div>
             {canCreate && (
-              <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+              <AppButton onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
                 Nova Ordem
-              </Button>
+              </AppButton>
             )}
           </div>
         }
@@ -734,7 +737,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
           <LoadingSkeleton variant="table" count={5} />
         ) : filteredOS.length > 0 ? (
           viewMode === 'list' ? (
-            <StandardTable
+            <DataTable
               data={filteredOS}
               columns={[
                 {
@@ -743,11 +746,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-900">#{os.numeroOS || os.id.slice(0, 8).toUpperCase()}</span>
                       <span className="text-xs text-slate-500">
-                        {format(new Date(os.createdAt), 'dd/MM/yyyy')}
+                        {formatSafeDate(os.createdAt, 'dd/MM/yyyy')}
                       </span>
                     </div>
-                  ),
-                  width: '120px'
+                  )
                 },
                 {
                   header: 'Cliente / Veículo',
@@ -762,15 +764,13 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   header: 'Status',
                   accessor: (os) => {
                     const status = statusMap[os.status];
-                    const StatusIcon = status.icon;
                     return (
-                      <div className={cn(
-                        "inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border",
-                        status.color
-                      )}>
-                        <StatusIcon size={12} />
-                        {status.label}
-                      </div>
+                      <StatusBadge 
+                        status={os.status}
+                        label={status.label}
+                        variant={status.variant}
+                        icon={status.icon}
+                      />
                     );
                   }
                 },
@@ -780,34 +780,46 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                     <span className="font-bold text-slate-900">{formatCurrency(os.valorTotal)}</span>
                   ),
                   className: 'text-right'
+                },
+                {
+                  header: 'Ações',
+                  accessor: (os) => (
+                    <div className="flex items-center justify-end gap-2">
+                      <AppButton 
+                        onClick={() => openModal(os)}
+                        variant="ghost"
+                        size="sm"
+                        icon={<Edit2 size={16} />}
+                        title="Editar"
+                      />
+                      <AppButton 
+                        variant="ghost"
+                        size="sm"
+                        icon={<Printer size={16} />}
+                        title="Imprimir"
+                      />
+                      <AppButton 
+                        variant="ghost"
+                        size="sm"
+                        icon={<Send size={16} />}
+                        onClick={() => sendNotification(os)}
+                        title="Enviar WhatsApp"
+                      />
+                      {canDelete && (
+                        <AppButton 
+                          onClick={() => handleDelete(os.id)}
+                          variant="ghost"
+                          size="sm"
+                          icon={<Trash2 size={16} />}
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                          title="Excluir"
+                        />
+                      )}
+                    </div>
+                  ),
+                  className: 'text-right'
                 }
               ]}
-              actions={(os) => (
-                <div className="flex items-center justify-end gap-2">
-                  <button 
-                    onClick={() => openModal(os)}
-                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-accent transition-colors"
-                    title="Editar"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                  <button 
-                    className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-900 transition-colors"
-                    title="Imprimir"
-                  >
-                    <Printer size={18} />
-                  </button>
-                  {canDelete && (
-                    <button 
-                      onClick={() => handleDelete(os.id)}
-                      className="p-2 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-destructive transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  )}
-                </div>
-              )}
             />
           ) : (
             <KanbanBoard />
@@ -818,19 +830,19 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
             title="Nenhuma ordem de serviço encontrada"
             description={searchTerm ? "Tente ajustar sua busca para encontrar o que procura." : "Comece criando sua primeira ordem de serviço para gerenciar seus atendimentos."}
             action={!searchTerm ? (
-              <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+              <AppButton onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
                 Nova Ordem
-              </Button>
+              </AppButton>
             ) : undefined}
           />
         )}
       </div>
 
-      <StandardDialog
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingOS ? `Editar OS #${editingOS.numeroOS || editingOS.id.slice(0, 8).toUpperCase()}` : 'Nova Ordem de Serviço'}
-        maxWidth="max-w-7xl"
+        maxWidth="7xl"
         footer={
           <div className="flex flex-col sm:flex-row items-center justify-between w-full gap-6">
             <div className="flex items-center gap-8">
@@ -844,26 +856,26 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                   <input 
                     type="number"
-                    className="bg-slate-100 border-slate-200 rounded-xl pl-8 pr-3 py-1.5 w-28 text-sm font-bold focus:ring-2 focus:ring-accent transition-all"
+                    className="bg-slate-100 border-slate-200 rounded-xl pl-8 pr-3 py-1.5 w-28 text-sm font-bold focus:ring-2 focus:ring-primary transition-all"
                     value={formData.desconto}
                     onChange={(e) => setFormData({ ...formData, desconto: Number(e.target.value) })}
                   />
                 </div>
               </div>
               <div className="space-y-1 text-right">
-                <p className="text-[10px] font-black text-accent uppercase tracking-[0.4em]">Total Final</p>
+                <p className="text-[10px] font-black text-primary uppercase tracking-[0.4em]">Total Final</p>
                 <p className="text-3xl font-black font-display tracking-tighter text-slate-900">{formatCurrency(calculateTotal())}</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <Button 
+              <AppButton 
                 type="button"
                 variant="ghost"
                 onClick={closeModal}
               >
                 Descartar
-              </Button>
-              <Button 
+              </AppButton>
+              <AppButton 
                 type="submit"
                 form="os-form"
                 variant="primary"
@@ -871,7 +883,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                 icon={<CheckCircle2 size={20} />}
               >
                 {editingOS ? 'Salvar Alterações' : 'Emitir Ordem de Serviço'}
-              </Button>
+              </AppButton>
             </div>
           </div>
         }
@@ -894,7 +906,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   className={cn(
                     "flex items-center gap-3 px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap relative",
                     activeModalTab === tab.id 
-                      ? "bg-white text-accent shadow-xl shadow-accent/5 border border-accent/10" 
+                      ? "bg-white text-primary shadow-xl shadow-primary/5 border border-primary/10" 
                       : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                   )}
                 >
@@ -903,7 +915,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   {activeModalTab === tab.id && (
                     <motion.div 
                       layoutId="activeTab"
-                      className="absolute -bottom-[17px] left-0 right-0 h-1 bg-accent rounded-t-full"
+                      className="absolute -bottom-[17px] left-0 right-0 h-1 bg-primary rounded-t-full"
                     />
                   )}
                 </button>
@@ -935,7 +947,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                       {/* Left Column: Client & Vehicle */}
                       <div className="space-y-10">
                         <div className="space-y-6">
-                          <div className="flex items-center gap-3 text-accent">
+                          <div className="flex items-center gap-3 text-primary">
                             <User size={20} />
                             <h3 className="text-sm font-black uppercase tracking-[0.2em]">Cliente & Veículo</h3>
                           </div>
@@ -965,7 +977,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                         </div>
 
                         <div className="space-y-6">
-                          <div className="flex items-center gap-3 text-accent">
+                          <div className="flex items-center gap-3 text-primary">
                             <Clock size={20} />
                             <h3 className="text-sm font-black uppercase tracking-[0.2em]">Status & Pagamento</h3>
                           </div>
@@ -974,7 +986,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
                               <select 
-                                className="select-modern"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                                 value={formData.status}
                                 onChange={(e) => setFormData({ ...formData, status: e.target.value as OSStatus })}
                               >
@@ -987,7 +999,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Tipo de Pagamento</label>
                               <select 
-                                className="select-modern"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                                 value={formData.paymentType}
                                 onChange={(e) => setFormData({ ...formData, paymentType: e.target.value as any })}
                               >
@@ -999,7 +1011,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             <div className="space-y-2">
                               <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Forma de Pagamento</label>
                               <select 
-                                className="select-modern"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                                 value={formData.paymentMethod}
                                 onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value as any })}
                               >
@@ -1011,15 +1023,12 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             </div>
 
                             {formData.paymentType === 'deferred' && (
-                              <div className="space-y-2">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data de Vencimento</label>
-                                <input 
-                                  type="date"
-                                  className="input-modern"
-                                  value={formData.dueDate}
-                                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                                />
-                              </div>
+                              <AppInput 
+                                label="Data de Vencimento"
+                                type="date"
+                                value={formData.dueDate}
+                                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                              />
                             )}
                           </div>
                         </div>
@@ -1028,7 +1037,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                       {/* Right Column: Services */}
                       <div className="space-y-10">
                         <div className="space-y-6">
-                          <div className="flex items-center gap-3 text-accent">
+                          <div className="flex items-center gap-3 text-primary">
                             <Wrench size={20} />
                             <h3 className="text-sm font-black uppercase tracking-[0.2em]">Serviços & Peças</h3>
                           </div>
@@ -1039,7 +1048,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               <input 
                                 type="text" 
                                 placeholder="Buscar serviços..." 
-                                className="input-modern !pl-12"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                                 value={serviceSearchTerm}
                                 onChange={(e) => setServiceSearchTerm(e.target.value)}
                               />
@@ -1058,10 +1067,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                         className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors text-left group"
                                       >
                                         <div>
-                                          <p className="font-bold text-slate-900 group-hover:text-accent transition-colors">{s.name}</p>
+                                          <p className="font-bold text-slate-900 group-hover:text-primary transition-colors">{s.name}</p>
                                           <p className="text-xs text-slate-400 font-medium">{formatCurrency(s.price)}</p>
                                         </div>
-                                        <Plus size={18} className="text-slate-300 group-hover:text-accent" />
+                                        <Plus size={18} className="text-slate-300 group-hover:text-primary" />
                                       </button>
                                     ))}
                                 </div>
@@ -1073,7 +1082,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               <input 
                                 type="text" 
                                 placeholder="Buscar peças..." 
-                                className="input-modern !pl-12"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                                 value={partSearchTerm}
                                 onChange={(e) => setPartSearchTerm(e.target.value)}
                               />
@@ -1092,10 +1101,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                         className="w-full flex items-center justify-between p-4 hover:bg-slate-50 rounded-xl transition-colors text-left group"
                                       >
                                         <div>
-                                          <p className="font-bold text-slate-900 group-hover:text-accent transition-colors">{p.name}</p>
+                                          <p className="font-bold text-slate-900 group-hover:text-primary transition-colors">{p.name}</p>
                                           <p className="text-xs text-slate-400 font-medium">{formatCurrency(p.precoVenda)} - Estoque: {p.quantidadeAtual}</p>
                                         </div>
-                                        <Plus size={18} className="text-slate-300 group-hover:text-accent" />
+                                        <Plus size={18} className="text-slate-300 group-hover:text-primary" />
                                       </button>
                                     ))}
                                 </div>
@@ -1104,14 +1113,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                             <div className="space-y-3">
                               {formData.selectedServices.map((s, i) => (
-                                <div key={`service-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
+                                <div key={`service-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/20 transition-all">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Serviço</span>
                                       <p className="font-bold text-slate-900">{s.name}</p>
                                     </div>
                                     <div className="flex items-center gap-4 mt-1">
-                                      <span className="text-xs font-black text-accent">{formatCurrency(s.price)}</span>
+                                      <span className="text-xs font-black text-primary">{formatCurrency(s.price)}</span>
                                       <div className="flex items-center gap-2">
                                         <button 
                                           type="button"
@@ -1142,7 +1151,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                       <div className="flex items-center gap-2">
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Técnico</span>
                                         <select
-                                          className="bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
+                                          className="bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-primary transition-all"
                                           value={s.tecnicoId}
                                           onChange={(e) => {
                                             const newServices = [...formData.selectedServices];
@@ -1160,7 +1169,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                         <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Comissão (%)</span>
                                         <input
                                           type="number"
-                                          className="w-16 bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-accent transition-all"
+                                          className="w-16 bg-white border border-slate-200 rounded-lg text-[10px] font-bold px-2 py-1 outline-none focus:ring-2 focus:ring-primary transition-all"
                                           value={s.comissao}
                                           onChange={(e) => {
                                             const newServices = [...formData.selectedServices];
@@ -1182,14 +1191,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               ))}
 
                               {formData.selectedParts.map((p, i) => (
-                                <div key={`part-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-accent/20 transition-all">
+                                <div key={`part-${i}`} className="flex items-center justify-between p-5 bg-slate-50 border border-slate-100 rounded-2xl group hover:bg-white hover:border-primary/20 transition-all">
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2">
                                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Peça</span>
                                       <p className="font-bold text-slate-900">{p.name}</p>
                                     </div>
                                     <div className="flex items-center gap-4 mt-1">
-                                      <span className="text-xs font-black text-accent">{formatCurrency(p.price)}</span>
+                                      <span className="text-xs font-black text-primary">{formatCurrency(p.price)}</span>
                                       <div className="flex items-center gap-2">
                                         <button 
                                           type="button"
@@ -1238,7 +1247,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                         <div className="space-y-6">
                           <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3 text-accent">
+                            <div className="flex items-center gap-3 text-primary">
                               <MessageSquare size={20} />
                               <h3 className="text-sm font-black uppercase tracking-[0.2em]">Observações</h3>
                             </div>
@@ -1246,14 +1255,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               type="button"
                               onClick={handleGenerateAIObservations}
                               disabled={isGeneratingAI}
-                              className="flex items-center gap-2 text-[10px] font-black text-accent uppercase tracking-widest hover:bg-accent/5 px-4 py-2 rounded-xl transition-all disabled:opacity-50"
+                              className="flex items-center gap-2 text-[10px] font-black text-primary uppercase tracking-widest hover:bg-primary/5 px-4 py-2 rounded-xl transition-all disabled:opacity-50"
                             >
                               {isGeneratingAI ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                               Gerar com IA
                             </button>
                           </div>
                           <textarea 
-                            className="textarea-modern"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none min-h-[120px]"
                             placeholder="Detalhes técnicos, recomendações ou observações gerais..."
                             value={formData.observations}
                             onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
@@ -1261,7 +1270,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                           <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações Internas (Não visível ao cliente)</label>
                             <textarea
-                              className="textarea-modern !min-h-[100px] !py-3"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none min-h-[100px]"
                               placeholder="Notas para a equipe técnica, histórico interno..."
                               value={formData.internalObservations}
                               onChange={(e) => setFormData({ ...formData, internalObservations: e.target.value })}
@@ -1274,7 +1283,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                   {activeModalTab === 'checklist' && (
                     <div className="space-y-8">
-                      <div className="flex items-center gap-3 text-accent">
+                      <div className="flex items-center gap-3 text-primary">
                         <ClipboardList size={24} />
                         <h3 className="text-lg font-black uppercase tracking-[0.2em]">Checklist de Entrada</h3>
                       </div>
@@ -1323,7 +1332,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                         <input 
                           type="text"
                           placeholder="Novo item de inspeção..."
-                          className="input-modern flex-1"
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
                               e.preventDefault();
@@ -1338,7 +1347,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                             }
                           }}
                         />
-                        <button
+                        <AppButton
                           type="button"
                           onClick={(e) => {
                             const input = (e.currentTarget.previousSibling as HTMLInputElement);
@@ -1350,10 +1359,10 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               input.value = '';
                             }
                           }}
-                          className="px-8 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10"
+                          variant="primary"
                         >
                           Adicionar Item
-                        </button>
+                        </AppButton>
                       </div>
                     </div>
                   )}
@@ -1361,7 +1370,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   {activeModalTab === 'photos' && (
                     <div className="space-y-12">
                       <div className="space-y-6">
-                        <div className="flex items-center gap-3 text-accent">
+                        <div className="flex items-center gap-3 text-primary">
                           <ImageIcon size={24} />
                           <h3 className="text-lg font-black uppercase tracking-widest">Galeria de Fotos</h3>
                         </div>
@@ -1382,7 +1391,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   </button>
                                 </div>
                               ))}
-                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-slate-400 hover:text-accent">
+                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all text-slate-400 hover:text-primary">
                                 <Plus size={24} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Adicionar</span>
                                 <input 
@@ -1419,7 +1428,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                   </button>
                                 </div>
                               ))}
-                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-accent hover:bg-accent/5 transition-all text-slate-400 hover:text-accent">
+                              <label className="aspect-square rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary hover:bg-primary/5 transition-all text-slate-400 hover:text-primary">
                                 <Plus size={24} />
                                 <span className="text-[10px] font-black uppercase tracking-widest">Adicionar</span>
                                 <input 
@@ -1447,7 +1456,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
 
                   {activeModalTab === 'signature' && (
                     <div className="space-y-8">
-                      <div className="flex items-center gap-3 text-accent">
+                      <div className="flex items-center gap-3 text-primary">
                         <Edit2 size={24} />
                         <h3 className="text-lg font-black uppercase tracking-widest">Assinatura do Cliente</h3>
                       </div>
@@ -1473,13 +1482,14 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                               <p className="text-lg font-bold text-slate-900">Aguardando Assinatura</p>
                               <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">O cliente deve assinar para validar a OS</p>
                             </div>
-                            <button
+                            <AppButton
                               type="button"
                               onClick={() => setIsSignatureModalOpen(true)}
-                              className="btn-modern !px-12 !py-4"
+                              variant="primary"
+                              className="!px-12 !py-4"
                             >
                               Assinar Agora
-                            </button>
+                            </AppButton>
                           </div>
                         )}
                       </div>
@@ -1487,7 +1497,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                   )}
                   {activeModalTab === 'timeline' && (
                     <div className="space-y-8">
-                      <div className="flex items-center gap-3 text-accent">
+                      <div className="flex items-center gap-3 text-primary">
                         <Clock size={24} />
                         <h3 className="text-lg font-black uppercase tracking-widest">Linha do Tempo</h3>
                       </div>
@@ -1512,7 +1522,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
                                     {statusMap[step.status]?.label}
                                   </span>
                                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                    {format(new Date(step.timestamp), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                                    {formatSafeDate(step.timestamp, "dd/MM/yyyy 'às' HH:mm")}
                                   </span>
                                 </div>
                                 <p className="text-base font-bold text-slate-900 leading-relaxed">{step.notes}</p>
@@ -1540,7 +1550,7 @@ const ServiceOrders: React.FC<ServiceOrdersProps> = ({ setActiveTab, itemId, ini
               </AnimatePresence>
             </div>
           </form>
-        </StandardDialog>
+        </AppDialog>
 
       <SignatureModal 
         isOpen={isSignatureModalOpen}

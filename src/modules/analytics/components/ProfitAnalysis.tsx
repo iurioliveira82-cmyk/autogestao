@@ -1,11 +1,5 @@
 import React from 'react';
 import { 
-  PieChart as PieChartIcon, 
-  TrendingUp, 
-  ArrowUpRight, 
-  ArrowDownRight 
-} from 'lucide-react';
-import { 
   PieChart, 
   Pie, 
   Cell, 
@@ -14,6 +8,7 @@ import {
   Legend 
 } from 'recharts';
 import { formatCurrency } from '../../../utils';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface ProfitAnalysisProps {
   data: {
@@ -45,7 +40,7 @@ export const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({ data }) => {
   };
 
   return (
-    <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm h-full">
+    <AppCard className="p-8 h-full">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Lucro por Categoria</h3>
@@ -97,6 +92,6 @@ export const ProfitAnalysis: React.FC<ProfitAnalysisProps> = ({ data }) => {
           </div>
         ))}
       </div>
-    </div>
+    </AppCard>
   );
 };

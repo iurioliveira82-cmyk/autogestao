@@ -14,11 +14,13 @@ import {
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { FinancialTransaction, ServiceOrder, MonthlyGoal, Commission, OperationType } from '../../../types';
-import { formatCurrency, cn, handleFirestoreError } from '../../../utils';
-import { format, startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
+import { formatCurrency, cn, handleFirestoreError, formatSafeDate } from '../../../utils';
+import { startOfMonth, endOfMonth, isWithinInterval, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '../../auth/Auth';
-import { Card } from '../../../components/ui/Card';
+import { AppCard } from '../../../components/ui/AppCard';
+import SectionCard from '../../../components/layout/SectionCard';
+import { DataTable } from '../../../components/ui/DataTable';
 import { 
   BarChart, 
   Bar, 
@@ -118,7 +120,7 @@ const FinancialDashboard: React.FC = () => {
     const grossRevenue = monthOS.reduce((acc, os) => acc + (os.valorTotal || 0), 0);
     const ticketMedio = osCount > 0 ? grossRevenue / osCount : 0;
 
-    const goal = monthlyGoals.find(g => g.id === format(now, 'yyyy-MM'));
+    const goal = monthlyGoals.find(g => g.id === formatSafeDate(now, 'yyyy-MM'));
 
     return {
       income,
@@ -134,8 +136,8 @@ const FinancialDashboard: React.FC = () => {
     const data = [];
     for (let i = 5; i >= 0; i--) {
       const date = subMonths(new Date(), i);
-      const monthStr = format(date, 'MMM', { locale: ptBR });
-      const monthKey = format(date, 'yyyy-MM');
+      const monthStr = formatSafeDate(date, 'MMM');
+      const monthKey = formatSafeDate(date, 'yyyy-MM');
       const start = startOfMonth(date);
       const end = endOfMonth(date);
 
@@ -205,7 +207,7 @@ const FinancialDashboard: React.FC = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat, idx) => (
-          <Card key={idx} className="p-6 hover:shadow-md transition-all">
+          <AppCard key={idx} className="p-6">
             <div className="flex items-center gap-4 mb-4">
               <div className={cn("p-3 rounded-2xl", stat.bg, stat.color)}>
                 <stat.icon size={24} />
@@ -218,20 +220,18 @@ const FinancialDashboard: React.FC = () => {
             <div className="pt-4 border-t border-slate-50">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">{stat.trend}</p>
             </div>
-          </Card>
+          </AppCard>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Chart */}
-        <Card className="lg:col-span-2 p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h4 className="text-lg font-black text-slate-900">Desempenho Financeiro</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Últimos 6 meses</p>
-            </div>
-          </div>
-          <div className="h-[300px] w-full">
+        <SectionCard 
+          title="Desempenho Financeiro" 
+          subtitle="Últimos 6 meses"
+          className="lg:col-span-2"
+        >
+          <div className="h-[300px] w-full mt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
@@ -256,21 +256,15 @@ const FinancialDashboard: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </Card>
+        </SectionCard>
 
         {/* Goals Progress */}
-        <Card className="p-8">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-accent/10 text-accent rounded-2xl">
-              <Target size={24} />
-            </div>
-            <div>
-              <h4 className="text-lg font-black text-slate-900">Metas do Mês</h4>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Progresso Atual</p>
-            </div>
-          </div>
-
-          <div className="space-y-8">
+        <SectionCard 
+          title="Metas do Mês" 
+          subtitle="Progresso Atual"
+          icon={<Target size={20} className="text-accent" />}
+        >
+          <div className="space-y-8 mt-4">
             {currentMonth.goal ? (
               <>
                 <div className="space-y-3">
@@ -311,62 +305,56 @@ const FinancialDashboard: React.FC = () => {
               </div>
             )}
           </div>
-        </Card>
+        </SectionCard>
       </div>
 
       {/* OS Margin Analysis */}
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-8 border-b border-slate-100">
-          <h4 className="text-lg font-black text-slate-900">Rentabilidade por OS</h4>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Análise de Margem de Contribuição</p>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                <th className="px-8 py-4">OS</th>
-                <th className="px-8 py-4 text-right">Faturamento</th>
-                <th className="px-8 py-4 text-right">Custo</th>
-                <th className="px-8 py-4 text-right">Lucro</th>
-                <th className="px-8 py-4 text-right">Margem</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {serviceOrders
-                .filter(os => os.status === 'finalizada')
-                .sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime())
-                .slice(0, 5)
-                .map((os) => {
-                  const revenue = os.valorTotal || 0;
-                  const cost = os.custoTotal || 0;
-                  const profit = revenue - cost;
-                  const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
-
-                  return (
-                    <tr key={os.id} className="hover:bg-slate-50 transition-all group">
-                      <td className="px-8 py-4">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-900">OS #{os.numeroOS || os.id.slice(-4).toUpperCase()}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                            {format(new Date(os.updatedAt || os.createdAt), 'dd/MM/yyyy')}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-4 text-right text-sm font-bold text-slate-900">{formatCurrency(revenue)}</td>
-                      <td className="px-8 py-4 text-right text-sm font-bold text-red-500">{formatCurrency(cost)}</td>
-                      <td className="px-8 py-4 text-right text-sm font-black text-green-600">{formatCurrency(profit)}</td>
-                      <td className="px-8 py-4 text-right">
-                        <div className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest">
-                          {Math.round(margin)}%
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <SectionCard 
+        title="Rentabilidade por OS" 
+        subtitle="Análise de Margem de Contribuição"
+      >
+        <DataTable
+          columns={[
+            { header: 'OS', accessor: (os) => (
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-900">OS #{os.numeroOS || os.id.slice(-4).toUpperCase()}</span>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                  {formatSafeDate(os.updatedAt || os.createdAt, 'dd/MM/yyyy')}
+                </span>
+              </div>
+            )},
+            { header: 'Faturamento', className: 'text-right', accessor: (os) => (
+              <span className="text-sm font-bold text-slate-900">{formatCurrency(os.valorTotal || 0)}</span>
+            )},
+            { header: 'Custo', className: 'text-right', accessor: (os) => (
+              <span className="text-sm font-bold text-red-500">{formatCurrency(os.custoTotal || 0)}</span>
+            )},
+            { header: 'Lucro', className: 'text-right', accessor: (os) => (
+              <span className="text-sm font-black text-green-600">{formatCurrency((os.valorTotal || 0) - (os.custoTotal || 0))}</span>
+            )},
+            { header: 'Margem', className: 'text-right', accessor: (os) => {
+              const revenue = os.valorTotal || 0;
+              const cost = os.custoTotal || 0;
+              const profit = revenue - cost;
+              const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
+              return (
+                <div className="inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest">
+                  {Math.round(margin)}%
+                </div>
+              );
+            }}
+          ]}
+          data={serviceOrders
+            .filter(os => os.status === 'finalizada')
+            .sort((a, b) => {
+              const dateA = (a.updatedAt || a.createdAt)?.seconds ? (a.updatedAt || a.createdAt).seconds * 1000 : new Date(a.updatedAt || a.createdAt).getTime();
+              const dateB = (b.updatedAt || b.createdAt)?.seconds ? (b.updatedAt || b.createdAt).seconds * 1000 : new Date(b.updatedAt || b.createdAt).getTime();
+              return (dateB || 0) - (dateA || 0);
+            })
+            .slice(0, 5)}
+          emptyMessage="Nenhuma OS finalizada encontrada."
+        />
+      </SectionCard>
     </div>
   );
 };

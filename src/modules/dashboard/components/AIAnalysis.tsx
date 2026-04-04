@@ -48,48 +48,56 @@ export const AIAnalysis: React.FC<AIAnalysisProps> = ({ stats }) => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={handleGenerateAIAnalysis}
-          disabled={isGeneratingAI}
-          className="btn-modern flex items-center gap-2"
-        >
-          {isGeneratingAI ? (
-            <Loader2 size={18} className="animate-spin" />
-          ) : (
-            <Sparkles size={18} className="text-amber-400" />
-          )}
-          Análise de IA
-        </button>
-      </div>
+    <div className="space-y-4">
+      {!aiAnalysis && !isGeneratingAI && (
+        <div className="flex flex-col items-center justify-center py-6 text-center">
+          <div className="p-4 bg-amber-50 rounded-full mb-4">
+            <Sparkles size={32} className="text-amber-400" />
+          </div>
+          <p className="text-sm text-slate-500 mb-4 px-4">
+            Gere uma análise inteligente do desempenho da sua oficina hoje.
+          </p>
+          <button
+            onClick={handleGenerateAIAnalysis}
+            className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+          >
+            <Sparkles size={16} className="text-amber-400" />
+            Gerar Insights
+          </button>
+        </div>
+      )}
+
+      {isGeneratingAI && (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <Loader2 size={32} className="text-primary animate-spin mb-4" />
+          <p className="text-sm font-bold text-slate-900">Analisando dados...</p>
+          <p className="text-xs text-slate-500 mt-1">Isso levará apenas alguns segundos.</p>
+        </div>
+      )}
 
       <AnimatePresence>
-        {aiAnalysis && (
+        {aiAnalysis && !isGeneratingAI && (
           <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="bg-white text-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-2xl relative overflow-hidden group"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative"
           >
-            <div className="flex items-start justify-between mb-4 relative z-10">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-slate-100 rounded-xl">
-                  <Sparkles size={20} className="text-amber-500" />
-                </div>
-                <h3 className="text-lg font-bold">Insights da Inteligência Artificial</h3>
+            <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 relative z-10">
+              <p className="text-sm text-slate-700 leading-relaxed italic">
+                "{aiAnalysis}"
+              </p>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                  Gerado agora mesmo
+                </span>
+                <button 
+                  onClick={handleGenerateAIAnalysis}
+                  className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+                >
+                  Atualizar
+                </button>
               </div>
-              <button 
-                onClick={() => setAiAnalysis(null)}
-                className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-              >
-                <XCircle size={20} className="text-slate-400" />
-              </button>
             </div>
-            <p className="text-sm sm:text-base text-slate-600 leading-relaxed relative z-10 italic">
-              "{aiAnalysis}"
-            </p>
-            <div className="absolute -right-20 -bottom-20 w-64 h-64 bg-slate-50 rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
           </motion.div>
         )}
       </AnimatePresence>

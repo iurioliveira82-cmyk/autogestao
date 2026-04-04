@@ -22,22 +22,28 @@ import {
   Repeat,
   Users,
   Lock,
-  List
+  List,
+  ArrowRight
 } from 'lucide-react';
 import { Transaction, Supplier, OperationType, ServiceOrder, Client } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../auth/Auth';
-import { formatCurrency, cn } from '../../utils';
+import { formatCurrency, cn, formatSafeDate } from '../../utils';
 import { format, differenceInDays } from 'date-fns';
 import { toast } from 'sonner';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { motion, AnimatePresence } from 'motion/react';
 
 // UI Components
-import { PageHeader } from '../../components/ui/PageHeader';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { Button } from '../../components/ui/Button';
-import { Modal, Card } from '../../components/ui/Card';
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
+import { AppCard } from '../../components/ui/AppCard';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { DataTable } from '../../components/ui/DataTable';
+import { StatusBadge } from '../../components/ui/StatusBadge';
+import { AppDialog } from '../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 // Hooks
@@ -135,8 +141,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
     status: 'paid' as 'paid' | 'pending',
     supplierId: '',
     relatedId: '',
-    date: format(new Date(), 'yyyy-MM-dd'),
-    dueDate: format(new Date(), 'yyyy-MM-dd')
+    date: formatSafeDate(new Date(), 'yyyy-MM-dd'),
+    dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
   });
 
   const summary = useMemo(() => {
@@ -275,8 +281,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       status: 'pending',
       supplierId: '',
       relatedId: '',
-      date: format(new Date(), 'yyyy-MM-dd'),
-      dueDate: format(new Date(), 'yyyy-MM-dd')
+      date: formatSafeDate(new Date(), 'yyyy-MM-dd'),
+      dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
     });
     setIsModalOpen(true);
   };
@@ -309,8 +315,8 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       status: 'paid',
       supplierId: '',
       relatedId: '',
-      date: format(new Date(), 'yyyy-MM-dd'),
-      dueDate: format(new Date(), 'yyyy-MM-dd')
+      date: formatSafeDate(new Date(), 'yyyy-MM-dd'),
+      dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
     });
   };
 
@@ -346,18 +352,19 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
   const currentChartData = getChartData();
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-700">
+    <PageContainer>
       {/* Header Section */}
       <PageHeader 
-        title="Módulo Financeiro"
-        description="Gestão de Fluxo de Caixa e Rentabilidade"
-        action={canCreate ? (
-          <Button 
+        title="Financeiro"
+        subtitle="Gestão de fluxo de caixa, contas a pagar e receber."
+        breadcrumbs={[{ label: 'AutoGestão' }, { label: 'Financeiro' }]}
+        actions={canCreate ? (
+          <AppButton 
             onClick={() => openModal('in')}
             icon={<Plus size={18} />}
           >
             Novo Lançamento
-          </Button>
+          </AppButton>
         ) : undefined}
       />
 
@@ -375,13 +382,13 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
             key={tab.id}
             onClick={() => setActiveSubTab(tab.id as any)}
             className={cn(
-              "flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold transition-all whitespace-nowrap border",
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap border",
               activeSubTab === tab.id 
-                ? "bg-slate-900 text-white border-slate-900 shadow-lg shadow-slate-200" 
+                ? "bg-slate-900 text-white border-slate-900 shadow-md" 
                 : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
             )}
           >
-            <tab.icon size={18} />
+            <tab.icon size={14} />
             {tab.label}
           </button>
         ))}
@@ -394,48 +401,48 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
       {activeSubTab === 'closing' && <DailyClosingManager />}
 
       {activeSubTab === 'transactions' && (
-        <>
+        <div className="space-y-6">
           {/* Financial Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-            <Card className="p-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Entradas</p>
-              <h3 className="text-lg font-black text-green-600">{formatCurrency(summary.income)}</h3>
-            </Card>
+            <AppCard className="p-4 border-l-4 border-l-emerald-500">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Entradas</p>
+              <h3 className="text-xl font-black text-emerald-600 font-display">{formatCurrency(summary.income)}</h3>
+            </AppCard>
 
-            <Card className="p-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Saídas</p>
-              <h3 className="text-lg font-black text-red-600">{formatCurrency(summary.expense)}</h3>
-            </Card>
+            <AppCard className="p-4 border-l-4 border-l-rose-500">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saídas</p>
+              <h3 className="text-xl font-black text-rose-600 font-display">{formatCurrency(summary.expense)}</h3>
+            </AppCard>
 
-            <Card 
+            <AppCard 
               onClick={() => handleSetFinanceTab('receivable')}
               className={cn(
-                "p-4 transition-all cursor-pointer",
-                financeTab === 'receivable' ? "border-amber-500 ring-1 ring-amber-500" : "hover:border-amber-200"
+                "p-4 transition-all cursor-pointer border-l-4",
+                financeTab === 'receivable' ? "border-l-amber-500 bg-amber-50/30" : "border-l-amber-200 hover:border-l-amber-500"
               )}
             >
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">A Receber</p>
-              <h3 className="text-lg font-black text-amber-600">{formatCurrency(summary.receivable)}</h3>
-            </Card>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A Receber</p>
+              <h3 className="text-xl font-black text-amber-600 font-display">{formatCurrency(summary.receivable)}</h3>
+            </AppCard>
 
-            <Card 
+            <AppCard 
               onClick={() => handleSetFinanceTab('payable')}
               className={cn(
-                "p-4 transition-all cursor-pointer",
-                financeTab === 'payable' ? "border-orange-500 ring-1 ring-orange-500" : "hover:border-orange-200"
+                "p-4 transition-all cursor-pointer border-l-4",
+                financeTab === 'payable' ? "border-l-orange-500 bg-orange-50/30" : "border-l-orange-200 hover:border-l-orange-500"
               )}
             >
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">A Pagar</p>
-              <h3 className="text-lg font-black text-orange-600">{formatCurrency(summary.payable)}</h3>
-            </Card>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">A Pagar</p>
+              <h3 className="text-xl font-black text-orange-600 font-display">{formatCurrency(summary.payable)}</h3>
+            </AppCard>
 
-            <Card 
-              className="p-4 bg-slate-900 text-white flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all sm:col-span-2 lg:col-span-1 border-slate-900"
+            <AppCard 
+              className="p-4 bg-slate-900 text-white flex flex-col justify-center cursor-pointer hover:opacity-90 transition-all sm:col-span-2 lg:col-span-1 border-none"
               onClick={() => handleSetFinanceTab('all')}
             >
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Saldo</p>
-              <h3 className="text-lg font-black">{formatCurrency(summary.balance)}</h3>
-            </Card>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Saldo</p>
+              <h3 className="text-xl font-black font-display">{formatCurrency(summary.balance)}</h3>
+            </AppCard>
           </div>
 
       {upcomingExpenses.length > 0 && (
@@ -459,7 +466,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
                     "font-bold",
                     new Date(exp.date) < new Date() ? "text-red-600" : "text-amber-600"
                   )}>
-                    {format(new Date(exp.date), 'dd/MM')}
+                    {formatSafeDate(exp.date, 'dd/MM')}
                   </span>
                 </div>
               ))}
@@ -475,831 +482,575 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Transactions List */}
-      <div className="lg:col-span-2 space-y-6">
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden">
-          <div className="flex flex-wrap p-2 bg-slate-50/50 border-b border-slate-100 gap-2">
-            <button
-              onClick={() => handleSetFinanceTab('all')}
-              className={cn(
-                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
-                financeTab === 'all' 
-                  ? "bg-accent text-accent-foreground shadow-lg shadow-accent/20" 
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              Fluxo
-            </button>
-            <button
-              onClick={() => handleSetFinanceTab('receivable')}
-              className={cn(
-                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
-                financeTab === 'receivable' 
-                  ? "bg-amber-500 text-white shadow-lg shadow-amber-100" 
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              Receber
-            </button>
-            <button
-              onClick={() => handleSetFinanceTab('payable')}
-              className={cn(
-                "flex-1 py-3 px-4 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all rounded-2xl",
-                financeTab === 'payable' 
-                  ? "bg-orange-500 text-white shadow-lg shadow-orange-100" 
-                  : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
-              )}
-            >
-              Pagar
-            </button>
-          </div>
-
-          <div className="p-4 sm:p-8 space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                  {financeTab === 'all' ? 'Fluxo de Caixa' : 
-                   financeTab === 'receivable' ? 'Contas a Receber' : 'Contas a Pagar'}
-                </h3>
-                <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">
-                  {financeTab === 'all' ? 'Histórico Geral' : 
-                   financeTab === 'receivable' ? 'Pendências de Entrada' : 'Pendências de Saída'}
-                </p>
-              </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                {canCreate && (
-                  <>
-                    <Button 
-                      onClick={() => openModal('in')}
-                      variant="primary"
-                      icon={<Plus size={18} />}
-                    >
-                      Receber
-                    </Button>
-                    <Button 
-                      onClick={() => openModal('out')}
-                      variant="danger"
-                      icon={<Plus size={18} />}
-                    >
-                      Pagar
-                    </Button>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Filters Section - Only for Fluxo de Caixa as requested */}
-            {financeTab === 'all' && (
-              <div className="space-y-6 pt-6 border-t border-slate-100">
-                <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-                  <div className="flex-1">
-                    <SearchBar 
-                      placeholder="Buscar por descrição ou categoria..."
-                      value={filters.searchTerm}
-                      onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="flex items-center gap-2 overflow-x-auto pb-2 lg:pb-0 scrollbar-hide">
-                    <button
-                      onClick={() => {
-                        const today = new Date();
-                        const start = new Date(today.getFullYear(), today.getMonth(), 1);
-                        const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-                        setFilters({ 
-                          ...filters, 
-                          startDate: format(start, 'yyyy-MM-dd'),
-                          endDate: format(end, 'yyyy-MM-dd')
-                        });
-                      }}
-                      className="whitespace-nowrap px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Este Mês
-                    </button>
-                    <button
-                      onClick={() => {
-                        const today = new Date();
-                        const start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                        const end = new Date(today.getFullYear(), today.getMonth(), 0);
-                        setFilters({ 
-                          ...filters, 
-                          startDate: format(start, 'yyyy-MM-dd'),
-                          endDate: format(end, 'yyyy-MM-dd')
-                        });
-                      }}
-                      className="whitespace-nowrap px-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all"
-                    >
-                      Mês Passado
-                    </button>
-                    <button
-                      onClick={() => setFilters({ 
-                        ...filters, 
-                        status: 'all', 
-                        type: 'all', 
-                        clientId: 'all', 
-                        supplierId: 'all', 
-                        relatedId: 'all',
-                        startDate: '',
-                        endDate: '',
-                        startDueDate: '',
-                        endDueDate: ''
-                      })}
-                      className="whitespace-nowrap px-4 py-2 text-red-600 hover:bg-red-50 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                    >
-                      Limpar
-                    </button>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl">
-                    <button
-                      onClick={() => setFilters({ ...filters, status: 'all' })}
-                      className={cn(
-                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'all' ? "bg-accent text-accent-foreground shadow-sm" : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      Todos
-                    </button>
-                    <button
-                      onClick={() => setFilters({ ...filters, status: 'paid' })}
-                      className={cn(
-                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'paid' ? "bg-white text-green-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      Pagos
-                    </button>
-                    <button
-                      onClick={() => setFilters({ ...filters, status: 'pending' })}
-                      className={cn(
-                        "flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        filters.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
-                      )}
-                    >
-                      Pend.
-                    </button>
-                  </div>
-
-                  <select 
-                    className="input-standard"
-                    value={filters.type}
-                    onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
-                  >
-                    <option value="all">Todos Tipos</option>
-                    <option value="in">Entradas</option>
-                    <option value="out">Saídas</option>
-                  </select>
-
-                  <select 
-                    className="input-standard"
-                    value={filters.clientId}
-                    onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
-                  >
-                    <option value="all">Todos Clientes</option>
-                    {clients.map(c => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
-
-                  <select 
-                    className="input-standard"
-                    value={filters.relatedId}
-                    onChange={(e) => setFilters({ ...filters, relatedId: e.target.value })}
-                  >
-                    <option value="all">Todas OS</option>
-                    {serviceOrders
-                      .filter(os => transactions.some(t => t.relatedId === os.id))
-                      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                      .map(os => (
-                        <option key={os.id} value={os.id}>
-                          OS #{os.id.slice(-4).toUpperCase()}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lançamento (Início)</label>
-                    <input 
-                      type="date"
-                      className="input-standard"
-                      value={filters.startDate}
-                      onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Lançamento (Fim)</label>
-                    <input 
-                      type="date"
-                      className="input-standard"
-                      value={filters.endDate}
-                      onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimento (Início)</label>
-                    <input 
-                      type="date"
-                      className="input-standard"
-                      value={filters.startDueDate}
-                      onChange={(e) => setFilters({ ...filters, startDueDate: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Vencimento (Fim)</label>
-                    <input 
-                      type="date"
-                      className="input-standard"
-                      value={filters.endDueDate}
-                      onChange={(e) => setFilters({ ...filters, endDueDate: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {/* Filtered Summary */}
-                <div className="grid grid-cols-3 gap-4 pt-6 border-t border-slate-100">
-                  <div className="bg-green-50/50 p-4 rounded-3xl border border-green-100">
-                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-1">Entradas</p>
-                    <p className="text-xl font-black text-green-700">
-                      {formatCurrency(filteredTransactions.filter(t => t.type === 'in' && t.status !== 'cancelled').reduce((acc, t) => acc + t.value, 0))}
-                    </p>
-                  </div>
-                  <div className="bg-red-50/50 p-4 rounded-3xl border border-red-100">
-                    <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Saídas</p>
-                    <p className="text-xl font-black text-red-700">
-                      {formatCurrency(filteredTransactions.filter(t => t.type === 'out' && t.status !== 'cancelled').reduce((acc, t) => acc + t.value, 0))}
-                    </p>
-                  </div>
-                  <div className="bg-slate-100/50 p-4 rounded-3xl border border-slate-200">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Saldo</p>
-                    <p className="text-xl font-black text-accent">
-                      {formatCurrency(
-                        filteredTransactions.filter(t => t.status !== 'cancelled').reduce((acc, t) => t.type === 'in' ? acc + t.value : acc - t.value, 0)
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          <div className="hidden sm:block overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                  <th className="px-8 py-4">Datas</th>
-                  <th className="px-8 py-4">
-                    {financeTab === 'receivable' ? 'Cliente / OS' : 
-                     financeTab === 'payable' ? 'Fornecedor / Descrição' : 'Descrição'}
-                  </th>
-                  <th className="px-8 py-4">Categoria</th>
-                  <th className="px-8 py-4">Status</th>
-                  <th className="px-8 py-4 text-right">Valor</th>
-                  <th className="px-8 py-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                <AnimatePresence mode="popLayout">
-                  {financeLoading ? (
-                    <motion.tr
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                    >
-                      <td colSpan={6} className="px-8 py-10 text-center text-slate-400 italic">Carregando transações...</td>
-                    </motion.tr>
-                  ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
-                    const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
-                    const os = serviceOrders.find(o => o.id === t.relatedId);
-                    const client = t.clienteId ? clients.find(c => c.id === t.clienteId) : (os ? clients.find(c => c.id === os.clienteId) : null);
-                    const supplier = suppliers.find(s => s.id === t.fornecedorId);
-                    const interest = calculateInterest(t);
-                    const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
-
-                    return (
-                      <motion.tr 
-                        key={t.id} 
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className={cn(
-                          "hover:bg-slate-50 transition-colors",
-                          isUpcoming && "bg-amber-50/30",
-                          isOverdue && "bg-red-50/20"
-                        )}
-                      >
-                        <td className="px-8 py-5">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={12} className="text-slate-400" />
-                            <span className="text-xs font-bold text-accent">
-                              {t.date && !isNaN(new Date(t.date).getTime()) ? format(new Date(t.date), 'dd/MM/yy') : 'N/A'}
-                            </span>
-                            <span className="text-[8px] text-slate-400 uppercase font-black">Lanç.</span>
-                          </div>
-                          {t.dueDate && t.status === 'pending' && (
-                            <div className="flex items-center gap-2">
-                              <AlertTriangle size={12} className={cn(isUpcoming ? "text-red-500" : "text-amber-500")} />
-                              <span className={cn("text-xs font-bold", isUpcoming ? "text-red-600" : "text-amber-600")}>
-                                {t.dueDate && !isNaN(new Date(t.dueDate).getTime()) ? format(new Date(t.dueDate), 'dd/MM/yy') : 'N/A'}
-                              </span>
-                              <span className="text-[8px] text-slate-400 uppercase font-black">Venc.</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <div className="flex flex-col">
-                          {financeTab === 'receivable' ? (
-                            <>
-                              <span className="text-sm font-bold text-accent">{client?.name || 'Cliente não identificado'}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                  OS #{t.relatedId?.slice(-4).toUpperCase()} - {t.description}
-                                </span>
-                                {t.relatedId && setActiveTab && (
-                                  <button 
-                                    onClick={() => setActiveTab('os', t.relatedId)}
-                                    className="p-1 text-accent hover:bg-accent/10 rounded-md transition-all"
-                                    title="Ver OS"
-                                  >
-                                    <ArrowUpRight size={12} />
-                                  </button>
-                                )}
-                              </div>
-                            </>
-                          ) : financeTab === 'payable' ? (
-                            <>
-                              <span className="text-sm font-bold text-accent">{supplier?.name || 'Fornecedor não identificado'}</span>
-                              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                {t.description}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="text-sm font-bold text-accent">{t.description}</span>
-                              <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">{t.paymentMethod}</span>
-                                {t.fornecedorId && (
-                                  <>
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                      {supplier?.name || 'Fornecedor'}
-                                    </span>
-                                  </>
-                                )}
-                                {t.relatedId && (
-                                  <>
-                                    <span className="text-slate-300">|</span>
-                                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                                      OS #{t.relatedId.slice(-4).toUpperCase()}
-                                    </span>
-                                  </>
-                                )}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-8 py-5">
-                        <span className="px-3 py-1 bg-slate-100 rounded-lg text-xs font-bold text-slate-600">
-                          {t.category}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5">
-                      <div className="flex items-center gap-2">
-                        <span className={cn(
-                          "px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all",
-                          t.status === 'paid' 
-                            ? "bg-green-100 text-green-700" 
-                            : t.status === 'cancelled'
-                            ? "bg-slate-100 text-slate-400"
-                            : "bg-amber-100 text-amber-700"
-                        )}>
-                          {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
-                        </span>
-                        {isUpcoming && t.status === 'pending' && (
-                          <span className="px-2 py-0.5 bg-red-100 text-red-700 rounded text-[8px] font-black uppercase tracking-tighter animate-pulse">
-                            Urgente
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className={cn(
-                      "px-8 py-5 text-right font-black",
-                      t.status === 'cancelled' ? "text-slate-300 line-through" :
-                      t.type === 'in' ? "text-green-600" : "text-red-600"
-                    )}>
-                      <div className="flex flex-col items-end">
-                        <span>{t.type === 'in' ? '+' : '-'} {formatCurrency(t.value + interest)}</span>
-                        {interest > 0 && (
-                          <span className="text-[9px] text-red-500 font-bold uppercase tracking-tighter">
-                            + {formatCurrency(interest)} Juros
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-8 py-5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {t.status === 'pending' && (
-                          <>
-                            <button 
-                              onClick={() => markAsPaid(t.id)}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-green-50 text-green-700 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-green-100 transition-all border border-green-100"
-                              title="Dar Baixa (Pagar/Receber)"
-                            >
-                              <CheckCircle2 size={12} />
-                              Baixar
-                            </button>
-                            <button 
-                              onClick={() => cancelTransaction(t.id)}
-                              className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-red-100 transition-all border border-red-100"
-                              title="Cancelar Transação"
-                            >
-                              <Ban size={12} />
-                              Cancelar
-                            </button>
-                          </>
-                        )}
-                        {t.status === 'paid' && t.type === 'in' && (
-                          <button 
-                            onClick={() => openReceipt(t)}
-                            className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
-                            title="Gerar Comprovante"
-                          >
-                            <Download size={18} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </motion.tr>
-                );
-              }) : (
-                  <motion.tr
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                  >
-                    <td colSpan={6} className="px-8 py-10 text-center text-slate-400 italic">Nenhuma transação registrada.</td>
-                  </motion.tr>
-                )}
-              </AnimatePresence>
-            </tbody>
-            </table>
-          </div>
-
-          {/* Transaction List - Mobile Cards */}
-          <div className="sm:hidden space-y-4">
-            {financeLoading ? (
-              <div className="py-10 text-center text-slate-400 italic">Carregando transações...</div>
-            ) : filteredTransactions.length > 0 ? filteredTransactions.map((t) => {
-              const isUpcoming = upcomingExpenses.some(ue => ue.id === t.id);
-              const os = serviceOrders.find(o => o.id === t.relatedId);
-              const client = t.clienteId ? clients.find(c => c.id === t.clienteId) : (os ? clients.find(c => c.id === os.clienteId) : null);
-              const supplier = suppliers.find(s => s.id === t.fornecedorId);
-              const interest = calculateInterest(t);
-              const isOverdue = t.status === 'pending' && t.dueDate && new Date(t.dueDate) < new Date();
-
-              return (
-                <div 
-                  key={t.id}
+        <div className="lg:col-span-2 space-y-6">
+          <SectionCard 
+            title={financeTab === 'all' ? 'Fluxo de Caixa' : financeTab === 'receivable' ? 'Contas a Receber' : 'Contas a Pagar'}
+            subtitle={financeTab === 'all' ? 'Histórico Geral' : financeTab === 'receivable' ? 'Pendências de Entrada' : 'Pendências de Saída'}
+            headerAction={
+              <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+                <button
+                  onClick={() => handleSetFinanceTab('all')}
                   className={cn(
-                    "p-4 rounded-2xl border border-slate-100 space-y-4",
-                    isUpcoming && "bg-amber-50/30 border-amber-100",
-                    isOverdue && "bg-red-50/30 border-red-100"
+                    "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg",
+                    financeTab === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
                   )}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Calendar size={12} className="text-slate-400" />
-                        <span className="text-xs font-bold text-accent">{format(new Date(t.date), 'dd/MM/yy')}</span>
-                      </div>
-                      <h4 className="text-sm font-bold text-accent">
-                        {financeTab === 'receivable' ? (client?.name || 'Cliente') : 
-                         financeTab === 'payable' ? (supplier?.name || 'Fornecedor') : t.description}
-                      </h4>
-                      {financeTab !== 'all' && (
-                        <p className="text-[10px] text-slate-500 font-medium">{t.description}</p>
-                      )}
-                    </div>
-                    <div className={cn(
-                      "text-sm font-black text-right",
-                      t.status === 'cancelled' ? "text-slate-300 line-through" :
-                      t.type === 'in' ? "text-green-600" : "text-red-600"
-                    )}>
-                      <div>{t.type === 'in' ? '+' : '-'} {formatCurrency(t.value + interest)}</div>
-                      {interest > 0 && (
-                        <div className="text-[8px] text-red-500 font-bold uppercase tracking-tighter">
-                          + {formatCurrency(interest)} Juros
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-3 border-t border-slate-50">
-                    <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
-                        t.status === 'paid' ? "bg-green-100 text-green-700" : 
-                        t.status === 'cancelled' ? "bg-slate-100 text-slate-400" : "bg-amber-100 text-amber-700"
-                      )}>
-                        {t.status === 'paid' ? 'Pago' : t.status === 'cancelled' ? 'Cancelado' : 'Aguardando'}
-                      </span>
-                      <span className="px-2 py-0.5 bg-slate-100 rounded text-[8px] font-bold text-slate-500 uppercase">
-                        {t.category}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {t.status === 'pending' && (
-                        <>
-                          <button 
-                            onClick={() => markAsPaid(t.id)}
-                            className="p-2 bg-green-50 text-green-700 rounded-lg"
-                          >
-                            <CheckCircle2 size={14} />
-                          </button>
-                          <button 
-                            onClick={() => cancelTransaction(t.id)}
-                            className="p-2 bg-red-50 text-red-600 rounded-lg"
-                          >
-                            <Ban size={14} />
-                          </button>
-                        </>
-                      )}
-                      {t.status === 'paid' && t.type === 'in' && (
-                        <button 
-                          onClick={() => openReceipt(t)}
-                          className="p-2 text-slate-400 hover:text-accent"
-                        >
-                          <Download size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            }) : (
-              <div className="py-10 text-center text-slate-400 italic">Nenhuma transação registrada.</div>
-            )}
-          </div>
-
-        </div>
-      </div>
-
-        {/* Distribution Chart */}
-        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-            <h3 className="text-lg sm:text-xl font-bold text-accent">Distribuição</h3>
-            <div className="flex bg-slate-100 p-1 rounded-lg w-full sm:w-auto">
-              <button 
-                onClick={() => setChartView('general')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'general' ? "bg-accent text-accent-foreground shadow-sm" : "text-slate-500")}
-              >
-                Geral
-              </button>
-              <button 
-                onClick={() => setChartView('income')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'income' ? "bg-white text-green-600 shadow-sm" : "text-slate-500")}
-              >
-                Entradas
-              </button>
-              <button 
-                onClick={() => setChartView('expense')}
-                className={cn("flex-1 sm:flex-none px-3 py-1 text-[10px] font-bold rounded-md transition-all", chartView === 'expense' ? "bg-white text-red-600 shadow-sm" : "text-slate-500")}
-              >
-                Saídas
-              </button>
-            </div>
-          </div>
-          <p className="text-xs sm:text-sm text-slate-500 mb-8">
-            {chartView === 'general' ? 'Proporção entre entradas e saídas' : 
-             chartView === 'income' ? 'Entradas por categoria' : 'Saídas por categoria'}
-          </p>
-          
-          <div className="h-[200px] sm:h-[250px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={currentChartData}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
+                  Fluxo
+                </button>
+                <button
+                  onClick={() => handleSetFinanceTab('receivable')}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg",
+                    financeTab === 'receivable' ? "bg-white text-amber-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
                 >
-                  {currentChartData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                  formatter={(value: number) => formatCurrency(value)}
-                />
-                <Legend verticalAlign="bottom" height={36}/>
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="mt-8 space-y-4">
-            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Lucratividade</p>
-              <div className="flex items-center justify-between">
-                <span className="text-2xl font-black text-accent">
-                  {summary.income > 0 ? Math.round((summary.balance / summary.income) * 100) : 0}%
-                </span>
-                <div className="w-24 h-2 bg-slate-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-accent" 
-                    style={{ width: `${summary.income > 0 ? Math.min(100, Math.max(0, (summary.balance / summary.income) * 100)) : 0}%` }} 
+                  Receber
+                </button>
+                <button
+                  onClick={() => handleSetFinanceTab('payable')}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-lg",
+                    financeTab === 'payable' ? "bg-white text-orange-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Pagar
+                </button>
+              </div>
+            }
+          >
+            {/* Filters Section */}
+            <div className="space-y-6">
+              <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                <div className="flex-1">
+                  <AppInput 
+                    placeholder="Buscar por descrição ou categoria..."
+                    value={filters.searchTerm}
+                    onChange={(e) => setFilters({ ...filters, searchTerm: e.target.value })}
+                    icon={<Search size={18} />}
                   />
                 </div>
+
+                <div className="flex items-center gap-2">
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      const today = new Date();
+                      const start = new Date(today.getFullYear(), today.getMonth(), 1);
+                      const end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                      setFilters({ 
+                        ...filters, 
+                        startDate: formatSafeDate(start, 'yyyy-MM-dd'),
+                        endDate: formatSafeDate(end, 'yyyy-MM-dd')
+                      });
+                    }}
+                  >
+                    Este Mês
+                  </AppButton>
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setFilters({ 
+                      ...filters, 
+                      status: 'all', 
+                      type: 'all', 
+                      clientId: 'all', 
+                      supplierId: 'all', 
+                      relatedId: 'all',
+                      startDate: '',
+                      endDate: '',
+                      startDueDate: '',
+                      endDueDate: ''
+                    })}
+                  >
+                    Limpar
+                  </AppButton>
+                </div>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'all' })}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      filters.status === 'all' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Todos
+                  </button>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'paid' })}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      filters.status === 'paid' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Pagos
+                  </button>
+                  <button
+                    onClick={() => setFilters({ ...filters, status: 'pending' })}
+                    className={cn(
+                      "flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                      filters.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                    )}
+                  >
+                    Pend.
+                  </button>
+                </div>
+
+                <select 
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  value={filters.type}
+                  onChange={(e) => setFilters({ ...filters, type: e.target.value as any })}
+                >
+                  <option value="all">Todos Tipos</option>
+                  <option value="in">Entradas</option>
+                  <option value="out">Saídas</option>
+                </select>
+
+                <select 
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  value={filters.clientId}
+                  onChange={(e) => setFilters({ ...filters, clientId: e.target.value })}
+                >
+                  <option value="all">Todos Clientes</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+
+                <select 
+                  className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                  value={filters.relatedId}
+                  onChange={(e) => setFilters({ ...filters, relatedId: e.target.value })}
+                >
+                  <option value="all">Todas OS</option>
+                  {serviceOrders
+                    .filter(os => transactions.some(t => t.relatedId === os.id))
+                    .sort((a, b) => {
+                      const dateA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : new Date(a.createdAt).getTime();
+                      const dateB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : new Date(b.createdAt).getTime();
+                      return (dateB || 0) - (dateA || 0);
+                    })
+                    .map(os => (
+                      <option key={os.id} value={os.id}>
+                        OS #{os.id.slice(-4).toUpperCase()}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <DataTable
+                columns={[
+                  { header: 'Data', accessor: (t) => (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-900">
+                        {formatSafeDate(t.date, 'dd/MM/yy')}
+                      </span>
+                      {t.status === 'pending' && t.dueDate && (
+                        <span className={cn(
+                          "text-[10px] font-bold",
+                          new Date(t.dueDate) < new Date() ? "text-rose-500" : "text-slate-400"
+                        )}>
+                          Venc: {formatSafeDate(t.dueDate, 'dd/MM')}
+                        </span>
+                      )}
+                    </div>
+                  )},
+                  { header: 'Descrição', accessor: (t) => (
+                    <div className="flex flex-col max-w-[200px]">
+                      <span className="text-xs font-bold text-slate-900 truncate">{t.description}</span>
+                      <span className="text-[10px] font-medium text-slate-400 truncate">
+                        {t.clienteId ? clients.find(c => c.id === t.clienteId)?.name : 
+                         t.fornecedorId ? suppliers.find(s => s.id === t.fornecedorId)?.name : 
+                         t.relatedId ? `OS #${t.relatedId.slice(-4).toUpperCase()}` : 'Geral'}
+                      </span>
+                    </div>
+                  )},
+                  { header: 'Categoria', accessor: (t) => (
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">
+                      {t.category}
+                    </span>
+                  )},
+                  { header: 'Status', accessor: (t) => (
+                    <StatusBadge 
+                      status={t.status} 
+                      label={t.status === 'paid' ? 'Pago' : t.status === 'pending' ? 'Pendente' : 'Cancelado'}
+                    />
+                  )},
+                  { header: 'Valor', className: 'text-right', accessor: (t) => (
+                    <div className="flex flex-col items-end">
+                      <span className={cn(
+                        "text-xs font-black font-display",
+                        t.type === 'in' ? "text-emerald-600" : "text-rose-600"
+                      )}>
+                        {t.type === 'in' ? '+' : '-'} {formatCurrency(t.value)}
+                      </span>
+                      {calculateInterest(t) > 0 && (
+                        <span className="text-[9px] font-bold text-rose-500">
+                          + Juros: {formatCurrency(calculateInterest(t))}
+                        </span>
+                      )}
+                    </div>
+                  )},
+                  { header: 'Ações', className: 'text-right', accessor: (t) => (
+                    <div className="flex items-center justify-end gap-1">
+                      {t.status === 'pending' && canEdit && (
+                        <AppButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => markAsPaid(t.id)}
+                          title="Confirmar Baixa"
+                          className="h-8 w-8 p-0"
+                        >
+                          <CheckCircle2 size={14} className="text-emerald-500" />
+                        </AppButton>
+                      )}
+                      <AppButton
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => openReceipt(t)}
+                        title="Ver Comprovante"
+                        className="h-8 w-8 p-0"
+                      >
+                        <Printer size={14} />
+                      </AppButton>
+                      {t.status !== 'cancelled' && canDelete && (
+                        <AppButton
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => cancelTransaction(t.id)}
+                          title="Cancelar"
+                          className="h-8 w-8 p-0"
+                        >
+                          <Ban size={14} className="text-rose-500" />
+                        </AppButton>
+                      )}
+                    </div>
+                  )}
+                ]}
+                data={filteredTransactions}
+                isLoading={financeLoading}
+                emptyMessage="Nenhuma transação encontrada."
+              />
             </div>
-          </div>
+          </SectionCard>
+        </div>
+
+        {/* Sidebar: Charts & Upcoming */}
+        <div className="space-y-6">
+          <SectionCard 
+            title="Distribuição" 
+            subtitle="Por categoria"
+            headerAction={
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setChartView('general')}
+                  className={cn(
+                    "px-2 py-1 text-[9px] font-black uppercase tracking-widest transition-all rounded-md",
+                    chartView === 'general' ? "bg-white text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Geral
+                </button>
+                <button
+                  onClick={() => setChartView('income')}
+                  className={cn(
+                    "px-2 py-1 text-[9px] font-black uppercase tracking-widest transition-all rounded-md",
+                    chartView === 'income' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  In
+                </button>
+                <button
+                  onClick={() => setChartView('expense')}
+                  className={cn(
+                    "px-2 py-1 text-[9px] font-black uppercase tracking-widest transition-all rounded-md",
+                    chartView === 'expense' ? "bg-white text-rose-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
+                >
+                  Out
+                </button>
+              </div>
+            }
+          >
+            <div className="h-[200px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={currentChartData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    animationDuration={1000}
+                  >
+                    {currentChartData.map((entry: any, index: number) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color || CHART_COLORS[index % CHART_COLORS.length]} 
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-slate-900 text-white px-3 py-2 rounded-xl shadow-xl border border-slate-800">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-0.5">{payload[0].name}</p>
+                            <p className="text-xs font-black">{formatCurrency(Number(payload[0].value))}</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="mt-4 space-y-2">
+              {currentChartData.slice(0, 4).map((entry: any, index: number) => (
+                <div key={entry.name} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div 
+                      className="w-2 h-2 rounded-full" 
+                      style={{ backgroundColor: entry.color || CHART_COLORS[index % CHART_COLORS.length] }} 
+                    />
+                    <span className="text-[10px] font-bold text-slate-600 truncate max-w-[100px]">{entry.name}</span>
+                  </div>
+                  <span className="text-[10px] font-black text-slate-900">{formatCurrency(entry.value)}</span>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+
+          <SectionCard title="Próximos Vencimentos" subtitle="Próximos 3 dias">
+            <div className="space-y-3">
+              {upcomingExpenses.length > 0 ? (
+                upcomingExpenses.slice(0, 5).map(exp => (
+                  <div key={exp.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 hover:border-slate-200 transition-all group">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                        {formatSafeDate(exp.date, 'dd/MM/yy')}
+                      </span>
+                      <StatusBadge status="pending" label="Pendente" />
+                    </div>
+                    <p className="text-xs font-bold text-slate-900 truncate mb-1">{exp.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-rose-600">{formatCurrency(exp.value)}</span>
+                      <AppButton 
+                        variant="secondary" 
+                        size="sm" 
+                        className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => markAsPaid(exp.id)}
+                      >
+                        <CheckCircle2 size={12} />
+                      </AppButton>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <CheckCircle2 size={32} className="mx-auto text-emerald-500 mb-2 opacity-20" />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tudo em dia!</p>
+                </div>
+              )}
+            </div>
+          </SectionCard>
         </div>
       </div>
-        </>
-      )}
+    </div>
+  )}
 
-      {/* Modal Form */}
-      <Modal
+      {/* Modals */}
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
-        title={formData.type === 'in' ? 'Lançar Recebimento' : 'Lançar Pagamento'}
-        maxWidth="max-w-lg"
+        title={formData.type === 'in' ? 'Nova Entrada' : 'Nova Saída'}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="flex p-1 bg-slate-100 rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, type: 'in' })}
-              className={cn(
-                "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
-                formData.type === 'in' ? "bg-white text-green-600 shadow-sm" : "text-slate-500"
-              )}
-            >
-              A Receber (Entrada)
-            </button>
-            <button
-              type="button"
-              onClick={() => setFormData({ ...formData, type: 'out' })}
-              className={cn(
-                "flex-1 py-3 rounded-xl text-sm font-bold transition-all",
-                formData.type === 'out' ? "bg-white text-red-600 shadow-sm" : "text-slate-500"
-              )}
-            >
-              A Pagar (Saída)
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data Lançamento</label>
-              <input 
-                type="date" 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AppInput
+              label="Valor"
+              type="number"
+              step="0.01"
+              value={formData.value}
+              onChange={(e) => setFormData({ ...formData, value: e.target.value })}
+              placeholder="0,00"
+              required
+              icon={<DollarSign size={18} />}
+            />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
+              <select
+                className="w-full h-11 px-4 rounded-xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                value={formData.category}
+                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                 required
-                className="input-modern"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Data Vencimento</label>
-              <input 
-                type="date" 
-                required={formData.status === 'pending'}
-                disabled={formData.status === 'paid'}
-                className="input-modern disabled:opacity-50"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Valor (R$)</label>
-              <input 
-                type="number" 
-                required
-                step="0.01"
-                className="input-modern font-bold"
-                placeholder="0.00"
-                value={formData.value}
-                onChange={(e) => setFormData({ ...formData, value: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Status</label>
-              <select 
-                className="select-modern"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
               >
-                <option value="paid">Pago</option>
-                <option value="pending">Aguardando Pagamento</option>
+                <option value="">Selecione...</option>
+                {formData.type === 'in' ? (
+                  <>
+                    <option value="Serviço">Serviço</option>
+                    <option value="Venda">Venda</option>
+                    <option value="Outros">Outros</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="Aluguel">Aluguel</option>
+                    <option value="Energia">Energia</option>
+                    <option value="Internet">Internet</option>
+                    <option value="Salários">Salários</option>
+                    <option value="Impostos">Impostos</option>
+                    <option value="Fornecedores">Fornecedores</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Outros">Outros</option>
+                  </>
+                )}
               </select>
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Pagamento</label>
-            <select 
-              className="select-modern"
-              value={formData.paymentMethod}
-              onChange={(e) => setFormData({ ...formData, paymentMethod: e.target.value })}
-            >
-              <option value="pix">Pix</option>
-              <option value="card">Cartão</option>
-              <option value="cash">Dinheiro</option>
-              <option value="transfer">Transferência</option>
-              <option value="boleto">Boleto</option>
-            </select>
-          </div>
+          <AppInput
+            label="Descrição"
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            placeholder="Ex: Pagamento de fornecedor X"
+          />
 
-          {formData.type === 'out' && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Fornecedor</label>
-                <select 
-                  className="select-modern"
-                  value={formData.supplierId}
-                  onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AppInput
+              label="Data do Lançamento"
+              type="date"
+              value={formData.date}
+              onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+            />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status</label>
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, status: 'paid' })}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                    formData.status === 'paid' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
                 >
-                  <option value="">Opcional...</option>
-                  {suppliers.map(s => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">OS Relacionada</label>
-                <select 
-                  className="select-modern"
-                  value={formData.relatedId}
-                  onChange={(e) => setFormData({ ...formData, relatedId: e.target.value })}
+                  Pago
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, status: 'pending' })}
+                  className={cn(
+                    "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all",
+                    formData.status === 'pending' ? "bg-white text-amber-600 shadow-sm" : "text-slate-400 hover:text-slate-600"
+                  )}
                 >
-                  <option value="">Opcional...</option>
-                  {serviceOrders
-                    .filter(os => os.status !== 'cancelada')
-                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                    .map(os => {
-                      const client = clients.find(c => c.id === os.clienteId);
-                      return (
-                        <option key={os.id} value={os.id}>
-                          OS #{os.id.slice(-4).toUpperCase()} - {client?.name || 'Cliente'}
-                        </option>
-                      );
-                    })}
-                </select>
+                  Pendente
+                </button>
               </div>
             </div>
+          </div>
+
+          {formData.status === 'pending' && (
+            <AppInput
+              label="Data de Vencimento"
+              type="date"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            />
           )}
 
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Categoria</label>
-            <input 
-              type="text" 
-              required
-              className="input-modern"
-              placeholder="Ex: Peças, Aluguel, Salários..."
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold text-slate-700 uppercase tracking-widest">Descrição</label>
-            <textarea 
-              className="textarea-modern min-h-[80px]"
-              placeholder="Detalhes da transação..."
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </div>
-
-          <div className="pt-4 flex items-center gap-4">
-            <Button 
-              variant="outline"
-              onClick={closeModal}
-              className="flex-1"
-            >
+          <div className="flex justify-end gap-3 pt-4">
+            <AppButton variant="secondary" onClick={closeModal} type="button">
               Cancelar
-            </Button>
-            <Button 
-              type="submit"
-              className="flex-1"
-            >
-              Confirmar Lançamento
-            </Button>
+            </AppButton>
+            <AppButton type="submit">
+              Salvar Lançamento
+            </AppButton>
           </div>
         </form>
-      </Modal>
+      </AppDialog>
 
-      {/* Confirmation Modal */}
-      <ConfirmDialog 
+      <AppDialog
+        isOpen={isReceiptModalOpen}
+        onClose={closeReceipt}
+        title="Comprovante de Transação"
+      >
+        {selectedTransaction && (
+          <div className="space-y-6">
+            <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 text-center space-y-4">
+              <div className={cn(
+                "w-16 h-16 rounded-full mx-auto flex items-center justify-center",
+                selectedTransaction.type === 'in' ? "bg-emerald-100 text-emerald-600" : "bg-rose-100 text-rose-600"
+              )}>
+                {selectedTransaction.type === 'in' ? <ArrowDownCircle size={32} /> : <ArrowUpRight size={32} />}
+              </div>
+              <div>
+                <h4 className="text-2xl font-black text-slate-900 font-display">
+                  {formatCurrency(selectedTransaction.value)}
+                </h4>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">
+                  {selectedTransaction.type === 'in' ? 'Entrada Confirmada' : 'Saída Confirmada'}
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Data</p>
+                  <p className="text-sm font-black text-slate-900">{formatSafeDate(selectedTransaction.date, 'dd/MM/yyyy HH:mm')}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Categoria</p>
+                  <p className="text-sm font-bold text-slate-900">{selectedTransaction.category}</p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Descrição</p>
+                <p className="text-sm font-bold text-slate-900">{selectedTransaction.description}</p>
+              </div>
+
+              {relatedOS && (
+                <div className="p-4 bg-primary/5 rounded-xl border border-primary/10 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg text-primary">
+                      <LayoutDashboard size={18} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-primary uppercase tracking-widest">Ordem de Serviço</p>
+                      <p className="text-sm font-bold text-slate-900">#{relatedOS.id.slice(-6).toUpperCase()}</p>
+                    </div>
+                  </div>
+                  <AppButton 
+                    variant="secondary" 
+                    size="sm"
+                    onClick={() => setActiveTab?.('service-orders', relatedOS.id)}
+                  >
+                    Ver OS
+                  </AppButton>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-6 border-t border-slate-100">
+              <AppButton variant="secondary" onClick={closeReceipt}>
+                Fechar
+              </AppButton>
+              <AppButton onClick={() => window.print()} icon={<Printer size={18} />}>
+                Imprimir
+              </AppButton>
+            </div>
+          </div>
+        )}
+      </AppDialog>
+
+      <ConfirmDialog
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={confirmConfig.onConfirm}
@@ -1307,114 +1058,7 @@ const Finance: React.FC<FinanceProps> = ({ setActiveTab }) => {
         message={confirmConfig.message}
         confirmLabel={confirmConfig.confirmLabel}
       />
-
-      {/* Receipt Modal */}
-      {isReceiptModalOpen && selectedTransaction && (
-        <div className="fixed inset-0 bg-slate-900/60 z-[70] flex items-center justify-center p-4 backdrop-blur-md">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground">
-              <div>
-                <h3 className="text-xl font-bold">Comprovante de Serviço</h3>
-                <p className="text-xs text-accent-foreground/60 uppercase tracking-widest mt-1">Recibo de Pagamento</p>
-              </div>
-              <button onClick={closeReceipt} className="p-2 text-accent-foreground/60 hover:text-accent-foreground rounded-lg transition-all">
-                <XCircle size={24} />
-              </button>
-            </div>
-            
-            <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
-              {/* Header Info */}
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="text-2xl font-black text-accent">AutoGestão SaaS</h4>
-                  <p className="text-sm text-slate-500">Soluções Automotivas</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-bold text-accent">Data: {format(new Date(selectedTransaction.date), 'dd/MM/yyyy HH:mm')}</p>
-                  <p className="text-xs text-slate-500">Nº {selectedTransaction.id.slice(0, 8).toUpperCase()}</p>
-                </div>
-              </div>
-
-              <div className="h-px bg-slate-100" />
-
-              {/* Transaction Details */}
-              <div className="space-y-4">
-                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Detalhes do Pagamento</h5>
-                <div className="grid grid-cols-2 gap-8">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Descrição</p>
-                    <p className="text-sm font-bold text-accent">{selectedTransaction.description}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Método de Pagamento</p>
-                    <p className="text-sm font-bold text-accent uppercase">{selectedTransaction.paymentMethod}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* OS Services if applicable */}
-              {relatedOS && (
-                <div className="space-y-4">
-                  <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Serviços Realizados</h5>
-                  <div className="bg-slate-50 rounded-2xl overflow-hidden border border-slate-100">
-                    <table className="w-full text-left text-sm">
-                      <thead>
-                        <tr className="bg-slate-100/50 text-slate-500 text-[10px] font-bold uppercase tracking-widest">
-                          <th className="px-4 py-3">Serviço</th>
-                          <th className="px-4 py-3 text-right">Preço</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {relatedOS.servicos?.map((s: any, idx: number) => (
-                          <tr key={idx}>
-                            <td className="px-4 py-3 font-medium text-accent">{s.name}</td>
-                            <td className="px-4 py-3 text-right font-bold text-accent">{formatCurrency(s.price)}</td>
-                          </tr>
-                        ))}
-                        {relatedOS.desconto > 0 && (
-                          <tr className="bg-slate-100/30">
-                            <td className="px-4 py-3 font-medium text-red-600">Desconto</td>
-                            <td className="px-4 py-3 text-right font-bold text-red-600">-{formatCurrency(relatedOS.desconto)}</td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )}
-
-              <div className="h-px bg-slate-100" />
-
-              {/* Total */}
-              <div className="flex justify-between items-center bg-accent text-accent-foreground p-6 rounded-2xl">
-                <span className="text-sm font-bold uppercase tracking-widest">Valor Total Pago</span>
-                <span className="text-3xl font-black">{formatCurrency(selectedTransaction.value)}</span>
-              </div>
-
-              <div className="text-center pt-4">
-                <p className="text-xs text-slate-400 italic">Obrigado pela preferência!</p>
-              </div>
-            </div>
-
-            <div className="p-8 bg-slate-50 border-t border-slate-100 flex gap-4">
-              <button 
-                onClick={() => window.print()}
-                className="flex-1 flex items-center justify-center gap-2 bg-accent text-accent-foreground px-6 py-4 rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-accent/20"
-              >
-                <Printer size={20} />
-                Imprimir
-              </button>
-              <button 
-                onClick={closeReceipt}
-                className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-100 transition-all"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    </PageContainer>
   );
 };
 

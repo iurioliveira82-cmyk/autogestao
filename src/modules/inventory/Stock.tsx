@@ -16,7 +16,7 @@ import { db, auth } from '../../firebase';
 import { StockMovement, InventoryItem, Supplier, UserProfile, OperationType } from '../../types';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useAuth } from '../auth/Auth';
-import { formatCurrency, cn, handleFirestoreError } from '../../utils';
+import { formatCurrency, cn, handleFirestoreError, formatSafeDate } from '../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -59,7 +59,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
     lote: '',
     validade: '',
     createTransaction: false,
-    dueDate: format(new Date(), 'yyyy-MM-dd')
+    dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
   });
   useEffect(() => {
     if (!profile?.empresaId || !canView) return;
@@ -240,7 +240,7 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
       lote: '',
       validade: '',
       createTransaction: false,
-      dueDate: format(new Date(), 'yyyy-MM-dd')
+      dueDate: formatSafeDate(new Date(), 'yyyy-MM-dd')
     });
   };
 
@@ -442,8 +442,8 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                   <tr key={m.id} className="hover:bg-slate-50/50 transition-colors group">
                     <td className="px-8 py-5">
                       <div className="flex flex-col">
-                        <span className="text-sm font-black text-slate-800">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{format(new Date(m.timestamp), 'HH:mm')}</span>
+                        <span className="text-sm font-black text-slate-800">{formatSafeDate(m.timestamp, 'dd/MM/yyyy')}</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{formatSafeDate(m.timestamp, 'HH:mm')}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">
@@ -592,8 +592,8 @@ const Stock: React.FC<StockProps> = ({ initialItemId, initialSupplierId, setActi
                       <tr key={m.id} className="hover:bg-slate-50/30 transition-colors">
                         <td className="px-8 py-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-bold text-slate-800">{format(new Date(m.timestamp), 'dd/MM/yyyy')}</span>
-                            <span className="text-[10px] text-slate-400">{format(new Date(m.timestamp), 'HH:mm')}</span>
+                            <span className="text-sm font-bold text-slate-800">{formatSafeDate(m.timestamp, 'dd/MM/yyyy')}</span>
+                            <span className="text-[10px] text-slate-400">{formatSafeDate(m.timestamp, 'HH:mm')}</span>
                           </div>
                         </td>
                         <td className="px-8 py-4">

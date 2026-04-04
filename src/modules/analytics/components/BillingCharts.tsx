@@ -11,6 +11,7 @@ import {
   Area 
 } from 'recharts';
 import { formatCurrency } from '../../../utils';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface BillingChartsProps {
   data: {
@@ -34,7 +35,7 @@ export const BillingCharts: React.FC<BillingChartsProps> = ({ data }) => {
   };
 
   return (
-    <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">
+    <AppCard className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Faturamento Temporal</h3>
@@ -102,6 +103,6 @@ export const BillingCharts: React.FC<BillingChartsProps> = ({ data }) => {
           </div>
         </div>
       </div>
-    </div>
+    </AppCard>
   );
 };

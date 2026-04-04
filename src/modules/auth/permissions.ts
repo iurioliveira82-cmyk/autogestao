@@ -29,7 +29,8 @@ export const defaultPermissions: UserPermissions = {
   users: { ...defaultModulePermissions, view: false },
   fiscal: { ...defaultModulePermissions, view: false },
   analytics: { ...defaultModulePermissions, view: false },
-  automations: { ...defaultModulePermissions, view: false }
+  automations: { ...defaultModulePermissions, view: false },
+  leads: defaultModulePermissions
 };
 
 export const adminPermissions: UserPermissions = {
@@ -47,7 +48,8 @@ export const adminPermissions: UserPermissions = {
   users: adminModulePermissions,
   fiscal: adminModulePermissions,
   analytics: adminModulePermissions,
-  automations: adminModulePermissions
+  automations: adminModulePermissions,
+  leads: adminModulePermissions
 };
 
 export const gerentePermissions: UserPermissions = {

@@ -1,11 +1,10 @@
 import React from 'react';
 import { 
   Wrench, 
-  Package, 
-  TrendingUp, 
-  PieChart 
+  Package
 } from 'lucide-react';
 import { formatCurrency } from '../../../utils';
+import { AppCard } from '../../../components/ui/AppCard';
 
 interface TopItemsProps {
   services: { name: string; count: number; revenue: number }[];
@@ -14,7 +13,7 @@ interface TopItemsProps {
 
 export const TopItems: React.FC<TopItemsProps> = ({ services, parts }) => {
   return (
-    <div className="bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm">
+    <AppCard className="p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="text-xl font-black text-slate-900 tracking-tight">Top Itens & Serviços</h3>
@@ -83,6 +82,6 @@ export const TopItems: React.FC<TopItemsProps> = ({ services, parts }) => {
           </div>
         </div>
       </div>
-    </div>
+    </AppCard>
   );
 };

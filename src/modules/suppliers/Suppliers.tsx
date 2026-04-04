@@ -9,7 +9,8 @@ import {
   Trash2,
   Tag,
   History,
-  ArrowUpCircle
+  ArrowUpCircle,
+  Search
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../../firebase';
@@ -18,10 +19,16 @@ import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
 import { cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
-import { PageHeader } from '../../components/ui/PageHeader';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Card';
+
+// Layout Components
+import PageContainer from '../../components/layout/PageContainer';
+import PageHeader from '../../components/layout/PageHeader';
+import SectionCard from '../../components/layout/SectionCard';
+
+// UI Components
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface SuppliersProps {
@@ -50,13 +57,9 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
   const validateCNPJ = (cnpj: string) => {
     const cleaned = cnpj.replace(/\D/g, '');
-    
     if (cleaned.length !== 14) return false;
-    
-    // Check for repeated digits
     if (/^(\d)\1+$/.test(cleaned)) return false;
     
-    // Validate check digits
     const calculateDigit = (numbers: string, weight: number[]) => {
       let sum = 0;
       for (let i = 0; i < numbers.length; i++) {
@@ -198,31 +201,34 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
 
   if (!canView) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-        <Truck size={48} className="mb-4" />
-        <p className="text-lg font-medium">Acesso restrito.</p>
-      </div>
+      <PageContainer>
+        <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+          <Truck size={48} className="mb-4" />
+          <p className="text-lg font-black uppercase tracking-widest">Acesso restrito.</p>
+        </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="space-y-8">
+    <PageContainer>
       <PageHeader 
         title="Fornecedores" 
-        description="Gerencie seus fornecedores e parcerias."
-        action={canCreate && (
-          <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+        subtitle="Gerencie sua rede de fornecedores e parcerias comerciais."
+        breadcrumbs={[{ label: 'Fornecedores' }]}
+        actions={canCreate && (
+          <AppButton onClick={() => openModal()} icon={<Plus size={18} />}>
             Novo Fornecedor
-          </Button>
+          </AppButton>
         )}
       />
 
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <SearchBar 
+      <div className="mb-6">
+        <AppInput 
           placeholder="Buscar por nome, CNPJ ou categoria..." 
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          onClear={() => setSearchTerm('')}
+          icon={<Search size={18} />}
         />
       </div>
 
@@ -230,192 +236,178 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         {loading ? (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-slate-400 text-sm italic">Carregando fornecedores...</p>
+              <div className="w-8 h-8 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />
+              <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest">Carregando fornecedores...</p>
             </div>
           </div>
         ) : filteredSuppliers.length > 0 ? filteredSuppliers.map((supplier) => (
-          <div 
+          <SectionCard 
             key={supplier.id} 
-            className="modern-card group relative overflow-hidden transition-all hover:shadow-xl hover:shadow-slate-200/50"
+            className="group relative overflow-hidden transition-all hover:shadow-xl hover:shadow-slate-200/50"
           >
             <div className="flex items-start justify-between mb-6">
-              <div className="w-14 h-14 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
-                <Truck size={28} />
+              <div className="w-12 h-12 bg-slate-100 text-slate-900 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform border border-slate-200">
+                <Truck size={24} />
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 {setActiveTab && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setActiveTab('stock', undefined, supplier.id)}
-                    className="p-2 text-accent hover:bg-accent/10 rounded-xl transition-all"
                     title="Lançar Estoque"
+                    className="h-8 w-8 p-0"
                   >
-                    <ArrowUpCircle size={16} />
-                  </button>
+                    <ArrowUpCircle size={14} />
+                  </AppButton>
                 )}
                 {canEdit && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => openModal(supplier)}
-                    className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
+                    title="Editar"
+                    className="h-8 w-8 p-0"
                   >
-                    <Edit2 size={16} />
-                  </button>
+                    <Edit2 size={14} />
+                  </AppButton>
                 )}
                 {canDelete && (
-                  <button 
+                  <AppButton 
+                    variant="secondary"
+                    size="sm"
                     onClick={() => handleDelete(supplier.id)}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                    title="Excluir"
+                    className="h-8 w-8 p-0"
                   >
-                    <Trash2 size={16} />
-                  </button>
+                    <Trash2 size={14} className="text-rose-500" />
+                  </AppButton>
                 )}
               </div>
             </div>
 
             <div className="space-y-4">
               <div>
-                <h3 className="text-sm font-black text-slate-900 dark:text-white line-clamp-1">{supplier.name}</h3>
-                {supplier.cnpj && <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">CNPJ: {supplier.cnpj}</p>}
+                <h3 className="text-sm font-black text-slate-900 line-clamp-1 font-display">{supplier.name}</h3>
+                {supplier.cnpj && <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">CNPJ: {supplier.cnpj}</p>}
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 space-y-3 border border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+              <div className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100">
+                <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
                   <Phone size={14} className="text-slate-400" />
                   <span>{supplier.phone}</span>
                 </div>
                 {supplier.email && (
-                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
                     <Mail size={14} className="text-slate-400" />
                     <span className="truncate">{supplier.email}</span>
                   </div>
                 )}
                 {supplier.address && (
-                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600 dark:text-slate-400">
+                  <div className="flex items-center gap-3 text-xs font-bold text-slate-600">
                     <MapPin size={14} className="text-slate-400" />
                     <span className="truncate">{supplier.address}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                 {supplier.category ? (
                   <div className="flex items-center gap-2">
                     <Tag size={12} className="text-slate-400" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{supplier.category}</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{supplier.category}</span>
                   </div>
                 ) : <div />}
                 
-                <button
+                <AppButton
+                  variant="secondary"
+                  size="sm"
                   onClick={() => setActiveTab?.('stock', undefined, supplier.id)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-all shadow-sm"
+                  className="h-8 px-3"
                 >
-                  <History size={12} />
+                  <History size={12} className="mr-1.5" />
                   Histórico
-                </button>
+                </AppButton>
               </div>
             </div>
-          </div>
+          </SectionCard>
         )) : (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-2 opacity-40">
               <Truck size={48} className="text-slate-300" />
-              <p className="text-slate-500 text-sm font-medium">Nenhum fornecedor encontrado.</p>
+              <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Nenhum fornecedor encontrado.</p>
             </div>
           </div>
         )}
       </div>
 
-      <Modal
+      <AppDialog
         isOpen={isModalOpen}
         onClose={closeModal}
         title={editingSupplier ? 'Editar Fornecedor' : 'Novo Fornecedor'}
       >
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome / Razão Social</label>
-              <input 
-                type="text" 
-                required
-                className="input-modern"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CNPJ</label>
-              <input 
-                type="text" 
-                placeholder="00.000.000/0000-00"
-                className="input-modern"
-                value={formData.cnpj}
-                onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
-              <input 
-                type="text" 
-                required
-                className="input-modern"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">E-mail</label>
-              <input 
-                type="email" 
-                className="input-modern"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Endereço</label>
-            <input 
-              type="text" 
-              className="input-modern"
-              value={formData.address}
-              onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AppInput 
+              label="Nome / Razão Social"
+              required
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <AppInput 
+              label="CNPJ"
+              placeholder="00.000.000/0000-00"
+              value={formData.cnpj}
+              onChange={(e) => setFormData({ ...formData, cnpj: maskCNPJ(e.target.value) })}
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Categoria / Ramo</label>
-            <input 
-              type="text" 
-              placeholder="Ex: Peças, Pneus, Óleos..."
-              className="input-modern"
-              value={formData.category}
-              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <AppInput 
+              label="Telefone"
+              required
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            />
+            <AppInput 
+              label="E-mail"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             />
           </div>
+
+          <AppInput 
+            label="Endereço"
+            value={formData.address}
+            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          />
+
+          <AppInput 
+            label="Categoria / Ramo"
+            placeholder="Ex: Peças, Pneus, Óleos..."
+            value={formData.category}
+            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+          />
 
           <div className="pt-4 flex items-center gap-4">
-            <Button 
+            <AppButton 
               type="button"
-              variant="outline"
+              variant="secondary"
               onClick={closeModal}
               className="flex-1"
             >
               Cancelar
-            </Button>
-            <Button 
+            </AppButton>
+            <AppButton 
               type="submit"
-              variant="primary"
               className="flex-1"
             >
               {editingSupplier ? 'Salvar Alterações' : 'Cadastrar Fornecedor'}
-            </Button>
+            </AppButton>
           </div>
         </form>
-      </Modal>
+      </AppDialog>
 
       <ConfirmDialog
         isOpen={isDeleteModalOpen}
@@ -424,7 +416,7 @@ const Suppliers: React.FC<SuppliersProps> = ({ setActiveTab }) => {
         title="Excluir Fornecedor?"
         message="Tem certeza que deseja excluir este fornecedor? Esta ação não pode ser desfeita."
       />
-    </div>
+    </PageContainer>
   );
 };
 

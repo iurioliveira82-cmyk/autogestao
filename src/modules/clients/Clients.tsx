@@ -1,29 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Plus, 
   Search, 
-  MoreVertical, 
   UserPlus, 
   Phone, 
   Mail, 
-  Calendar, 
   Edit2, 
   Trash2, 
-  CheckCircle2, 
-  XCircle,
-  ChevronRight,
-  Filter,
   Car,
   ClipboardList,
   History,
-  User
+  DollarSign,
+  Info
 } from 'lucide-react';
 import { collection, query, orderBy, onSnapshot, addDoc, updateDoc, doc, deleteDoc, serverTimestamp, where } from 'firebase/firestore';
-import { db, auth } from '../../firebase';
+import { db } from '../../firebase';
 import { Client, Vehicle, ServiceOrder, OperationType } from '../../types';
 import { useAuth } from '../auth/Auth';
 import { usePermissions } from '../../hooks/usePermissions';
-import { formatPhone, cn, formatCurrency, isValidEmail, handleFirestoreError } from '../../utils';
+import { formatPhone, cn, formatCurrency, isValidEmail, handleFirestoreError, formatSafeDate } from '../../utils';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -31,15 +25,13 @@ import { toast } from 'sonner';
 import PageContainer from '../../components/layout/PageContainer';
 import PageHeader from '../../components/layout/PageHeader';
 import SectionCard from '../../components/layout/SectionCard';
-import FiltersToolbar from '../../components/layout/FiltersToolbar';
-import StandardTable from '../../components/layout/StandardTable';
-import EmptyState from '../../components/layout/EmptyState';
-import LoadingSkeleton from '../../components/layout/LoadingSkeleton';
-import StandardDialog from '../../components/layout/StandardDialog';
-import StandardDrawer from '../../components/layout/StandardDrawer';
+import { DataTable } from '../../components/ui/DataTable';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 
 // UI Components
-import { Button } from '../../components/ui/Button';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 
 interface ClientsProps {
@@ -47,7 +39,7 @@ interface ClientsProps {
 }
 
 const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
-  const { profile, isAdmin } = useAuth();
+  const { profile } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -262,166 +254,166 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
   return (
     <PageContainer>
       <PageHeader 
-        title="Clientes" 
-        subtitle="Gerencie seus clientes e histórico de atendimentos."
-        breadcrumbs={[{ label: 'Clientes' }]}
+        title="Gestão de Clientes" 
+        subtitle="Visualize, cadastre e acompanhe o histórico completo de todos os seus clientes em um só lugar."
+        breadcrumbs={[{ label: 'Dashboard' }, { label: 'Clientes' }]}
         actions={
           canCreate && (
-            <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
+            <AppButton onClick={() => openModal()} icon={<UserPlus size={18} />} className="shadow-lg shadow-primary/20">
               Novo Cliente
-            </Button>
+            </AppButton>
           )
         }
       />
       
-      <FiltersToolbar 
-        searchQuery={searchTerm}
-        onSearchChange={setSearchTerm}
-        searchPlaceholder="Buscar por nome, telefone ou email..."
-      />
+      <SectionCard className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex-1 relative group">
+            <AppInput 
+              placeholder="Buscar por nome, telefone ou email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              icon={<Search size={18} className="text-slate-400 group-focus-within:text-primary transition-colors" />}
+              className="bg-slate-50/50 border-slate-200/60 focus:bg-white transition-all"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="px-4 py-2 bg-slate-100 rounded-xl text-[10px] font-black text-slate-500 uppercase tracking-widest border border-slate-200/60">
+              Total: {clients.length}
+            </div>
+          </div>
+        </div>
+      </SectionCard>
 
-      {/* Clients Grid/List */}
-      <div className="mt-6">
-        {loading ? (
-          <LoadingSkeleton variant="table" count={5} />
-        ) : filteredClients.length > 0 ? (
-          <StandardTable
-            data={filteredClients}
-            columns={[
-              {
-                header: 'Cliente',
-                accessor: (client) => (
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-accent text-accent-foreground rounded-2xl flex items-center justify-center font-bold text-base shadow-sm">
-                      {client.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-slate-900 block">{client.name}</span>
-                      {client.email && <span className="text-xs text-slate-400 font-medium">{client.email}</span>}
-                    </div>
+      <SectionCard noPadding className="overflow-hidden">
+        <DataTable
+          columns={[
+            {
+              header: 'Cliente',
+              accessor: (client) => (
+                <div className="flex items-center gap-4 py-1">
+                  <div className="w-11 h-11 bg-gradient-to-br from-slate-100 to-slate-200 text-slate-900 rounded-2xl flex items-center justify-center font-black text-xs shadow-sm border border-white/50 ring-1 ring-slate-200/50">
+                    {client.name.slice(0, 2).toUpperCase()}
                   </div>
-                )
-              },
-              {
-                header: 'Contato',
-                accessor: (client) => (
-                  <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                    <Phone size={14} className="text-slate-400" />
+                  <div className="flex flex-col">
+                    <span className="text-sm font-black text-slate-900 tracking-tight leading-none mb-1">{client.name}</span>
+                    {client.email && (
+                      <div className="flex items-center gap-1 text-[10px] text-slate-400 font-bold">
+                        <Mail size={10} />
+                        {client.email}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            },
+            {
+              header: 'Contato',
+              accessor: (client) => (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2 text-xs text-slate-700 font-bold">
+                    <div className="p-1 bg-emerald-50 text-emerald-600 rounded-lg">
+                      <Phone size={12} />
+                    </div>
                     {formatPhone(client.phone)}
                   </div>
-                )
-              },
-              {
-                header: 'Status',
-                accessor: (client) => (
-                  <span className={cn(
-                    "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                    client.status === 'active' ? "bg-green-50 text-green-600 border border-green-100" : "bg-red-50 text-red-600 border border-red-100"
-                  )}>
-                    {client.status === 'active' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                    {client.status === 'active' ? 'Ativo' : 'Inativo'}
+                </div>
+              )
+            },
+            {
+              header: 'Status',
+              accessor: (client) => (
+                <StatusBadge 
+                  status={client.status} 
+                  label={client.status === 'active' ? 'Ativo' : 'Inativo'} 
+                  className="font-black"
+                />
+              )
+            },
+            {
+              header: 'Cadastro',
+              accessor: (client) => (
+                <div className="flex flex-col">
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-0.5">Membro desde</span>
+                  <span className="text-xs text-slate-600 font-bold">
+                    {formatSafeDate(client.createdAt)}
                   </span>
-                )
-              },
-              {
-                header: 'Cadastro',
-                accessor: (client) => (
-                  <span className="text-sm text-slate-500 font-medium">
-                    {client.createdAt ? (isNaN(new Date(client.createdAt).getTime()) ? 'Recente' : format(new Date(client.createdAt), 'dd/MM/yyyy')) : 'Recente'}
-                  </span>
-                )
-              }
-            ]}
-            onRowClick={(client) => openHistory(client)}
-            actions={(client) => (
-              <div className="flex items-center justify-end gap-1">
-                {setActiveTab && (
+                </div>
+              )
+            },
+            {
+              header: 'Ações',
+              className: 'text-right',
+              accessor: (client) => (
+                <div className="flex items-center justify-end gap-2">
+                  {setActiveTab && (
+                    <button 
+                      onClick={() => setActiveTab('os', client.id)}
+                      title="Nova OS"
+                      className="h-9 w-9 flex items-center justify-center bg-slate-50 hover:bg-primary hover:text-white text-slate-400 rounded-xl transition-all border border-slate-100 hover:border-primary hover:shadow-lg hover:shadow-primary/20"
+                    >
+                      <ClipboardList size={16} />
+                    </button>
+                  )}
                   <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveTab('os', client.id);
-                    }}
-                    className="p-2 text-accent hover:bg-accent/10 rounded-lg transition-all"
-                    title="Nova OS"
+                    onClick={() => openHistory(client)}
+                    title="Ver Histórico"
+                    className="h-9 w-9 flex items-center justify-center bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-400 rounded-xl transition-all border border-slate-100 hover:border-slate-900 hover:shadow-lg hover:shadow-slate-900/20"
                   >
-                    <ClipboardList size={18} />
+                    <History size={16} />
                   </button>
-                )}
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openHistory(client);
-                  }}
-                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
-                  title="Ver Histórico"
-                >
-                  <History size={18} />
-                </button>
-                {canEdit && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openModal(client);
-                    }}
-                    className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
-                    title="Editar"
-                  >
-                    <Edit2 size={18} />
-                  </button>
-                )}
-                {canDelete && (
-                  <button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDelete(client.id);
-                    }}
-                    className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    title="Excluir"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                )}
-              </div>
-            )}
-          />
-        ) : (
-          <EmptyState
-            icon={User}
-            title="Nenhum cliente encontrado"
-            description={searchTerm ? "Tente ajustar sua busca para encontrar o que procura." : "Comece cadastrando seu primeiro cliente para gerenciar seus atendimentos."}
-            action={!searchTerm ? (
-              <Button onClick={() => openModal()} variant="primary" icon={<UserPlus size={18} />}>
-                Novo Cliente
-              </Button>
-            ) : undefined}
-          />
-        )}
-      </div>
+                  {canEdit && (
+                    <button 
+                      onClick={() => openModal(client)}
+                      title="Editar"
+                      className="h-9 w-9 flex items-center justify-center bg-slate-50 hover:bg-slate-900 hover:text-white text-slate-400 rounded-xl transition-all border border-slate-100 hover:border-slate-900 hover:shadow-lg hover:shadow-slate-900/20"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button 
+                      onClick={() => handleDelete(client.id)}
+                      title="Excluir"
+                      className="h-9 w-9 flex items-center justify-center bg-slate-50 hover:bg-rose-500 hover:text-white text-slate-400 rounded-xl transition-all border border-slate-100 hover:border-rose-500 hover:shadow-lg hover:shadow-rose-500/20"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              )
+            }
+          ]}
+          data={filteredClients}
+          isLoading={loading}
+          emptyMessage="Nenhum cliente encontrado."
+        />
+      </SectionCard>
 
       {/* Modal Form */}
-      <StandardDialog 
+      <AppDialog 
         isOpen={isModalOpen} 
         onClose={closeModal} 
         title={editingClient ? 'Editar Cliente' : 'Novo Cliente'} 
-        maxWidth="max-w-lg"
+        maxWidth="lg"
       >
-        <div className="flex items-center gap-4 mb-8">
+        <div className="flex items-center gap-2 mb-8 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
           <button 
             type="button"
             onClick={() => setActiveModalTab('general')}
             className={cn(
-              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'general' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
+              "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl",
+              activeModalTab === 'general' ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50" : "text-slate-400 hover:text-slate-600"
             )}
           >
-            Geral
+            Informações Gerais
           </button>
           <button 
             type="button"
             onClick={() => setActiveModalTab('financial')}
             className={cn(
-              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'financial' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
+              "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl",
+              activeModalTab === 'financial' ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Financeiro
@@ -430,147 +422,154 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
             type="button"
             onClick={() => setActiveModalTab('additional')}
             className={cn(
-              "text-[10px] font-bold uppercase tracking-widest pb-1 border-b-2 transition-all",
-              activeModalTab === 'additional' ? "border-accent text-accent" : "border-transparent text-slate-400 hover:text-slate-600"
+              "flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all rounded-xl",
+              activeModalTab === 'additional' ? "bg-white text-slate-900 shadow-sm ring-1 ring-slate-200/50" : "text-slate-400 hover:text-slate-600"
             )}
           >
             Adicional
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <form onSubmit={handleSubmit} className="space-y-8">
           {activeModalTab === 'general' ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome Completo</label>
-                <input 
-                  type="text" 
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-6">
+                <AppInput 
+                  label="Nome Completo"
                   required
-                  className="input-modern"
                   placeholder="Ex: João Silva"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="bg-white"
                 />
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Telefone</label>
-                  <input 
-                    type="tel" 
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <AppInput 
+                    label="Telefone Principal"
                     required
-                    className="input-modern"
                     placeholder="(00) 00000-0000"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: formatPhone(e.target.value) })}
+                    className="bg-white"
                   />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Status da Conta</label>
+                    <select 
+                      className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
+                    >
+                      <option value="active">Ativo (Acesso Total)</option>
+                      <option value="inactive">Inativo (Bloqueado)</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Status</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
-                  >
-                    <option value="active">Ativo</option>
-                    <option value="inactive">Inativo</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email (Opcional)</label>
-                <input 
-                  type="email" 
-                  className="input-modern"
+                <AppInput 
+                  label="Endereço de E-mail"
+                  type="email"
                   placeholder="exemplo@email.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="bg-white"
+                  icon={<Mail size={18} className="text-slate-400" />}
                 />
               </div>
-            </>
+            </div>
           ) : activeModalTab === 'financial' ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Limite de Crédito Mensal (R$)</label>
-                <input 
-                  type="number" 
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                    <DollarSign size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-900 tracking-tight">Configurações Financeiras</h4>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Defina limites e taxas personalizadas</p>
+                  </div>
+                </div>
+
+                <AppInput 
+                  label="Limite de Crédito Mensal"
+                  type="number"
                   step="0.01"
-                  className="input-modern"
-                  placeholder="Ex: 1000.00"
+                  placeholder="0,00"
                   value={formData.creditLimit}
                   onChange={(e) => setFormData({ ...formData, creditLimit: e.target.value })}
+                  icon={<DollarSign size={18} className="text-slate-400" />}
+                  className="bg-white"
                 />
-              </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Taxa de Juros por Atraso (% ao mês)</label>
-                <input 
-                  type="number" 
+                <AppInput 
+                  label="Taxa de Juros por Atraso (% ao mês)"
+                  type="number"
                   step="0.01"
-                  className="input-modern"
-                  placeholder="Ex: 2.00"
+                  placeholder="0,00"
                   value={formData.interestRate}
                   onChange={(e) => setFormData({ ...formData, interestRate: e.target.value })}
+                  icon={<Info size={18} className="text-slate-400" />}
+                  className="bg-white"
                 />
               </div>
-            </>
+            </div>
           ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Data de Aniversário</label>
-                  <input 
-                    type="date" 
-                    className="input-modern"
+            <div className="space-y-6">
+              <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  <AppInput 
+                    label="Data de Nascimento"
+                    type="date"
                     value={formData.birthDate}
                     onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
+                    className="bg-white"
+                  />
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Preferência de Contato</label>
+                    <select 
+                      className="w-full h-12 px-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all appearance-none cursor-pointer"
+                      value={formData.contactPreference}
+                      onChange={(e) => setFormData({ ...formData, contactPreference: e.target.value as any })}
+                    >
+                      <option value="none">Não especificado</option>
+                      <option value="email">E-mail</option>
+                      <option value="phone">Telefone (Ligação)</option>
+                      <option value="whatsapp">WhatsApp (Mensagem)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações Internas</label>
+                  <textarea 
+                    rows={4}
+                    className="w-full p-4 rounded-2xl border border-slate-200 bg-white text-sm font-bold text-slate-700 focus:ring-4 focus:ring-primary/10 focus:border-primary outline-none transition-all resize-none placeholder:text-slate-300"
+                    placeholder="Detalhes relevantes, preferências de atendimento, histórico resumido..."
+                    value={formData.purchaseHistory}
+                    onChange={(e) => setFormData({ ...formData, purchaseHistory: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Pref. de Contato</label>
-                  <select 
-                    className="select-modern"
-                    value={formData.contactPreference}
-                    onChange={(e) => setFormData({ ...formData, contactPreference: e.target.value as any })}
-                  >
-                    <option value="none">Nenhuma</option>
-                    <option value="email">E-mail</option>
-                    <option value="phone">Telefone</option>
-                    <option value="whatsapp">WhatsApp</option>
-                  </select>
-                </div>
               </div>
-
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Histórico de Compras / Notas</label>
-                <textarea 
-                  rows={4}
-                  className="textarea-modern"
-                  placeholder="Detalhes sobre compras anteriores, preferências específicas..."
-                  value={formData.purchaseHistory}
-                  onChange={(e) => setFormData({ ...formData, purchaseHistory: e.target.value })}
-                />
-              </div>
-            </>
+            </div>
           )}
 
           <div className="pt-4 flex items-center gap-4">
-            <button 
-              type="button"
+            <AppButton 
+              variant="secondary"
               onClick={closeModal}
-              className="flex-1 px-6 py-4 border border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-all text-sm"
+              className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px]"
+              type="button"
             >
               Cancelar
-            </button>
-            <button 
+            </AppButton>
+            <AppButton 
               type="submit"
-              className="flex-1 px-6 py-4 bg-accent text-accent-foreground font-bold rounded-2xl hover:opacity-90 transition-all shadow-lg shadow-accent/20 text-sm"
+              className="flex-1 h-12 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20"
             >
               {editingClient ? 'Salvar Alterações' : 'Cadastrar Cliente'}
-            </button>
+            </AppButton>
           </div>
         </form>
-      </StandardDialog>
+      </AppDialog>
 
       {/* History Modal */}
       <ConfirmDialog
@@ -581,172 +580,158 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
         message="Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita."
       />
 
-      {isHistoryModalOpen && selectedClient && (
-        <StandardDialog isOpen={isHistoryModalOpen} onClose={closeHistory} maxWidth="max-w-4xl" showHeader={false}>
-          <div className="flex flex-col max-h-[90vh]">
-            <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-accent text-accent-foreground">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center text-2xl font-black">
+      <AppDialog 
+        isOpen={isHistoryModalOpen} 
+        onClose={closeHistory} 
+        title="Histórico Detalhado"
+        maxWidth="xl"
+      >
+        {selectedClient && (
+          <div className="space-y-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-8 bg-slate-900 dark:bg-black rounded-[2.5rem] text-white relative overflow-hidden group shadow-2xl">
+              <div className="relative z-10 flex items-center gap-6">
+                <div className="w-20 h-20 bg-white/10 backdrop-blur-xl rounded-3xl flex items-center justify-center text-3xl font-black text-white shadow-inner border border-white/10 group-hover:scale-105 transition-transform duration-500">
                   {selectedClient.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-2xl font-bold">{selectedClient.name}</h3>
-                  <div className="flex items-center gap-4 text-slate-400 text-sm mt-1">
-                    <span className="flex items-center gap-1"><Phone size={14} /> {formatPhone(selectedClient.phone)}</span>
-                    {selectedClient.email && <span className="flex items-center gap-1"><Mail size={14} /> {selectedClient.email}</span>}
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-2xl font-black tracking-tight font-display">{selectedClient.name}</h3>
+                    <StatusBadge 
+                      status={selectedClient.status} 
+                      label={selectedClient.status === 'active' ? 'Ativo' : 'Inativo'} 
+                      className="bg-white/10 text-white border-white/10"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-4 text-white/50 text-[10px] font-black uppercase tracking-widest">
+                    <span className="flex items-center gap-1.5"><Phone size={14} className="text-primary" /> {formatPhone(selectedClient.phone)}</span>
+                    {selectedClient.email && <span className="flex items-center gap-1.5"><Mail size={14} className="text-primary" /> {selectedClient.email}</span>}
                   </div>
                 </div>
               </div>
-              <button onClick={closeHistory} className="p-2 text-white/50 hover:text-white rounded-lg transition-colors">
-                <XCircle size={28} />
-              </button>
+              
+              <div className="relative z-10 flex items-center gap-3">
+                <div className="text-right hidden md:block">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Total Gasto</p>
+                  <p className="text-xl font-black text-primary font-display">
+                    {formatCurrency(clientOrders.reduce((acc, curr) => acc + (curr.valorTotal || 0), 0))}
+                  </p>
+                </div>
+                <div className="h-10 w-px bg-white/10 mx-2 hidden md:block" />
+                <div className="text-right">
+                  <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Ordens</p>
+                  <p className="text-xl font-black text-white font-display">{clientOrders.length}</p>
+                </div>
+              </div>
+
+              {/* Decorative background */}
+              <div className="absolute -top-24 -right-24 w-64 h-64 bg-primary/20 rounded-full blur-[100px] group-hover:scale-110 transition-transform duration-1000" />
+              <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500/10 rounded-full blur-[100px] group-hover:scale-110 transition-transform duration-1000" />
             </div>
 
-            <div className="flex-1 overflow-y-auto p-8 space-y-8">
-              {/* Contact Info Section */}
-              <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
-                    <Phone size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Telefone</p>
-                    <a href={`tel:${selectedClient.phone}`} className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors">
-                      {formatPhone(selectedClient.phone)}
-                    </a>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
-                    <Mail size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">E-mail</p>
-                    {selectedClient.email ? (
-                      <a href={`mailto:${selectedClient.email}`} className="text-sm font-bold text-slate-900 hover:text-slate-600 transition-colors truncate block max-w-[150px]">
-                        {selectedClient.email}
-                      </a>
-                    ) : (
-                      <span className="text-sm font-bold text-slate-400 italic">Não informado</span>
-                    )}
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
-                    <Calendar size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Aniversário</p>
-                    <span className="text-sm font-bold text-slate-900">
-                      {selectedClient.birthDate ? (isNaN(new Date(selectedClient.birthDate + 'T00:00:00').getTime()) ? 'Não informado' : format(new Date(selectedClient.birthDate + 'T00:00:00'), 'dd/MM/yyyy')) : 'Não informado'}
-                    </span>
-                  </div>
-                </div>
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center gap-4">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 border border-slate-100 shadow-sm">
-                    <CheckCircle2 size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pref. Contato</p>
-                    <span className="text-sm font-bold text-slate-900 capitalize">
-                      {(!selectedClient.contactPreference || (selectedClient.contactPreference as any) === 'none') ? 'Não informado' : selectedClient.contactPreference}
-                    </span>
-                  </div>
-                </div>
-              </section>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-primary transition-colors">Telefone</p>
+                <p className="text-sm font-black text-slate-900">{formatPhone(selectedClient.phone)}</p>
+              </div>
+              <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-primary transition-colors">E-mail</p>
+                <p className="text-sm font-black text-slate-900 truncate">{selectedClient.email || 'Não informado'}</p>
+              </div>
+              <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-primary transition-colors">Aniversário</p>
+                <p className="text-sm font-black text-slate-900">
+                  {selectedClient.birthDate ? formatSafeDate(selectedClient.birthDate) : 'Não informado'}
+                </p>
+              </div>
+              <div className="p-5 bg-slate-50 border border-slate-100 rounded-3xl hover:bg-white hover:shadow-xl hover:shadow-slate-200/50 transition-all group">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-hover:text-primary transition-colors">Pref. Contato</p>
+                <p className="text-sm font-black text-slate-900 capitalize">
+                  {(!selectedClient.contactPreference || (selectedClient.contactPreference as any) === 'none') ? 'Não informado' : selectedClient.contactPreference}
+                </p>
+              </div>
+            </div>
 
-              {/* Purchase History Section */}
-              {selectedClient.purchaseHistory && (
-                <section className="space-y-4">
-                  <div className="flex items-center gap-2 text-slate-900">
-                    <History size={20} className="text-slate-400" />
-                    <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Histórico / Notas Adicionais</h4>
-                  </div>
-                  <div className="p-6 bg-slate-50 border border-slate-200 rounded-2xl text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
-                    {selectedClient.purchaseHistory}
-                  </div>
-                </section>
-              )}
-
-              {/* Vehicles Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-900">
-                  <Car size={20} className="text-slate-400" />
-                  <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Veículos Associados</h4>
+            {selectedClient.purchaseHistory && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 px-1">
+                  <div className="w-1.5 h-4 bg-primary rounded-full" />
+                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Notas e Observações</h4>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-6 bg-amber-50/50 border border-amber-100 rounded-3xl text-sm font-bold text-amber-900/70 whitespace-pre-wrap leading-relaxed italic">
+                  "{selectedClient.purchaseHistory}"
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-1 space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <Car size={16} className="text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Veículos ({clientVehicles.length})</h4>
+                  </div>
+                </div>
+                <div className="space-y-3">
                   {clientVehicles.length > 0 ? clientVehicles.map(vehicle => (
-                    <div key={vehicle.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{vehicle.brand}</span>
-                        <span className="px-2 py-0.5 bg-accent text-accent-foreground text-[10px] font-bold rounded uppercase tracking-wider">{vehicle.plate}</span>
+                    <div key={vehicle.id} className="p-4 bg-white border border-slate-100 rounded-2xl flex items-center justify-between hover:shadow-lg hover:shadow-slate-200/50 transition-all group">
+                      <div>
+                        <h5 className="text-xs font-black text-slate-900 group-hover:text-primary transition-colors">{vehicle.model}</h5>
+                        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{vehicle.brand} • {vehicle.year}</p>
                       </div>
-                      <h5 className="font-bold text-slate-900">{vehicle.model}</h5>
-                      <p className="text-xs text-slate-500 mt-1">{vehicle.year} • {vehicle.color}</p>
+                      <span className="px-2.5 py-1 bg-slate-900 text-white text-[10px] font-black rounded-lg uppercase tracking-widest shadow-sm">
+                        {vehicle.plate}
+                      </span>
                     </div>
                   )) : (
-                    <div className="col-span-full py-8 text-center text-slate-400 italic bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                      Nenhum veículo cadastrado para este cliente.
+                    <div className="py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                      Nenhum veículo
                     </div>
                   )}
                 </div>
-              </section>
+              </div>
 
-              {/* Service History Section */}
-              <section className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-900">
-                  <ClipboardList size={20} className="text-slate-400" />
-                  <h4 className="text-lg font-bold uppercase tracking-widest text-sm">Histórico de Ordens de Serviço</h4>
+              <div className="lg:col-span-2 space-y-4">
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2">
+                    <ClipboardList size={16} className="text-primary" />
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Histórico de OS</h4>
+                  </div>
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                  <table className="w-full text-left text-sm">
+                <div className="bg-white border border-slate-100 rounded-3xl overflow-hidden shadow-sm">
+                  <table className="w-full text-left text-xs">
                     <thead>
-                      <tr className="bg-slate-50 text-slate-400 text-[10px] font-bold uppercase tracking-widest border-b border-slate-200">
-                        <th className="px-6 py-3">Data</th>
-                        <th className="px-6 py-3">Veículo</th>
-                        <th className="px-6 py-3">Serviços</th>
-                        <th className="px-6 py-3">Status</th>
-                        <th className="px-6 py-3 text-right">Valor Total</th>
+                      <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                        <th className="px-6 py-4">Data</th>
+                        <th className="px-6 py-4">Veículo</th>
+                        <th className="px-6 py-4">Status</th>
+                        <th className="px-6 py-4 text-right">Valor</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {clientOrders.length > 0 ? clientOrders.map(order => {
                         const vehicle = clientVehicles.find(v => v.id === order.veiculoId);
                         return (
-                          <tr key={order.id} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 text-slate-500">{order.createdAt ? (isNaN(new Date(order.createdAt).getTime()) ? 'N/A' : format(new Date(order.createdAt), 'dd/MM/yy')) : 'N/A'}</td>
+                          <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-6 py-4 font-bold text-slate-500">{formatSafeDate(order.createdAt, 'dd/MM/yy')}</td>
                             <td className="px-6 py-4">
-                              <div className="font-bold text-slate-900">{vehicle?.model || 'Desconhecido'}</div>
-                              <div className="text-[10px] text-slate-400 uppercase">{vehicle?.plate}</div>
+                              <div className="font-black text-slate-900 group-hover:text-primary transition-colors">{vehicle?.model || 'Desconhecido'}</div>
+                              <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{vehicle?.plate}</div>
                             </td>
                             <td className="px-6 py-4">
-                              <div className="flex flex-wrap gap-1">
-                                {order.servicos?.map((s, i) => (
-                                  <span key={i} className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] rounded border border-slate-200">
-                                    {s.name}
-                                  </span>
-                                ))}
-                              </div>
+                              <StatusBadge 
+                                status={order.status === 'finalizada' ? 'paid' : order.status === 'cancelada' ? 'cancelled' : 'pending'} 
+                                label={order.status === 'finalizada' ? 'Finalizada' : order.status === 'cancelada' ? 'Cancelada' : 'Aberta'}
+                                className="scale-90 origin-left"
+                              />
                             </td>
-                            <td className="px-6 py-4">
-                              <span className={cn(
-                                "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                                order.status === 'finalizada' ? "bg-green-50 text-green-600" :
-                                order.status === 'cancelada' ? "bg-red-50 text-red-600" :
-                                "bg-blue-50 text-blue-600"
-                              )}>
-                                {order.status === 'finalizada' ? 'Finalizada' : 
-                                 order.status === 'cancelada' ? 'Cancelada' : 'Em Aberto'}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-slate-900">
+                            <td className="px-6 py-4 text-right font-black text-slate-900">
                               {formatCurrency(order.valorTotal)}
                             </td>
                           </tr>
                         );
                       }) : (
                         <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic">
+                          <td colSpan={4} className="px-6 py-12 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
                             Nenhuma ordem de serviço encontrada.
                           </td>
                         </tr>
@@ -754,20 +739,17 @@ const Clients: React.FC<ClientsProps> = ({ setActiveTab }) => {
                     </tbody>
                   </table>
                 </div>
-              </section>
+              </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50 flex justify-end">
-              <button 
-                onClick={closeHistory}
-                className="px-8 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
-              >
+            <div className="flex justify-end pt-4">
+              <AppButton variant="secondary" onClick={closeHistory} className="h-12 px-8 rounded-2xl font-black uppercase tracking-widest text-[10px]">
                 Fechar Histórico
-              </button>
+              </AppButton>
             </div>
           </div>
-        </StandardDialog>
-      )}
+        )}
+      </AppDialog>
     </PageContainer>
   );
 };

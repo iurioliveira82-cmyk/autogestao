@@ -28,8 +28,11 @@ import { formatCurrency, cn, handleFirestoreError } from '../../utils';
 import { toast } from 'sonner';
 import { PageHeader } from '../../components/ui/PageHeader';
 import { SearchBar } from '../../components/ui/SearchBar';
-import { Button } from '../../components/ui/Button';
-import { Modal } from '../../components/ui/Card';
+import { AppButton } from '../../components/ui/AppButton';
+import { AppCard } from '../../components/ui/AppCard';
+import { AppInput } from '../../components/ui/AppInput';
+import { AppDialog } from '../../components/ui/AppDialog';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { generateAIResponse } from '../../services/gemini';
 import { motion, AnimatePresence } from 'motion/react';
@@ -308,9 +311,10 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         title="Inventário" 
         description="Controle seu estoque de peças e suprimentos."
         action={canCreate && (
-          <Button onClick={() => openModal()} variant="primary" icon={<Plus size={18} />}>
+          <AppButton onClick={() => openModal()} variant="primary">
+            <Plus size={18} className="mr-2" />
             Novo Produto
-          </Button>
+          </AppButton>
         )}
       />
 
@@ -322,17 +326,20 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           onClear={() => setSearchTerm('')}
         />
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Button variant="outline" icon={<Filter size={18} />} className="flex-1 sm:flex-none">Filtros</Button>
+          <AppButton variant="secondary" className="flex-1 sm:flex-none">
+            <Filter size={18} className="mr-2" />
+            Filtros
+          </AppButton>
           {lowStockItems.length > 0 && (
-            <Button 
-              variant="outline" 
-              icon={isGeneratingAI ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} className="text-amber-400" />}
+            <AppButton 
+              variant="secondary" 
               onClick={handleGenerateAISuggestion}
               disabled={isGeneratingAI}
               className="flex-1 sm:flex-none"
             >
+              {isGeneratingAI ? <Loader2 size={18} className="animate-spin mr-2" /> : <Sparkles size={18} className="text-amber-400 mr-2" />}
               IA: Reposição
-            </Button>
+            </AppButton>
           )}
         </div>
       </div>
@@ -341,14 +348,14 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-accent/5 border border-accent/20 rounded-3xl p-6 relative overflow-hidden group"
+          className="bg-primary/5 border border-primary/20 rounded-3xl p-6 relative overflow-hidden group"
         >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <Sparkles size={120} className="text-accent" />
+            <Sparkles size={120} className="text-primary" />
           </div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2 text-accent">
+              <div className="flex items-center gap-2 text-primary">
                 <Sparkles size={20} />
                 <span className="text-xs font-black uppercase tracking-widest">Sugestões Inteligentes de Reposição</span>
               </div>
@@ -362,18 +369,16 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {aiSuggestions.map((suggestion, idx) => (
-                <div key={idx} className="bg-white border border-slate-100 p-4 rounded-2xl shadow-sm hover:shadow-md transition-all">
+                <AppCard key={idx} className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <h5 className="text-xs font-black text-slate-900 uppercase tracking-tight line-clamp-1">{suggestion.itemName}</h5>
-                    <span className="bg-accent/10 text-accent text-[10px] font-black px-2 py-0.5 rounded-lg">
-                      +{suggestion.suggestedQuantity}
-                    </span>
+                    <StatusBadge variant="primary" className="text-[10px]" label={`+${suggestion.suggestedQuantity}`} />
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed italic mb-3">
                     {suggestion.reasoning}
                   </p>
-                  <Button 
-                    variant="outline" 
+                  <AppButton 
+                    variant="secondary" 
                     size="sm" 
                     className="w-full text-[9px] h-8"
                     onClick={() => {
@@ -382,26 +387,25 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     }}
                   >
                     Ver Produto
-                  </Button>
-                </div>
+                  </AppButton>
+                </AppCard>
               ))}
             </div>
             
-            <div className="mt-6 pt-4 border-t border-accent/10 flex items-center justify-between">
+            <div className="mt-6 pt-4 border-t border-primary/10 flex items-center justify-between">
               <p className="text-[10px] text-slate-400 font-medium italic">
                 * As sugestões são baseadas na curva ABC e níveis de estoque atuais.
               </p>
-              <Button 
+              <AppButton 
                 variant="primary" 
                 size="sm" 
                 className="text-[10px] h-8"
                 onClick={() => {
-                  // In a real app, this could open a Purchase Order modal pre-filled with these items
                   toast.info('Funcionalidade de Pedido de Compra Automático em desenvolvimento.');
                 }}
               >
                 Gerar Pedido de Compra
-              </Button>
+              </AppButton>
             </div>
           </div>
         </motion.div>
@@ -409,7 +413,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
 
       {/* Stats Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="modern-card p-6 flex items-center gap-4">
+        <AppCard className="p-6 flex items-center gap-4">
           <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center">
             <Package size={24} />
           </div>
@@ -417,8 +421,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Itens</p>
             <h4 className="text-xl font-black text-slate-900">{items.length}</h4>
           </div>
-        </div>
-        <div className="modern-card p-6 flex items-center gap-4">
+        </AppCard>
+        <AppCard className="p-6 flex items-center gap-4">
           <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center">
             <DollarSign size={24} />
           </div>
@@ -428,8 +432,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               {formatCurrency(items.reduce((acc, item) => acc + (item.quantidadeAtual * (item.custoMedio || 0)), 0))}
             </h4>
           </div>
-        </div>
-        <div className="modern-card p-6 flex items-center gap-4">
+        </AppCard>
+        <AppCard className="p-6 flex items-center gap-4">
           <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
             <AlertTriangle size={24} />
           </div>
@@ -439,8 +443,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               {items.filter(i => i.quantidadeAtual <= (i.estoqueMinimo || 0)).length}
             </h4>
           </div>
-        </div>
-        <div className="modern-card p-6 flex items-center gap-4">
+        </AppCard>
+        <AppCard className="p-6 flex items-center gap-4">
           <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
             <Layers size={24} />
           </div>
@@ -450,7 +454,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               {new Set(items.map(i => i.category)).size}
             </h4>
           </div>
-        </div>
+        </AppCard>
       </div>
 
       {/* Inventory Grid */}
@@ -458,7 +462,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
         {loading ? (
           <div className="col-span-full py-20 text-center">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <p className="text-slate-400 text-sm italic">Carregando inventário...</p>
             </div>
           </div>
@@ -466,10 +470,10 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           const isLow = item.quantidadeAtual <= (item.estoqueMinimo || 0);
           
           return (
-            <div 
+            <AppCard 
               key={item.id} 
               className={cn(
-                "modern-card group relative overflow-hidden",
+                "group relative overflow-hidden p-6",
                 isLow && "border-red-200 bg-red-50/30"
               )}
             >
@@ -477,7 +481,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 <div className="flex items-center gap-4">
                   <div className={cn(
                     "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform",
-                    isLow ? "bg-red-100 text-red-600" : "bg-accent text-accent-foreground"
+                    isLow ? "bg-red-100 text-red-600" : "bg-primary text-white"
                   )}>
                     <Package size={28} />
                   </div>
@@ -486,14 +490,11 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                     <div className="flex items-center gap-2">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category || 'Sem Categoria'}</p>
                       {item.abcCategory && (
-                        <span className={cn(
-                          "px-1.5 py-0.5 rounded text-[8px] font-black uppercase",
-                          item.abcCategory === 'A' ? "bg-green-100 text-green-700" :
-                          item.abcCategory === 'B' ? "bg-blue-100 text-blue-700" :
-                          "bg-slate-100 text-slate-700"
-                        )}>
-                          Curva {item.abcCategory}
-                        </span>
+                        <StatusBadge 
+                          variant={item.abcCategory === 'A' ? 'success' : item.abcCategory === 'B' ? 'primary' : 'secondary'} 
+                          className="text-[8px]"
+                          label={`Curva ${item.abcCategory}`}
+                        />
                       )}
                     </div>
                   </div>
@@ -502,7 +503,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   {setActiveTab && (
                     <button 
                       onClick={() => setActiveTab('stock', item.id)}
-                      className="p-2 text-accent hover:bg-accent/10 rounded-xl transition-all"
+                      className="p-2 text-primary hover:bg-primary/10 rounded-xl transition-all"
                       title="Lançar Estoque"
                     >
                       <ArrowUpCircle size={16} />
@@ -511,7 +512,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                   {canEdit && (
                     <button 
                       onClick={() => openModal(item)}
-                      className="p-2 text-slate-400 hover:text-accent hover:bg-slate-100 rounded-xl transition-all"
+                      className="p-2 text-slate-400 hover:text-primary hover:bg-slate-100 rounded-xl transition-all"
                     >
                       <Edit2 size={16} />
                     </button>
@@ -571,7 +572,7 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
                 <History size={14} />
                 Histórico de Movimentações
               </button>
-            </div>
+            </AppCard>
           );
         }) : (
           <div className="col-span-full py-20 text-center">
@@ -584,47 +585,49 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
       </div>
 
       {/* Modal Form */}
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={editingItem ? 'Editar Produto' : 'Novo Produto'}>
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <AppDialog 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+        title={editingItem ? 'Editar Produto' : 'Novo Produto'}
+        footer={
+          <div className="flex items-center gap-4 w-full">
+            <AppButton onClick={closeModal} variant="secondary" className="flex-1">
+              Cancelar
+            </AppButton>
+            <AppButton onClick={() => document.getElementById('inventory-form')?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))} variant="primary" className="flex-1">
+              {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
+            </AppButton>
+          </div>
+        }
+      >
+        <form id="inventory-form" onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nome do Produto</label>
-              <input 
-                type="text" 
-                required
-                className="input-modern"
-                placeholder="Ex: Óleo 5W30"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">SKU / Código</label>
-              <input 
-                type="text" 
-                className="input-modern"
-                placeholder="Ex: OLE-5W30-001"
-                value={formData.sku}
-                onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Nome do Produto"
+              required
+              placeholder="Ex: Óleo 5W30"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+            <AppInput 
+              label="SKU / Código"
+              placeholder="Ex: OLE-5W30-001"
+              value={formData.sku}
+              onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Código de Barras</label>
-              <input 
-                type="text" 
-                className="input-modern"
-                placeholder="EAN-13"
-                value={formData.barcode}
-                onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Código de Barras"
+              placeholder="EAN-13"
+              value={formData.barcode}
+              onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+            />
             <div className="space-y-2">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Unidade</label>
               <select 
-                className="select-modern"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
                 value={formData.unit}
                 onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
               >
@@ -639,84 +642,64 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Quantidade Atual</label>
-              <input 
-                type="number" 
-                required
-                step="0.01"
-                className="input-modern"
-                placeholder="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Estoque Mínimo</label>
-              <input 
-                type="number" 
-                step="0.01"
-                className="input-modern"
-                placeholder="0"
-                value={formData.minQuantity}
-                onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Quantidade Atual"
+              type="number"
+              required
+              step="0.01"
+              placeholder="0"
+              value={formData.quantity}
+              onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
+            />
+            <AppInput 
+              label="Estoque Mínimo"
+              type="number"
+              step="0.01"
+              placeholder="0"
+              value={formData.minQuantity}
+              onChange={(e) => setFormData({ ...formData, minQuantity: e.target.value })}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Preço Venda (R$)</label>
-              <input 
-                type="number" 
-                required
-                step="0.01"
-                className="input-modern"
-                placeholder="0.00"
-                value={formData.precoVenda}
-                onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Custo (R$)</label>
-              <input 
-                type="number" 
-                step="0.01"
-                className="input-modern"
-                placeholder="0.00"
-                value={formData.custoMedio}
-                onChange={(e) => setFormData({ ...formData, custoMedio: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Preço Venda (R$)"
+              type="number"
+              required
+              step="0.01"
+              placeholder="0.00"
+              value={formData.precoVenda}
+              onChange={(e) => setFormData({ ...formData, precoVenda: e.target.value })}
+            />
+            <AppInput 
+              label="Custo (R$)"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.custoMedio}
+              onChange={(e) => setFormData({ ...formData, custoMedio: e.target.value })}
+            />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Categoria</label>
-              <input 
-                type="text" 
-                className="input-modern"
-                placeholder="Ex: Peças, Fluidos..."
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Localização</label>
-              <input 
-                type="text" 
-                className="input-modern"
-                placeholder="Ex: Prateleira A1"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              />
-            </div>
+            <AppInput 
+              label="Categoria"
+              placeholder="Ex: Peças, Fluidos..."
+              value={formData.category}
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+            />
+            <AppInput 
+              label="Localização"
+              placeholder="Ex: Prateleira A1"
+              value={formData.location}
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+            />
           </div>
 
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fornecedor</label>
             <select 
-              className="select-modern"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary focus:border-transparent transition-all outline-none"
               value={formData.fornecedorId}
               onChange={(e) => setFormData({ ...formData, fornecedorId: e.target.value })}
             >
@@ -726,17 +709,8 @@ const Inventory: React.FC<{ setActiveTab?: (tab: string, itemId?: string, suppli
               ))}
             </select>
           </div>
-
-          <div className="pt-4 flex items-center gap-4">
-            <Button type="button" onClick={closeModal} variant="outline" className="flex-1">
-              Cancelar
-            </Button>
-            <Button type="submit" variant="primary" className="flex-1">
-              {editingItem ? 'Salvar Alterações' : 'Cadastrar Produto'}
-            </Button>
-          </div>
         </form>
-      </Modal>
+      </AppDialog>
 
       <ConfirmDialog
         isOpen={isDeleteModalOpen}

@@ -50,6 +50,7 @@ export interface UserPermissions {
   fiscal: ModulePermissions;
   analytics: ModulePermissions;
   automations: ModulePermissions;
+  leads: ModulePermissions;
 }
 
 export interface UserProfile {
